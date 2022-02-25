@@ -38,10 +38,10 @@ ZZ1[is.na(ZZ1)] <- 0
 data <- list(une = c(une,NA), #unemployment
              PDI = PDI, #personal disposable income
              GAS = GAS, #gas prices
-             z = abind(hunters,array(NA, dim = c(7,4,2)) ,along = 2), #number of hunters (array = section)
-             ZZ = ZZ1,
-             res= scale(res)[,1],
-             wpdsi = data.matrix(abind(wpdsi,matrix(NA,1,2), along = 1)))
+             n.hunt = abind(hunters,array(NA, dim = c(7,4,2)) ,along = 2), #number of hunters (array = section)
+             ZZ = ZZ1, #Spline...things...?
+             res= scale(res)[,1], #residential license sailes
+             wpdsi = data.matrix(abind(wpdsi,matrix(NA,1,2), along = 1))) #drought metric
 
 
 ### Define Constants
@@ -68,10 +68,10 @@ constants <- list(      n.species = 7, #number of species
                         n.region = 2, #East versus West
                         n.year = cut+4, #Number of Years
                         mu.hunt = rep(0, 7), #mean change in harvest (0 centered)
-                        era = c(rep(1,19),rep(2, 27)), #?
+                        era = c(rep(1,19),rep(2, 27)), #Groupings for change in gas prices 
                         mean.H = apply(hunters, c(1,3), mean, na.rm = TRUE), # Mean Harvest
                         sd.H = apply(hunters, c(1,3), sd, na.rm = TRUE), # SD Harvest
-                        I = abind(I,I,along = 3)) #
+                        I = abind(I,I,along = 3)) #Identity Matrix
 
 ### Set Initial Values
 Hi <- hunters + 2500

@@ -103,11 +103,11 @@ upland <- upland[-c(4,8),,]
 df <- cbind.data.frame(year = c(1976:2017), chukar = c(upland[2,,1]), hunter = c(hunters[2,,1])) 
 
 #Show chukar and hunter numbers of time
-# ggplot(data = df) +
-#   geom_point(aes(x = year, y = log(chukar)), size = 3, shape = 21, fill = 'dodgerblue') +
-#   geom_point(aes(x = year, y = log(hunter)), size = 3, shape = 21, fill = 'goldenrod') +
-#   labs(y = 'Numbers of hunters and chukar (log-scaled)', x = 'Year') +
-#   theme_bw()
+ggplot(data = df) +
+  geom_point(aes(x = year, y = log(chukar)), size = 3, shape = 21, fill = 'dodgerblue') +
+  geom_point(aes(x = year, y = log(hunter)), size = 3, shape = 21, fill = 'goldenrod') +
+  labs(y = 'Numbers of hunters and chukar (log-scaled)', x = 'Year') +
+  theme_bw()
 
 #Change closed season values to NA
 upland[7,10,] <- NA # Season closed

@@ -26,14 +26,29 @@ out <- clusterEvalQ(cl, {
   model_test$simulate(c('sig', 'pred1', 'mu', 'une', 'wpdsi',  'beta.trend'))
   model_test$initializeInfo()
   model_test$calculate()
-  mcmcConf <-  configureMCMC( model_test,   monitors2 =  c('lbo1','beta.drought2','beta.jobs','wpdsi', 'une','GAS','PDI', 'REL.COST',
-                                                           'hunt.eps', 'H','mu','rho','pred1','ar1', 'beta.income',
-                                                           'lambda1', 'beta.trend', 'beta.general'))
+  mcmcConf <-  configureMCMC( model_test,   monitors2 =  c('lbo1', #regression intercept?
+                                                           'beta.trend', #Spline smoothing factor
+                                                           'beta.general', #general license sales
+                                                           'beta.drought2', #Change in hunters associated with drought
+                                                           'beta.jobs', #Change in hunters associated with employment
+                                                           'beta.income',
+                                                           'wpdsi', #drought conditions
+                                                           'une', #unemployment
+                                                           'GAS', #gas price
+                                                           'PDI', #personal disposable income
+                                                           'REL.COST', #GAS/PDI
+                                                           'hunt.eps', # lambda for poisson describing Hunter numbers(unlinked regression output)
+                                                           'H', #log(hunt.eps)
+                                                           'mu', #mean lambda for poisson dscribing hunter numbers 
+                                                           'rho', #correlation coefficent
+                                                           'pred1', #Spline smoothing 
+                                                           'ar1', #change in PDI over time?
+                                                           'lambda1')) #Change in hunter numbers
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 10, niter = 100, thin = 1, thin2 = 1)
+  samplesList <- runMCMC(Cmcmc,nburnin = 100, niter = 1000, thin = 1, thin2 = 1)
   
   return(samplesList)
 })
