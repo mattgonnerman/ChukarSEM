@@ -31,7 +31,7 @@ out <- clusterEvalQ(cl, {
                                                            'beta.general', #general license sales
                                                            'beta.drought2', #Change in hunters associated with drought
                                                            'beta.jobs', #Change in hunters associated with employment
-                                                           'beta.income',
+                                                           'beta.income', #Change in relative cost of gas
                                                            'wpdsi', #drought conditions
                                                            'une', #unemployment
                                                            'GAS', #gas price
@@ -48,7 +48,7 @@ out <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 100, niter = 1000, thin = 1, thin2 = 1)
+  samplesList <- runMCMC(Cmcmc,nburnin = 4000, niter = 6000, thin = 1, thin2 = 1)
   
   return(samplesList)
 })

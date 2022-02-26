@@ -1,13 +1,8 @@
-### Final Data Prep
-nseg <- 10
-
-BM1 <- array(NA, dim = c(cut+4,nseg+3,7,2))
-Z1  <- array(NA, dim = c(cut+4,nseg+2,7,2))
-D1 <- diff(diag(ncol(BM1[,,1,1])), diff = 1)
-Q1 <- t(D1) %*% solve(D1 %*% t(D1))
-
+### Prepare Final Data Inputs
+## Splines
 require(splines)
-### UNSURE WHAT FUNCTION DOES
+### Function that Constructs B-Spline Base
+### from? = https://github.com/andrewcparnell/jags_examples/blob/master/R%20Code/jags_spline.R
 bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg = 5, deg = 3) {
   # Compute the length of the partitions
   dx <- (xr - xl) / nseg
@@ -21,6 +16,11 @@ bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg
   return(bs_matrix)
 }
 
+nseg <- 10
+BM1 <- array(NA, dim = c(cut+4,nseg+3,7,2))
+Z1  <- array(NA, dim = c(cut+4,nseg+2,7,2))
+D1 <- diff(diag(ncol(BM1[,,1,1])), diff = 1)
+Q1 <- t(D1) %*% solve(D1 %*% t(D1))
 time <- 1:(cut+4)
 for(i in 1:7){
   for(j in 1:2){
@@ -63,15 +63,7 @@ Sigma = Lambda %*% P %*% Lambda
 
 Sigma = Matrix::nearPD(Sigma, corr = FALSE,doSym = TRUE)
 
-constants <- list(      n.species = 7, #number of species
-                        K= 12, #number of knots for spline
-                        n.region = 2, #East versus West
-                        n.year = cut+4, #Number of Years
-                        mu.hunt = rep(0, 7), #mean change in harvest (0 centered)
-                        era = c(rep(1,19),rep(2, 27)), #Groupings for change in gas prices 
-                        mean.H = apply(hunters, c(1,3), mean, na.rm = TRUE), # Mean Harvest
-                        sd.H = apply(hunters, c(1,3), sd, na.rm = TRUE), # SD Harvest
-                        I = abind(I,I,along = 3)) #Identity Matrix
+
 
 ### Set Initial Values
 Hi <- hunters + 2500
@@ -86,8 +78,12 @@ PDI.inits <- ifelse(is.na(PDI) == TRUE, mean(PDI, na.rm = TRUE), PDI)
 GAS.inits <- ifelse(is.na(GAS) == TRUE, 0.9, GAS)
 
 initsFunction <- function() list( 
-  beta.drought2 = matrix(0, 7, 2), mu.drought2 = c(0,0), sig.drought2 = c(1,1),
-  beta.jobs = matrix(0, 7, 2), mu.jobs = c(0,0), sig.jobs = c(1,1),
+  beta.drought2 = matrix(0, 7, 2), 
+  mu.drought2 = c(0,0), 
+  sig.drought2 = c(1,1),
+  beta.jobs = matrix(0, 7, 2), 
+  mu.jobs = c(0,0), 
+  sig.jobs = c(1,1),
   
   X0 = matrix(5, ncol = 2, nrow = 7), 
   theta2 = rep(1,13),
@@ -102,22 +98,17 @@ initsFunction <- function() list(
 
 inits <- initsFunction()
 
+### Specify Constants for model
+constants <- list(      n.species = 7, #number of species
+                        K= 12, #number of knots for spline
+                        n.region = 2, #East versus West
+                        n.year = cut+4, #Number of Years
+                        mu.hunt = rep(0, 7), #mean change in harvest (0 centered)
+                        era = c(rep(1,19),rep(2, 27)), #Groupings for change in gas prices 
+                        mean.H = apply(hunters, c(1,3), mean, na.rm = TRUE), # Mean Harvest
+                        sd.H = apply(hunters, c(1,3), sd, na.rm = TRUE), # SD Harvest
+                        I = abind(I,I,along = 3)) #Identity Matrix
+
 
 ### Set Parameter Monitors
 pars1 <- c('b0')
-
-###################################
-
-### Unsure what function does, doesn't appear to be used anywhwere in original code
-# Posdef <- function (n, ev = runif(n, 0, 10)) 
-# {
-#   Z <- matrix(ncol=n, rnorm(n^2))
-#   decomp <- qr(Z)
-#   Q <- qr.Q(decomp) 
-#   R <- qr.R(decomp)
-#   d <- diag(R)
-#   ph <- d / abs(d)
-#   O <- Q %*% diag(ph)
-#   Z <- t(O) %*% diag(ev) %*% O
-#   return(Z)
-# }

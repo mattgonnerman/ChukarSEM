@@ -1,5 +1,9 @@
-hunters.prime   <- MCMCpstr(mcmcList2, 'H')$H
-nseg <- 10
+### Prepare Final Data Inputs
+## Splines
+# Hunter Numbers
+hunter.prime   <- MCMCpstr(mcmcList2, 'H')$H #Extract hunter lambdas from Model1
+
+nseg <- 10 #Number of spline segments
 BM <- array(NA, dim = c(cut+4,nseg+3,7,2))
 Z  <- array(NA, dim = c(cut+4,nseg+2,7,2))
 D <- diff(diag(ncol(BM[,,1,1])), diff = 1)
@@ -7,7 +11,7 @@ Q <- t(D) %*% solve(D %*% t(D))
 
 for(i in 1:7){
   for(j in 1:2){
-    BM[,,i,j] <- bs_bbase(hunters.prime[i,,j], nseg = 10)
+    BM[,,i,j] <- bs_bbase(hunter.prime[i,,j], nseg = 10)
     Z[,,i,j] <-  BM[,,i,j]%*% Q
   }
 }
@@ -15,58 +19,13 @@ for(i in 1:7){
 ZZ <- Z
 ZZ[is.na(ZZ)] <- 0
 
-
-# Posdef <- function (n, ev = runif(n, 0, 10)) 
-# {
-#   Z <- matrix(ncol=n, rnorm(n^2))
-#   decomp <- qr(Z)
-#   Q <- qr.Q(decomp) 
-#   R <- qr.R(decomp)
-#   d <- diag(R)
-#   ph <- d / abs(d)
-#   O <- Q %*% diag(ph)
-#   Z <- t(O) %*% diag(ev) %*% O
-#   return(Z)
-# }
-
-library(splines)
-bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg = 5, deg = 3) {
-  # Compute the length of the partitions
-  dx <- (xr - xl) / nseg
-  # Create equally spaced knots
-  knots <- seq(xl - deg * dx, xr + deg * dx, by = dx)
-  # Use bs() function to generate the B-spline basis
-  get_bs_matrix <- matrix(bs(x, knots = knots, degree = deg, Boundary.knots = c(knots[1], knots[length(knots)])), nrow = length(x))
-  # Remove columns that contain zero only
-  bs_matrix <- get_bs_matrix[, -c(1:deg, ncol(get_bs_matrix):(ncol(get_bs_matrix) - deg))]
-  
-  return(bs_matrix)
-}
-
-nseg <- 10
-BM <- array(NA, dim = c(cut+4,nseg+3,7,2))
-Z  <- array(NA, dim = c(cut+4,nseg+2,7,2))
-D <- diff(diag(ncol(BM[,,1,1])), diff = 1)
-Q <- t(D) %*% solve(D %*% t(D))
-
-hunter.prime <- abind(hunters, array(NA, dim = c(7,4,2)),along = 2)
-
-for(i in 1:7){
-  for(j in 1:2){
-    BM[,,i,j] <- bs_bbase(hunter.prime[i,1:(cut+4),j], nseg = 10)
-    Z[,,i,j] <-  BM[,,i,j]%*% Q
-  }
-}
-
-ZZ <- Z
-ZZ[is.na(ZZ)] <- 0
+# Time?
+time <- 1:(cut+4)
 
 BM1 <- array(NA, dim = c(cut+4,nseg+3,7,2))
 Z1  <- array(NA, dim = c(cut+4,nseg+2,7,2))
 D1 <- diff(diag(ncol(BM1[,,1,1])), diff = 1)
 Q1 <- t(D1) %*% solve(D1 %*% t(D1))
-
-time <- 1:(cut+4)
 
 for(i in 1:7){
   for(j in 1:2){
@@ -78,6 +37,8 @@ for(i in 1:7){
 ZZ1 <- Z1
 ZZ1[is.na(ZZ1)] <- 0
 
+
+###
 chukar <- df_ch[,-c(1:19)]
 
 library(LaplacesDemon)
@@ -110,25 +71,35 @@ for (j in 1:n.species){
 P2 = Delta2 %*% Q2 %*% Delta2
 Sigma2 = Lambda2 %*% P2 %*% Lambda2
 
-constants <- list(      n.species = 7, K= 12,
-                        n.region = 2,
-                        n.year = cut+4,
-                        mu.hunt = rep(0, 7),
-                        mu.bird = rep(0, 7),
-                        n.site = 13, diff = 14,
-                        n.yr = ncol(chukar),
-                        mean.H = apply(hunter.prime, c(1,3), mean, na.rm = TRUE),
-                        sd.H = apply(hunter.prime, c(1,3), sd, na.rm = TRUE),
-                        I = abind(I,I,along = 3), I2 =abind(I2,I2,along = 3))
-
-data <- list(y = abind(upland,array(NA, dim = c(7,4,2)) ,along = 2),  une = c(une,NA),
-             z = abind(hunters,array(NA, dim = c(7,4,2)) ,along = 2), 
-             Z = ZZ, ZZ = ZZ1, 
+### Package Data for model
+data <- list(n.harv = abind(upland,array(NA, dim = c(7,4,2)) ,along = 2), #Number harvested
+             une = c(une,NA),
+             n.hunter = abind(hunters,array(NA, dim = c(7,4,2)) ,along = 2), 
+             Z = ZZ, 
+             ZZ = ZZ1, 
              pdsi = data.matrix(abind(pdsi,matrix(NA,2,2), along = 1)),
              wpdsi = data.matrix(abind(wpdsi,matrix(NA,1,2), along = 1)), 
-             x =  data.matrix(chukar))
+             n.chuk =  data.matrix(chukar))
 
-# Initial values
+
+### Specify Constants
+constants <- list(n.species = 7,
+                  K= 12,
+                  n.region = 2,
+                  n.year = cut+4,
+                  mu.hunt = rep(0, 7),
+                  mu.bird = rep(0, 7),
+                  n.site = 13,
+                  diff = 14,
+                  n.yr = ncol(chukar),
+                  mean.H = apply(hunter.prime, c(1,3), mean, na.rm = TRUE),
+                  sd.H = apply(hunter.prime, c(1,3), sd, na.rm = TRUE),
+                  I = abind(I,I,along = 3), 
+                  I2 =abind(I2,I2,along = 3)
+                  )
+
+
+### Specify Initial values
 Hi <- hunters + 2500
 Hi[,-1,] <- NA
 Hi[7,10,] <- rpois(2,colMeans(hunters[7,-10,]))
@@ -167,15 +138,21 @@ bird.inits[,,1:14] <- NA
 
 rho.hunt.init <- diag(7)
 
-# Initial values
+# Package Initial Values for NIMBLE
 initsFunction <- function() list( 
   phi = matrix(rbeta(14,1,1),7,2),
-  beta.drought = matrix(0, 7, 2), mu.drought = c(0,0), sig.drought = c(1,1),
-  beta.drought2 = matrix(0, 7, 2), mu.drought2 = c(0,0), sig.drought2 = c(1,1),
-  beta.jobs = matrix(0, 7, 2), mu.jobs = c(0,0), sig.jobs = c(1,1),
+  beta.drought = matrix(0, 7, 2), 
+  mu.drought = c(0,0), 
+  sig.drought = c(1,1),
+  beta.drought2 = matrix(0, 7, 2), 
+  mu.drought2 = c(0,0), 
+  sig.drought2 = c(1,1),
+  beta.jobs = matrix(0, 7, 2), 
+  mu.jobs = c(0,0), 
+  sig.jobs = c(1,1),
   
   C = chukar_na + 50,
-  x =  chukar_na,
+  n.chuk =  chukar_na,
   sigma.chuk = rep(1,13),
   
   X0 = matrix(5, ncol = 2, nrow = 7), 
@@ -197,7 +174,10 @@ initsFunction <- function() list(
   
   bird.eps = bird.inits,
   sig.bird =  matrix(.25, ncol = 7, nrow = 2),
-  N = Ni,  H = Hi, z= zi, y = yi,
+  N = Ni,  
+  H = Hi,
+  z= zi, 
+  y = yi,
   sig.pressure = matrix(1, ncol = 2, nrow = 7),  sig.trend = matrix(1, ncol = 2, nrow = 7),
   lbo1 = matrix(0, ncol = 2, nrow = 7),
   lbo = matrix(0, ncol = 2, nrow = 7),
@@ -212,22 +192,4 @@ initsFunction <- function() list(
   
   lambda = array(1, dim = c(7,cut+3,2) ),
   log.r  = array(0, dim = c(7,cut+3,2) )
-  
-  
-  
 )
-
-
-### Appears in Original Code but appears to not have a purpose ###
-# Posdef <- function (n, ev = runif(n, 0, 10)) 
-# {
-#   Z <- matrix(ncol=n, rnorm(n^2))
-#   decomp <- qr(Z)
-#   Q <- qr.Q(decomp) 
-#   R <- qr.R(decomp)
-#   d <- diag(R)
-#   ph <- d / abs(d)
-#   O <- Q %*% diag(ph)
-#   Z <- t(O) %*% diag(ev) %*% O
-#   return(Z)
-# }

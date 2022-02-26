@@ -33,7 +33,7 @@ out <- clusterEvalQ(cl, {
                                                            'beta.jobs',
                                                            'hunt.eps', 
                                                            'H',
-                                                           'bph',
+                                                           'bph', #birds per hunter
                                                            'mu',
                                                            'mu2',
                                                            'pred1',
@@ -54,7 +54,8 @@ out <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 250000, niter = 500000, thin = 10, thin2 = 10)
+  # samplesList <- runMCMC(Cmcmc,nburnin = 250000, niter = 500000, thin = 10, thin2 = 10)
+  samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 10, thin2 = 10)
   
   return(samplesList)
 })
@@ -80,8 +81,8 @@ mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
 
 
-mcmcList1 <- as.mcmc.list(lapply(list(samplesList $samples), mcmc))
-mcmcList2 <- as.mcmc.list(lapply(list(samplesList $samples2), mcmc))
+mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
+mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
 files <- list(mcmcList1,mcmcList2,code)
 save(files, file = 'ChukarSEM_model_output.rdata')
