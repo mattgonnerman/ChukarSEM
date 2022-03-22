@@ -1,3 +1,6 @@
+#Set Seed for Model Calibration
+set.seed(2)
+
 # Perform initial data cleanup and organization
 source("./ChukarSEM - 1 Data Prep.R")
 
