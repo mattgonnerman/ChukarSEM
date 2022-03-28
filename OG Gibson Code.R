@@ -56,7 +56,7 @@ ggplot(df_agg, aes(x = F.Year, y = m.PDSI, color = Season)) +
 
 setwd('E:/Maine Drive/Projects/Gibson Chukkar/Code')
 
-survey_data <- read.csv('Chukar_Surveys.csv')
+survey_data <- read.csv('Chukar_Surveys_data.csv')
 harvest_data <- read.csv('all_species_harvest_data.csv')
 harvest_data$Year <- as.numeric(as.character(harvest_data$Year))
 harvest_data$Animals <- as.numeric(as.character(harvest_data$Animals))

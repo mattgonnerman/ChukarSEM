@@ -222,3 +222,13 @@ sd_ratio <- 0.8894599
 
 #Calculate ratio of disposable income to gas price
 ratio <- PDI/GAS
+
+#Rabbit Harvest
+rabbits <- as.matrix(read.csv('./Data/all_species_harvest_data.csv') %>%
+  filter(Species == "RABBIT", Section !="Southern") %>%
+  select(Region = Section, Year, Rabbits = Animals) %>%
+  pivot_wider(values_from = "Rabbits", names_from = "Region") %>%
+  select(Eastern, Western))
+
+  
+  

@@ -1,12 +1,12 @@
 ### Matt's Reorganization
 code <- nimbleCode( {
-  ### Predictors (Change in Hunters)
+  ### Predictors
   #Personal Disposable Income
   b0.pdi ~ dnorm(0, 0.001) #intercept
   bt.pdi ~ dnorm(0, 0.01) #year
   sig.pdi~ T(dt(0, pow(2.5,-2), 1),0,)
 
-  ar1 ~ dunif(-1,1) #Change in PDI over time?
+  ar1 ~ dunif(-1,1) #Autoregressive parameter
 
   pdi.trend[1] <- b0.pdi + bt.pdi * 1
   mu.pdi[1] <- pdi.trend[1]
@@ -68,6 +68,7 @@ code <- nimbleCode( {
       ### Regression for Number Hunters
       for(t in 1:n.year){
         pred1[s,r,t] <- inprod(beta.trend[s,r,1:K], ZZ[t,1:K,s,r])
+        
         mu[s,r,t] <- lbo1[s,r] + #Intercept
           inprod(beta.trend[s,r,1:K], ZZ[t,1:K,s,r]) + #Spline smoothing terms
           beta.general[s,r] * res[t] + #Hunting Licences Sold

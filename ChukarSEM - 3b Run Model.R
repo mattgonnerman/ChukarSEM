@@ -5,11 +5,13 @@ start_time <- Sys.time()
 
 inits <- initsFunction()
 
+#Check Model before running fully
+
 
 library(parallel)
 library(coda)
 set.seed(2)
-nc <- 3    # number of chains
+nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000)
 clusterExport(cl, c("code", "inits", "data", "constants", "pars1"))
 for (j in seq_along(cl)) {
@@ -21,7 +23,10 @@ for (j in seq_along(cl)) {
 out <- clusterEvalQ(cl, {
   library(nimble)
   library(coda)
-  model_test <- nimbleModel( code = code, constants = constants,  data =  data, inits = inits )
+  model_test <- nimbleModel( code = code, 
+                             constants = constants,  
+                             data =  data, 
+                             inits = inits )
   
   mcmcConf <-  configureMCMC( model_test,   monitors2 =  c('lbo1',
                                                            'lbo',
@@ -55,7 +60,7 @@ out <- clusterEvalQ(cl, {
   Cmcmc    <- compileNimble(mcmc)
   
   # samplesList <- runMCMC(Cmcmc,nburnin = 250000, niter = 500000, thin = 10, thin2 = 10)
-  samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 10, thin2 = 10)
+  samplesList <- runMCMC(Cmcmc,nburnin = 2500, niter = 5000, thin = 10, thin2 = 10)
   
   return(samplesList)
 })

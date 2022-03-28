@@ -1,7 +1,7 @@
 ### Prepare Final Data Inputs
 ## Splines
 # Hunter Numbers
-hunter.prime   <- MCMCpstr(mcmcList2, 'H')$H #Extract hunter lambdas from Model1
+hunter.prime   <- MCMCpstr(mcmcList2, 'H')$H #Extract hunter numbers from Model1
 
 nseg <- 10 #Number of spline segments
 BM <- array(NA, dim = c(cut+4,nseg+3,7,2))
@@ -148,7 +148,7 @@ initsFunction <- function() list(
   mu.drought2 = c(0,0), 
   sig.drought2 = c(1,1),
   beta.jobs = matrix(0, 7, 2), 
-  mu.jobs = c(0,0), 
+  mu.jobs = c(0,0),
   sig.jobs = c(1,1),
   
   C = chukar_na + 50,
