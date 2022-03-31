@@ -8,28 +8,30 @@ lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimb
 
 ### Model
 code <- nimbleCode( {
+  ################################################################################
+  ### Sage Grouse Wing-Bee ###
   ### Chukar Site Abundance
-  for(r in 1:n.reg){
+  for(r in 1:n.region){
     theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB overdispersion parameter
     C.sg[r,1] ~ dpois(wing.b[r,1]) #Equivalent of Poisson lambda
     
-    lbo.sg[r] ~ dlogis(0,1) #Intercept for 
+    alpha.sg[r] ~ dlogis(0,1) #Intercept for
     sigma.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
     mod.sg[r] ~ dlogis(0,1)
     
-    for(t in 1:(n.years.sg-1)){
-      # sg.eps[r,t-1] <- dnorm(mod.sg[r] * log.r[3, t + ts.sg, 1], sd = sigma.sg[r]) 
-      sg.eps[r,t] ~ dnorm(mod.sg[r], sd = sigma.sg[r]) 
-      log.r.sg[r,t] <- lbo.sg[r] + sg.eps[r,t] #Variation in growth
-      lambda.sg[r,t] <- exp(log.r.sg[r,t]) # Tranform between finite and instantaneous growth rate
-    
-      C.sg[r,t+1] <- lambda.sg[r,t] * C.sg[r,t] #Change in Count over time
+    for(t in 2:n.years.sg){
+      mu.sg[r, t-1] <- mod.sg[r]
+      sg.eps[r,t-1] ~ dnorm(mu.sg[r, t-1], sd = sigma.sg[r])
       
-      rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + C.sg[r,t+1])
-      wing.b[r,t+1] ~ dnegbin(rate.sg[r,t], theta.sg[r])
+      log.r.sg[r,t-1] <- alpha.sg[r] + sg.eps[r,t-1] #Variation in growth
+      lambda.sg[r,t-1] <- exp(log.r.sg[r,t-1]) # Tranform between finite and instantaneous growth rate
       
-    } 
-  }
+      C.sg[r,t] <- lambda.sg[r,t-1] * C.sg[r,t-1] #Change in Count over time
+      
+      rate.sg[r,t-1] <- theta.sg[r]/(theta.sg[r] + C.sg[r,t]) #NB rate
+      wing.b[r,t] ~ dnegbin(rate.sg[r,t-1], theta.sg[r]) #Wing-Bee data follows negative binomial
+    } #t
+  } #r
 })
 
 
@@ -43,7 +45,7 @@ sg.wingb <- read.csv("./Data/SG_WingData_2004-2020.csv") %>%
   group_by(Region, Year) %>%
   summarize(Total.SG = sum(Total)) %>%
   pivot_wider(names_from = "Region", values_from = "Total.SG")
-  
+
 wing.b <- t(sg.wingb[,-1])
 n.years.sg <- ncol(wing.b)
 time.shift.sg <- min(sg.wingb$Year) - min(harvest_data$Year) - 1
@@ -53,40 +55,25 @@ data <- list(wing.b =  wing.b
 )
 
 ### Initial Values
-C.init <- matrix(NA, nrow = 2, ncol = n.years.sg)
-C.init[] <- wing.b[] + 50
+C.sg.i <- matrix(NA, nrow = 2, ncol = n.years.sg)
+C.sg.i[,1] <- floor(rowMeans(wing.b, na.rm = T))
 
-rate.sg.init <- 1/(1+wing.b[,1:(n.years.sg-1)])
-
-sg.eps.init <- matrix(0, nrow = 2, ncol = n.years.sg-1)
-
-inits <- list( 
-  C.sg = C.init,
-  log.r.sg =  matrix(1, nrow = 2, ncol = n.years.sg - 1),
+initsFunction <- function() list(   
+  ### Sage Grouse Wing-Bee
+  alpha.sg =  rep(0,2),
   theta.sg = rep(1,2),
-  lbo.sg =  rep(0,1),
-  mod.sg = rep(1,2),
   sigma.sg = rep(0,2),
-  rate.sg = rate.sg.init,
-  sg.eps = sg.eps.init
+  sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
+  C.sg = C.sg.i,
+  mod.sg = rep(1,2)
 )
+
+inits <- initsFunction()
 
 ### Contansts
 constants <- list(
   n.years.sg = n.years.sg,
-  ts.sg = time.shift.sg,
-  n.reg = 2
-)
-
-### Monitors
-pars1 <- c(
-  'lbo.sg', 
-  'sg.eps',
-  'C.sg', 
-  'lambda.sg',
-  'theta.sg',
-  'log.r.sg', 
-  'sigma.sg'
+  n.region = 2
 )
 
 ### MCMC
@@ -96,11 +83,14 @@ model_test <- nimbleModel( code = code,
                            constants = constants,
                            data =  data)
 
-model_test$simulate(pars1)
+model_test$simulate(c('log.r.sg',
+                      'C.sg'))
 model_test$initializeInfo()
 model_test$calculate()
 
 #Parallel Processing Setup
+start_time <- Sys.time()
+
 nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000)
 clusterExport(cl, c("code", "inits", "data", "constants", "pars1"))
@@ -123,7 +113,7 @@ out <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
- samplesList <- runMCMC(Cmcmc,nburnin = 500, niter = 10000, thin = 10, thin2 = 10)
+ samplesList <- runMCMC(Cmcmc,nburnin = 5000, niter = 10000, thin = 10, thin2 = 10)
   
   return(samplesList)
 })
@@ -145,11 +135,3 @@ samples1    <- list(chain1 =  out[[1]]$samples,
 
 mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
 mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
-
-
-
-mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
-mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
-
-files <- list(mcmcList1,mcmcList2,code)
-save(files, file = 'ChukarSEM_model_output.rdata')

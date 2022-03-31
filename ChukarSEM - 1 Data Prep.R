@@ -1,6 +1,6 @@
 # Load necessary packages
 lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimble",
-         "abind"),
+         "abind", "LaplacesDemon"),
        require, character.only = T) 
 
 
@@ -20,6 +20,13 @@ df_full <- data.frame("Population" = rep(site_list, times = length(year_list)), 
 df_full <- left_join(df_full, df)
 #Format wider
 df_ch <- dcast(df_full, Population ~ Year)
+chukar <- df_ch[,-c(1:19)]
+
+chuk_site_data <- read.csv("./Data/Chukar_Surveys_locations.csv") %>%
+  select(Population = Survey.Location, Region = NDOWREGION) %>%
+  arrange(Population) %>%
+  mutate(Code = ifelse(Region == "Western", 2, 1))
+chuk.reg <- chuk_site_data[,3]
 
 #Show distribution of surveys across years
 # ggplot() +
@@ -27,6 +34,7 @@ df_ch <- dcast(df_full, Population ~ Year)
 #   #geom_smooth(data = df_full, aes(x = Year, y = Count), fill = 'black',alpha = .5, color = 'dodgerblue1') +
 #   labs(y = 'Chukar covey survey counts') +
 #   theme_bw()
+
 
 
 ### All Species Harvest Data ###
@@ -112,6 +120,21 @@ ggplot(data = df) +
 #Change closed season values to NA
 upland[7,10,] <- NA # Season closed
 hunters[7,10,] <- NA # Season closed 
+
+
+### Sage Grouse Wing Bee
+#Format WingBee Data
+sg.wingb <- read.csv("./Data/SG_WingData_2004-2020.csv") %>%
+  select(Region = NDOWREGION, Year, AHY.Male, AHY.Female, HY.Male, HY.Female) %>%
+  mutate(Total = rowSums(.[3:6], na.rm = T)) %>%
+  select(Region, Year, Total) %>%
+  group_by(Region, Year) %>%
+  summarize(Total.SG = sum(Total)) %>%
+  pivot_wider(names_from = "Region", values_from = "Total.SG")
+
+wing.b <- t(sg.wingb[,-1])
+n.years.sg <- ncol(wing.b)
+time.shift.sg <- min(sg.wingb$Year) - min(harvest_data$Year) - 1
 
 
 ### Palmer Drought Severity Index (PDSI) ###

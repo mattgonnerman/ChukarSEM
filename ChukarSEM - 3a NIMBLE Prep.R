@@ -38,9 +38,6 @@ ZZ1 <- Z1
 ZZ1[is.na(ZZ1)] <- 0
 
 
-###
-chukar <- df_ch[,-c(1:19)]
-
 library(LaplacesDemon)
 
 n.species<- dim(hunters)[1]
