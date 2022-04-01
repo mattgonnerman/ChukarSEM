@@ -192,41 +192,67 @@ df_cast <- cast(df_agg, F.Year + Season ~ Station, value = 'm.PDSI')
 #   geom_point()+
 #   facet_wrap(~Station, ncol = 3) + theme_bw()
 
-
+### Palmer Drought Severity Index (PDSI)
 #Load year/month specific Eastern PDSI values (Z standardized?)
-eastern_pdsi <- read.csv('./Data/Eastern_PDSIZ.csv')
-# Create vector of year-specific average winter PDSI values
-eastern_pdsi <- subset(eastern_pdsi, Year > 1974)
-winter_pdsie <- rep(NA, times = dim(eastern_pdsi)[1] - 1)
-for(i in 1:length(winter_pdsie)){
-  winter_pdsie[i] <- sum(eastern_pdsi[i, 12:13], eastern_pdsi[i+1,2:4] )/5
-}
-#Subset to years after 1975
-eastern_pdsi <- subset(eastern_pdsi, Year > 1975)
-#Create dataframe of year and mean DPSI during breeding season
-ebreeding_means <- data.frame(year = eastern_pdsi$Year, breeding_drought = rowMeans(eastern_pdsi[,5:9]))
+eastern_pdsi <- read.csv('./Data/Eastern_PDSIZ.csv') %>%
+  filter(Year > 1974) %>%
+  mutate(Summer = (Apr + May + Jun + Jul + Aug)/5,
+         Winter = (Nov + Dec + lead(Jan) + lead(Feb) + lead(Mar))/5) %>%
+  select(Year, Summer, Winter) %>%
+  filter(Year %in% 1976:2017) %>%
+  mutate(Region = "Eastern")
 
-#Same as above but for western section
-western_pdsi <- read.csv('./Data/Western_PDSIZ.csv')
-western_pdsi <- subset(western_pdsi, Year > 1974)
-winter_pdsiw <- rep(NA, times = dim(western_pdsi)[1] - 1)
-for(i in 1:length(winter_pdsiw)){
-  winter_pdsiw[i] <- sum(western_pdsi[i, 12:13], western_pdsi[i+1,2:4] )/5
-}
-western_pdsi <- subset(western_pdsi, Year > 1975)
-wbreeding_means <- data.frame(year = western_pdsi$Year, breeding_drought = rowMeans(western_pdsi[,5:9]))
+western_pdsi <- read.csv('./Data/Western_PDSIZ.csv') %>%
+  filter(Year > 1974) %>%
+  mutate(Summer = (Apr + May + Jun + Jul + Aug)/5,
+         Winter = (Nov + Dec + lead(Jan) + lead(Feb) + lead(Mar))/5) %>%
+  select(Year, Summer, Winter) %>%
+  filter(Year %in% 1976:2017) %>%
+  mutate(Region = "Western")
 
-cut <- 42 #Reference used to subset dataframes later
+pdsi_df <- rbind(eastern_pdsi, western_pdsi) %>%
+  pivot_wider(names_from = Region, values_from = c(Winter, Summer))
 
 #Average breeding and winter DPSI values for each section
-pdsi  <- data.frame(east = ebreeding_means$breeding_drought[1:44],west = wbreeding_means$breeding_drought[1:44] )
-wpdsi <- data.frame(east = winter_pdsie[1:(44+1)], west = winter_pdsiw[1:(44+1)])
+pdsi <- as.matrix(pdsi_df %>% select(Summer_Eastern, Summer_Western)) 
+wpdsi <- as.matrix(pdsi_df %>% select(Winter_Eastern, Winter_Western))
+
+# #Load year/month specific Eastern PDSI values (Z standardized?)
+# eastern_pdsi <- read.csv('./Data/Eastern_PDSIZ.csv')
+# # Create vector of year-specific average winter PDSI values
+# eastern_pdsi <- subset(eastern_pdsi, Year > 1974)
+# winter_pdsie <- rep(NA, times = dim(eastern_pdsi)[1] - 1)
+# for(i in 1:length(winter_pdsie)){
+#   winter_pdsie[i] <- sum(eastern_pdsi[i, 12:13], eastern_pdsi[i+1,2:4] )/5
+# }
+# #Subset to years after 1975
+# eastern_pdsi <- subset(eastern_pdsi, Year > 1975)
+# #Create dataframe of year and mean DPSI during breeding season
+# ebreeding_means <- data.frame(year = eastern_pdsi$Year, breeding_drought = rowMeans(eastern_pdsi[,5:9]))
+# 
+# #Same as above but for western section
+# western_pdsi <- read.csv('./Data/Western_PDSIZ.csv')
+# western_pdsi <- subset(western_pdsi, Year > 1974)
+# winter_pdsiw <- rep(NA, times = dim(western_pdsi)[1] - 1)
+# for(i in 1:length(winter_pdsiw)){
+#   winter_pdsiw[i] <- sum(western_pdsi[i, 12:13], western_pdsi[i+1,2:4] )/5
+# }
+# western_pdsi <- subset(western_pdsi, Year > 1975)
+# wbreeding_means <- data.frame(year = western_pdsi$Year, breeding_drought = rowMeans(western_pdsi[,5:9]))
+# 
+# cut <- 42 #Reference used to subset dataframes later
+# 
+# #Average breeding and winter DPSI values for each section
+# pdsi  <- data.frame(east = ebreeding_means$breeding_drought[1:44],west = wbreeding_means$breeding_drought[1:44] )
+# wpdsi <- data.frame(east = winter_pdsie[1:(44+1)], west = winter_pdsiw[1:(44+1)])
 
 ### Economic Metrics ###
-#Unemployment data, 1976 - 2021 (unsure of source)
-unemployment <- c(8.825,6.766666667,4.416666667,4.866666667,6.316666667,7.316666667,10.05,9.841666667,7.658333333,7.475,6.383333333,6.2,5.241666667,4.658333333,4.7,5.9,6.8,6.9,6.241666667,5.566666667,5.058333333,4.375,4.175,3.966666667,4.116666667,5.191666667,5.683333333,5.283333333,4.458333333,4.125,4.066666667,4.591666667,6.883333333,11.725,13.73333333,13.31666667,11.60833333,9.966666667,8.158333333,6.85,5.808333333,5.016666667,4.408333333,3.9,13.01666667,8.333333333)
-unemployment_cut <- unemployment[1:(44+1)]
-une <- scale(unemployment_cut)
+#Unemployment data, 1976 - 2021 (Bureau of Labor, https://www.bls.gov/regions/west/nevada.htm#eag)
+unemployment <- read.csv("./Data/NEvadaUnemploymentUSBL.csv", colClasses = c("integer", "character", rep("numeric", 2), rep("integer", 3), "numeric")) %>%
+  filter(Period == "Sep") %>%
+  filter(Year > 1975) %>%
+  mutate(Rate = unemployment/labor.force)
+une <- scale(unemployment$Rate)[,1]
 
 #Number of Resident Licenses Sold
 general <- read.csv(file = './Data/overall_hunting_data.csv')
@@ -254,4 +280,17 @@ rabbits <- as.matrix(read.csv('./Data/all_species_harvest_data.csv') %>%
   select(Eastern, Western))
 
   
-  
+#Winter Severity (AWSSI)
+awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
+  select(Station, Region, Start, End, AWSSI) %>%
+  mutate(Start = as.Date(Start, "%m/%d/%Y")) %>%
+  mutate(Year = lubridate::year(Start)) %>%
+  group_by(Region, Year) %>%
+  filter(!is.na(AWSSI)) %>%
+  summarise(AWSSI = mean(AWSSI)) %>%
+  filter(Year > 1974 & Year < 2018 & Region != "Southern") %>%
+  mutate(AWSSI = scale(AWSSI)[,1]) %>%
+  pivot_wider(names_from = Region, values_from = AWSSI) %>%
+  select(-Year)
+
+awssi <- t(awssi.df)
