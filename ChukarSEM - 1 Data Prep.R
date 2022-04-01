@@ -240,7 +240,7 @@ wpdsi <- as.matrix(pdsi_df %>% select(Winter_Eastern, Winter_Western))
 # western_pdsi <- subset(western_pdsi, Year > 1975)
 # wbreeding_means <- data.frame(year = western_pdsi$Year, breeding_drought = rowMeans(western_pdsi[,5:9]))
 # 
-# cut <- 42 #Reference used to subset dataframes later
+cut <- 42 #Reference used to subset dataframes later
 # 
 # #Average breeding and winter DPSI values for each section
 # pdsi  <- data.frame(east = ebreeding_means$breeding_drought[1:44],west = wbreeding_means$breeding_drought[1:44] )
