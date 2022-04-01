@@ -1,3 +1,7 @@
+### Run Initial Data Management
+source("./ChukarSEM - 1 Data Prep.R")
+
+### Model Code
 code <- nimbleCode( {
   ################################################################################
   ### Hunter Effort ###
@@ -5,7 +9,7 @@ code <- nimbleCode( {
     for(s in 1:n.species){
       alpha.hunt[s,r] ~ dnorm(5, sd = 1)
       
-      for(t in 1:(n.year)){
+      for(t in 1:(n.year)){ 
         #Unlinked estimate of Hunter Numbers
         mu.hunt[s,r,t] <- alpha.hunt[s,r] #No predictors
         log(H[s,t,r]) <- hunt.eps[s,r,t] #Log Link
@@ -63,7 +67,7 @@ code <- nimbleCode( {
     } #s 
     
     for(t in 2:(n.year)){
-      #Change in total harvest
+      #Change in total harvest, log.r.harv[t=1] is 1976-1977
       log.r.harv[1:n.species,t-1,r]  ~ dmnorm(mu.harv[1:n.species,t-1,r],
                                               cov =  Sigma.harv[1:n.species,1:n.species,r])
     } #t
@@ -105,10 +109,10 @@ code <- nimbleCode( {
     mod.chuk[p] ~ dlogis(0,1)
     
     for(t in 2:n.year.chuk){
-      mu.chuk[p, t-1] <- mod.chuk[p] * log.r.harv[3, t+13, reg.chuk[p]]
+      mu.chuk[p, t-1] <- mod.chuk[p] * log.r.harv[3, t+12, reg.chuk[p]] #log.r.harv[t=14] is 1990-1991
       chuk.eps[p,t-1]  ~ dnorm(mu.chuk[p, t-1], sd = sigma.chuk[p]) #Coeffient for annual change
       
-      log.r.chuk[p,t-1] <- alpha.chuk[p] + chuk.eps[p,t-1] #Unlinked change in abundance
+      log.r.chuk[p,t-1] <- alpha.chuk[p] + chuk.eps[p,t-1] #Unlinked change in abundance, log.harv.chuk[t=1] is 1990-1991
       lambda.chuk[p,t-1] <- exp(log.r.chuk[p,t-1]) #Change in abundance
       
       C.chuk[p,t] <- lambda.chuk[p,t-1] * C.chuk[p,t-1] #Equivalent of Poisson lambda
@@ -119,36 +123,34 @@ code <- nimbleCode( {
   } #p  
   
   
-  # ################################################################################
-  # ### Sage Grouse Wing-Bee ###
-  # ### Chukar Site Abundance
-  # for(r in 1:n.region){
-  #   theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB overdispersion parameter
-  #   C.sg[r,1] ~ dpois(wing.b[r,1]) #Equivalent of Poisson lambda
-  # 
-  #   alpha.sg[r] ~ dlogis(0,1) #Intercept for
-  #   sigma.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-  #   mod.sg[r] ~ dlogis(0,1)
-  # 
-  #   for(t in 2:n.years.sg){
-  #     mu.sg[r, t-1] <- mod.sg[r] * log.r.harv[7, t+27, r]
-  #     sg.eps[r,t-1] ~ dnorm(mu.sg[r, t-1], sd = sigma.sg[r])
-  # 
-  #     log.r.sg[r,t-1] <- alpha.sg[r] + sg.eps[r,t-1] #Variation in growth
-  #     lambda.sg[r,t-1] <- exp(log.r.sg[r,t-1]) # Tranform between finite and instantaneous growth rate
-  # 
-  #     C.sg[r,t] <- lambda.sg[r,t-1] * C.sg[r,t-1] #Change in Count over time
-  # 
-  #     rate.sg[r,t-1] <- theta.sg[r]/(theta.sg[r] + C.sg[r,t]) #NB rate
-  #     wing.b[r,t] ~ dnegbin(rate.sg[r,t-1], theta.sg[r]) #Wing-Bee data follows negative binomial
-  #   } #t
-  # } #r
+  ################################################################################
+  ### Sage Grouse Wing-Bee ###
+  ### Chukar Site Abundance
+  for(r in 1:n.region){
+    theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB overdispersion parameter
+    C.sg[r,1] ~ dpois(wing.b[r,1]) #Equivalent of Poisson lambda
+
+    alpha.sg[r] ~ dlogis(0,1) #Intercept for
+    sigma.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    mod.sg[r] ~ dlogis(0,1)
+
+    for(t in 2:n.years.sg){
+      mu.sg[r, t-1] <- mod.sg[r] * log.r.harv[7, t+26, r] #log.r.harv[t=28] is 2004-2005
+      sg.eps[r,t-1] ~ dnorm(mu.sg[r, t-1], sd = sigma.sg[r])
+
+      log.r.sg[r,t-1] <- alpha.sg[r] + sg.eps[r,t-1] #Variation in growth, log.harv.sg[t=1] is 2004-2005
+      lambda.sg[r,t-1] <- exp(log.r.sg[r,t-1]) # Tranform between finite and instantaneous growth rate
+
+      C.sg[r,t] <- lambda.sg[r,t-1] * C.sg[r,t-1] #Change in Count over time
+
+      rate.sg[r,t-1] <- theta.sg[r]/(theta.sg[r] + C.sg[r,t]) #NB rate
+      wing.b[r,t] ~ dnegbin(rate.sg[r,t-1], theta.sg[r]) #Wing-Bee data follows negative binomial
+    } #t
+  } #r
   
 })
 
 ### Specify Data Inputs
-source("./ChukarSEM - 1 Data Prep.R")
-
 data <- list(
   ### Hunter Effort
   n.hunt = hunters,
@@ -157,10 +159,10 @@ data <- list(
   n.harv = upland,
   
   ### Chukar Site Abundance
-  n.chuk = data.matrix(chukar)
+  n.chuk = data.matrix(chukar),
   
-  # ### Sage Grouse Wing-Bee
-  # wing.b = wing.b
+  ### Sage Grouse Wing-Bee
+  wing.b = wing.b
 )
 
 
@@ -188,10 +190,10 @@ constants <- list(
   ### Chukar Site Abundance
   n.site = 13,
   n.year.chuk = ncol(chukar),
-  reg.chuk = chuk.reg
+  reg.chuk = chuk.reg,
   
-  # ### Sage Grouse Wing-Bee
-  # n.years.sg = n.years.sg
+  ### Sage Grouse Wing-Bee
+  n.years.sg = n.years.sg
 )
 
 
@@ -285,15 +287,15 @@ initsFunction <- function() list(
   chuk.eps = matrix(0, nrow = 13, ncol = ncol(chukar_na)-1),
   C.chuk = chukar_na + 50,
   n.chuk =  n.chuk.i,
-  mod.chuk = rep(1,13)
+  mod.chuk = rep(1,13),
   
-  # ### Sage Grouse Wing-Bee
-  # alpha.sg =  rep(0,2),
-  # theta.sg = rep(1,2),
-  # sigma.sg = rep(0,2),
-  # sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
-  # C.sg = C.sg.i,
-  # mod.sg = rep(1,2)
+  ### Sage Grouse Wing-Bee
+  alpha.sg =  rep(1,2),
+  theta.sg = rep(1,2),
+  sigma.sg = rep(1,2),
+  sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
+  C.sg = C.sg.i,
+  mod.sg = rep(1,2)
   )
 
 inits <- initsFunction()
@@ -305,14 +307,15 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits )
 
-model_test$simulate()
+model_test$simulate(c("alpha.sg", "sg.eps", "C.sg", "theta.sg", "mod.sg", "rate.sg"))
 model_test$initializeInfo()
 model_test$calculate()
 
 
 ### Parallel Processing Code
+lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
 start_time <- Sys.time() # To track runtime
-
+start_time
 nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000) #Start 3 parallel processing clusters
 
@@ -332,23 +335,26 @@ out <- clusterEvalQ(cl, {
                              data =  data,
                              inits = inits )
   
-  model_test$simulate(c("mu.hunt", "mu.harv"))
+  model_test$simulate(c("alpha.sg", "sg.eps", "C.sg", "theta.sg", "mod.sg", "rate.sg"))
   model_test$initializeInfo()
   model_test$calculate()
   mcmcConf <-  configureMCMC( model_test,   monitors2 =  c("alpha.hunt",
-                                                           "H",
-                                                           "Sigma.hunt",
-                                                           "rho.hunt",
+                                                           "Q.hunt",
+                                                           "sig.hunt",
                                                            
                                                            "alpha.harv",
-                                                           "N",
-                                                           "Sigma.harv",
-                                                           "rho.harv",
-                                                           "log.r.harv",
+                                                           "Q.harv",
+                                                           "sig.harv",
                                                            
                                                            "alpha.chuk",
-                                                           "C.chuk",
-                                                           "log.r.chuk"
+                                                           "theta.chuk",
+                                                           "sigma.chuk",
+                                                           "mod.chuk",
+                                                           
+                                                           "alpha.sg",
+                                                           "theta.sg",
+                                                           "sigma.sg",
+                                                           "mod.sg"
                                                            )) 
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
@@ -376,16 +382,6 @@ samples1    <- list(chain1 =  out[[1]]$samples,
 mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
 mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
-#Check Splines for Hunter Numbers
-test1 <- MCMCsummary(mcmcList2, 'log.r.chuk')
-test1.df <- cbind.data.frame(expand.grid(species = species[-c(4,8)],  region = c('east','west'), year = 1976:2017), test1)
-
-fig1 <- ggplot(data = test1.df, aes(x = year, y = mean, group = region)) +
-  geom_pointrange(aes(x =year, y = mean, ymin = `2.5%`,ymax = `97.5%`, fill = species),
-                  shape  = 21, color = 'black', size = .75, position = position_dodge(1)) +
-  geom_hline(yintercept = 0) +
-  labs(y = 'Trends in Hunter Numbers', x = 'Year') +
-  facet_grid(region ~ species)
-# scale_color_flat::scale_fill_flat_d() +
-# theme_modern()
-fig1
+# Traceplots
+colnames(mcmcList2$chain1)
+MCMCtrace(mcmcList2, params = "Q.harv", plot = T, pdf = F)
