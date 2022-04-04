@@ -51,8 +51,8 @@ code <- nimbleCode( {
   for(r in 1:n.region){
     mu.drought.hunt[r] ~ dnorm(0, 0.01)
     sig.drought.hunt[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    mu.wintsev[r] ~ dnorm(0, 0.01)
-    sig.wintsev[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    mu.wintsev.hunt[r] ~ dnorm(0, 0.01)
+    sig.wintsev.hunt[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
     mu.jobs[r] ~ dnorm(0, 0.01)
     sig.jobs[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
     mu.income[r] ~ dnorm(0, 0.01)
@@ -63,7 +63,7 @@ code <- nimbleCode( {
     for(s in 1:n.species){
       alpha.hunt[s,r] ~ dnorm(5, sd = 1)
       beta.drought.hunt[s,r] ~ dnorm(mu.drought.hunt[r], sd = sig.drought.hunt[r])
-      beta.wintsev.hunt[s,r] ~ dnorm(mu.wintsev[r], sd  = sig.wintsev[r])
+      beta.wintsev.hunt[s,r] ~ dnorm(mu.wintsev.hunt[r], sd  = sig.wintsev.hunt[r])
       beta.jobs[s,r] ~ dnorm(mu.jobs[r], sd = sig.jobs[r])
       beta.income[s,r] ~ dnorm(mu.income[r], sd  = sig.income[r])
       beta.license[s,r] ~ dnorm(mu.license[r], sd  = sig.license[r])
@@ -139,11 +139,11 @@ bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg
 }
 
 nseg <- 10
-BM1 <- array(NA, dim = c(cut+4,nseg+3,7,2))
-Z1  <- array(NA, dim = c(cut+4,nseg+2,7,2))
+BM1 <- array(NA, dim = c(cut,nseg+3,7,2))
+Z1  <- array(NA, dim = c(cut,nseg+2,7,2))
 D1 <- diff(diag(ncol(BM1[,,1,1])), diff = 1)
 Q1 <- t(D1) %*% solve(D1 %*% t(D1))
-time <- 1:(cut+4)
+time <- 1:(cut)
 for(i in 1:7){
   for(j in 1:2){
     BM1[,,i,j] <- bs_bbase(time, nseg = 10)
@@ -229,8 +229,8 @@ initsFunction <- function() list(
   sig.spl.hunt = matrix(1, ncol = 2, nrow = 7),
   mu.drought.hunt = rep(0,2),
   sig.drought.hunt = rep(1,2),
-  mu.wintsev = rep(0,2),
-  sig.wintsev = rep(1,2),
+  mu.wintsev.hunt = rep(0,2),
+  sig.wintsev.hunt = rep(1,2),
   mu.jobs = rep(0,2),
   sig.jobs = rep(1,2),
   mu.income = rep(0,2),
@@ -263,7 +263,7 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits )
 
-model_test$simulate(c("beta.spl.hunt", "mu.hunt", "pred.spl.hunt", "hunt.eps", "H"))
+model_test$simulate(c("beta.spl.hunt", "mu.hunt", "pred.spl.hunt", "hunt.eps", "H", "Sigma.hunt"))
 model_test$initializeInfo()
 model_test$calculate()
 
@@ -294,97 +294,13 @@ out <- clusterEvalQ(cl, {
   model_test$simulate(c("alpha.sg", "sg.eps", "C.sg", "theta.sg", "mod.sg", "rate.sg"))
   model_test$initializeInfo()
   model_test$calculate()
-  mcmcConf <-  configureMCMC( model_test,   monitors2 =  c("H")) 
-  mcmc     <-  buildMCMC( mcmcConf)
-  Cmodel   <- compileNimble(model_test)
-  Cmcmc    <- compileNimble(mcmc)
-  
-  samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 10, thin2 = 10)
-  
-  return(samplesList)
-})
-#Stop parallel cluster
-stopCluster(cl)
-
-#Find model runtime
-end_time <- Sys.time()
-end_time - start_time
-
-samples2 <- list(chain1 =  out[[1]]$samples2, 
-                 chain2 =  out[[2]]$samples2, 
-                 chain3 =  out[[3]]$samples2)
-
-samples1    <- list(chain1 =  out[[1]]$samples, 
-                    chain2 =  out[[2]]$samples, 
-                    chain3 =  out[[3]]$samples)
-
-mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
-mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
-
-### Rerun model with updated initial values for spline
-## Splines
-# Hunter Numbers
-hunter.prime   <- MCMCpstr(mcmcList2, 'H')$H #Extract hunter numbers from Model1
-
-nseg <- 10 #Number of spline segments
-BM <- array(NA, dim = c(cut+4,nseg+3,7,2))
-Z  <- array(NA, dim = c(cut+4,nseg+2,7,2))
-D <- diff(diag(ncol(BM[,,1,1])), diff = 1)
-Q <- t(D) %*% solve(D %*% t(D))
-
-for(i in 1:7){
-  for(j in 1:2){
-    BM[,,i,j] <- bs_bbase(hunter.prime[i,,j], nseg = 10)
-    Z[,,i,j] <-  BM[,,i,j]%*% Q
-  }
-}
-
-ZZ <- Z
-ZZ[is.na(ZZ)] <- 0
-
-data <- list(
-  ### Hunter Effort
-  n.hunt = hunters, #Observed number of hunters for each species each year
-  awssi = awssi, #winter severity index, scaled
-  une = une, #BL Unemployment information for Nevada, scaled
-  Z.hunt = ZZ, #Spline 
-  res = scale(res)[,1], #Residential license sales
-  wpdsi = wpdsi, #winter drought index, scaled
-  PDI = PDI, #personal disposable income
-  GAS = GAS #gas prices
-)
-
-start_time <- Sys.time() # To track runtime
-start_time
-nc <- detectCores()/2    # number of chains
-cl<-makeCluster(nc,timeout=5184000) #Start 3 parallel processing clusters
-
-clusterExport(cl, c("code", "inits", "data", "constants")) #identify what is to be exported to each cluster
-
-for (j in seq_along(cl)) {
-  set.seed(j)
-  inits <- initsFunction() 
-  clusterExport(cl[j], "inits")
-}
-
-out <- clusterEvalQ(cl, {
-  require(nimble)
-  require(coda)
-  model_test <- nimbleModel( code = code,
-                             constants = constants,
-                             data =  data,
-                             inits = inits )
-  
-  model_test$simulate(c("alpha.sg", "sg.eps", "C.sg", "theta.sg", "mod.sg", "rate.sg"))
-  model_test$initializeInfo()
-  model_test$calculate()
   mcmcConf <-  configureMCMC( model_test,   monitors2 =  c("alpha.hunt",
                                                            "Q.hunt",
                                                            "sig.hunt", 
                                                            "mu.drought.hunt",
                                                            "sig.drought.hunt",
-                                                           "mu.wintsev",
-                                                           "sig.wintsev",
+                                                           "mu.wintsev.hunt",
+                                                           "sig.wintsev.hunt",
                                                            "mu.jobs",
                                                            "sig.jobs",
                                                            "mu.income",
@@ -406,8 +322,8 @@ out <- clusterEvalQ(cl, {
                                                            "alpha.pdi",
                                                            "beta.t.pdi",
                                                            "ar1",
-                                                           "rho.hunt"
-  )) 
+                                                           "rho.hunt",
+                                                           "H")) 
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
@@ -434,9 +350,5 @@ samples1    <- list(chain1 =  out[[1]]$samples,
 mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
 mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
-### Traceplots
-colnames(mcmcList2$chain1)
-#Individual parameters
-MCMCtrace(mcmcList2, params = "alpha.hunt", plot = T, pdf = F)
-#Output full pdf with all trace plots
 MCMCtrace(mcmcList2, filename = "Hunter Effort MCMC Traceplots.pdf")
+

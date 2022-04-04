@@ -276,6 +276,7 @@ ratio <- PDI/GAS
 rabbits <- as.matrix(read.csv('./Data/all_species_harvest_data.csv') %>%
   filter(Species == "RABBIT", Section !="Southern") %>%
   select(Region = Section, Year, Rabbits = Animals) %>%
+  mutate(Rabbits = scale(Rabbits)) %>%
   pivot_wider(values_from = "Rabbits", names_from = "Region") %>%
   select(Eastern, Western))
 
