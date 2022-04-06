@@ -269,8 +269,8 @@ bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg
 hunter.prime   <- MCMCpstr(mcmcList2, 'H')$H #Extract hunter numbers from Model1
 
 nseg <- 10 #Number of spline segments
-BM <- array(NA, dim = c(cut+4,nseg+3,7,2))
-Z  <- array(NA, dim = c(cut+4,nseg+2,7,2))
+BM <- array(NA, dim = c(cut,nseg+3,7,2))
+Z  <- array(NA, dim = c(cut,nseg+2,7,2))
 D <- diff(diag(ncol(BM[,,1,1])), diff = 1)
 Q <- t(D) %*% solve(D %*% t(D))
 
@@ -287,8 +287,8 @@ ZZ[is.na(ZZ)] <- 0
 # Time?
 time <- 1:cut
 
-BM1 <- array(NA, dim = c(cut+4,nseg+3,7,2))
-Z1  <- array(NA, dim = c(cut+4,nseg+2,7,2))
+BM1 <- array(NA, dim = c(cut,nseg+3,7,2))
+Z1  <- array(NA, dim = c(cut,nseg+2,7,2))
 D1 <- diff(diag(ncol(BM1[,,1,1])), diff = 1)
 Q1 <- t(D1) %*% solve(D1 %*% t(D1))
 
@@ -588,7 +588,7 @@ pars1 <- c(### Hunter Effort
            "alpha.chuk",
            "beta.wintsev.chuk",
            "beta.drought.chuk",
-           "beta.rabit.chuk",
+           "beta.rabbit.chuk",
            "chuk.eps",
            "mod.chuk"
            )
