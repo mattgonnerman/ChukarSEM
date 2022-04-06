@@ -172,32 +172,6 @@ n.harv.i <- ifelse(is.na(upland), floor(mean(upland, na.rm = T)), NA)
 Ni <- array(NA, c(nrow(n.harv.i), ncol(n.harv.i), 2))
 Ni[,1,] <- upland[,1,] + 50
 
-## Chukar Site Abundance
-n.chuk.i <- ifelse(is.na(chukar), floor(mean(as.matrix(chukar), na.rm = T)), NA)
-chukar_na <- chukar 
-chukar_na <- ifelse(is.na(chukar == TRUE), 1, 0)
-
-Xi <- chukar 
-for(i in 1:ncol(chukar_na)){
-  for(j in 1:nrow(chukar_na)){
-    if(chukar_na[j,i] == 1){
-      chukar_na[j,i] <- floor(rnorm(1, rowMeans( chukar[j,], na.rm = TRUE), 5))
-    }
-  }
-}
-for(j in 1:nrow(chukar_na)){
-  if(is.na(Xi[j,1]) == TRUE){
-    chukar_na[j,1] <- chukar_na[j,1]
-  } else
-    chukar_na[j,1] <- Xi[j,1]
-}
-
-chukar_na[chukar_na ==0] <- NA
-
-## Sage Grouse Wing-Bee
-C.sg.i <- matrix(NA, nrow = 2, ncol = n.years.sg)
-C.sg.i[,1] <- floor(rowMeans(wing.b, na.rm = T))
-
 # Wrapper Function
 initsFunction <- function() list(   
   ### Predictors
@@ -274,6 +248,7 @@ pars1 <- c(
 )
 
 ### Parallel Processing Code
+lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
 start_time <- Sys.time() # To track runtime
 start_time
 nc <- detectCores()/2    # number of chains

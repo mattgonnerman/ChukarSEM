@@ -305,9 +305,14 @@ pars1 <- c("alpha.hunt",
            "beta.jobs",
            "beta.income",
            "beta.license",
-           "beta.spl.hunt")
+           "beta.spl.hunt",
+           
+           "ar1",
+           "rho.hunt",
+           "H")
 
 # Parallel Processing Setup
+lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
 start_time <- Sys.time() # To track runtime
 start_time
 nc <- detectCores()/2    # number of chains

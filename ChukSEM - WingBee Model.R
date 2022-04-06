@@ -104,6 +104,7 @@ pars1 <- c("alpha.sg",
 )
 
 #Parallel Processing Setup
+lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
 start_time <- Sys.time()
 start_time
 nc <- detectCores()/2    # number of chains
