@@ -229,7 +229,8 @@ initsFunction <- function() list(
 inits <- initsFunction()
 
 
-### Check Model Code
+### MCMC
+#Check Model
 model_test <- nimbleModel( code = code,
                            constants = constants,
                            data =  data,
@@ -239,15 +240,46 @@ model_test$simulate(c("mu.harv"))
 model_test$initializeInfo()
 model_test$calculate()
 
+#Set Monitors
+# pars1 <- c(
+#   ### Total Harvest
+#   "mu.drought.harv",
+#   "sig.drought.harv",
+#   "mu.wintsev.harv",
+#   "sig.wintsev.harv",
+#   "mu.rabbit",
+#   "sig.rabbit",
+#   
+#   "alpha.harv",
+#   "beta.drought.harv",
+#   "beta.wintsev.harv",
+#   "beta.spl.harv",
+#   "beta.rabbit",
+#   "sig.spl.harv",
+#   
+#   "pred.spl.harv",
+#   
+#   "log.r.harv",
+#   
+#   "Q.harv",
+#   "sig.harv",
+#   "rho.harv"
+# )
+pars1 <- c(
+  "alpha.harv",
+  "beta.drought.harv",
+  "beta.wintsev.harv",
+  "beta.spl.harv",
+  "beta.rabbit"
+)
 
 ### Parallel Processing Code
-lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
 start_time <- Sys.time() # To track runtime
 start_time
 nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000) #Start 3 parallel processing clusters
 
-clusterExport(cl, c("code", "inits", "data", "constants")) #identify what is to be exported to each cluster
+clusterExport(cl, c("code", "inits", "data", "constants", "pars1")) #identify what is to be exported to each cluster
 
 for (j in seq_along(cl)) {
   set.seed(j)
@@ -266,30 +298,7 @@ out <- clusterEvalQ(cl, {
   model_test$simulate(c("alpha.sg", "sg.eps", "C.sg", "theta.sg", "mod.sg", "rate.sg"))
   model_test$initializeInfo()
   model_test$calculate()
-  mcmcConf <-  configureMCMC( model_test,   monitors2 =  c(
-    ### Total Harvest
-    "mu.drought.harv",
-    "sig.drought.harv",
-    "mu.wintsev.harv",
-    "sig.wintsev.harv",
-    "mu.rabbit",
-    "sig.rabbit",
-    
-    "alpha.harv",
-    "beta.drought.harv",
-    "beta.wintsev.harv",
-    "beta.spl.harv",
-    "beta.rabbit",
-    "sig.spl.harv",
-
-    "pred.spl.harv",
-    
-    "log.r.harv",
-    
-    "Q.harv",
-    "sig.harv",
-    "rho.harv"
-  ))
+  mcmcConf <-  configureMCMC( model_test,   monitors2 =  pars1)
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
@@ -316,9 +325,13 @@ samples1    <- list(chain1 =  out[[1]]$samples,
 mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
 mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
+#Save Outputs as file
+files <- list(mcmcList1,mcmcList2,code)
+save(files, file = 'model_output_TotHarv.rdata')
+
 ### Traceplots
-colnames(mcmcList2$chain1)
+# colnames(mcmcList2$chain1)
 #Individual parameters
 # MCMCtrace(mcmcList2, params = "alpha.hunt", plot = T, pdf = F)
 #Output full pdf with all trace plots
-MCMCtrace(mcmcList2, filename = "Total Harvest MCMC Traceplots.pdf")
+MCMCtrace(mcmcList2, filename = "Traceplots - Total Harvest MCMC.pdf")

@@ -158,7 +158,7 @@ ZZ1[is.na(ZZ1)] <- 0
 data <- list(
   ### Hunter Effort
   n.hunt = hunters, #Observed number of hunters for each species each year
-  awssi = awssi, #winter severity index, scaled
+  awssi = awssi[,-1], #winter severity index, scaled
   une = une, #BL Unemployment information for Nevada, scaled
   Z.hunt = ZZ1, #Spline 
   res = scale(res)[,1], #Residential license sales
@@ -257,7 +257,8 @@ initsFunction <- function() list(
 
 inits <- initsFunction()
 
-### Check Model Code
+### MCMC
+#Check Model
 model_test <- nimbleModel( code = code,
                            constants = constants,
                            data =  data,
@@ -267,15 +268,52 @@ model_test$simulate(c("beta.spl.hunt", "mu.hunt", "pred.spl.hunt", "hunt.eps", "
 model_test$initializeInfo()
 model_test$calculate()
 
-### Run Model to get values for improved spline performance
-# Parallel Processing
-lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
+#Set Monitors
+# pars1 <- c("alpha.hunt",
+#              "Q.hunt",
+#              "sig.hunt", 
+#              "mu.drought.hunt",
+#              "sig.drought.hunt",
+#              "mu.wintsev.hunt",
+#              "sig.wintsev.hunt",
+#              "mu.jobs",
+#              "sig.jobs",
+#              "mu.income",
+#              "sig.income",
+#              "mu.license",
+#              "sig.license",
+#              "alpha.hunt",
+#              "beta.drought.hunt",
+#              "beta.wintsev.hunt",
+#              "beta.jobs",
+#              "beta.income",
+#              "beta.license",
+#              "beta.spl.hunt",
+#              "sig.spl.hunt", 
+#              "sig.une",
+#              "mu.pdi",
+#              "sig.gas",
+#              "sig.pdi",
+#              "alpha.pdi",
+#              "beta.t.pdi",
+#              "ar1",
+#              "rho.hunt",
+#              "H")
+pars1 <- c("alpha.hunt",
+           "beta.drought.hunt",
+           "beta.wintsev.hunt",
+           "beta.jobs",
+           "beta.income",
+           "beta.license",
+           "beta.spl.hunt")
+
+# Parallel Processing Setup
 start_time <- Sys.time() # To track runtime
 start_time
 nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000) #Start 3 parallel processing clusters
 
-clusterExport(cl, c("code", "inits", "data", "constants")) #identify what is to be exported to each cluster
+clusterExport(cl, c("code", "inits", "data", "constants", "pars1")) #identify what is to be exported to each cluster
 
 for (j in seq_along(cl)) {
   set.seed(j)
@@ -291,39 +329,10 @@ out <- clusterEvalQ(cl, {
                              data =  data,
                              inits = inits )
   
-  model_test$simulate(c("alpha.sg", "sg.eps", "C.sg", "theta.sg", "mod.sg", "rate.sg"))
+  model_test$simulate(c("beta.spl.hunt", "mu.hunt", "pred.spl.hunt", "hunt.eps", "H", "Sigma.hunt"))
   model_test$initializeInfo()
   model_test$calculate()
-  mcmcConf <-  configureMCMC( model_test,   monitors2 =  c("alpha.hunt",
-                                                           "Q.hunt",
-                                                           "sig.hunt", 
-                                                           "mu.drought.hunt",
-                                                           "sig.drought.hunt",
-                                                           "mu.wintsev.hunt",
-                                                           "sig.wintsev.hunt",
-                                                           "mu.jobs",
-                                                           "sig.jobs",
-                                                           "mu.income",
-                                                           "sig.income",
-                                                           "mu.license",
-                                                           "sig.license",
-                                                           "alpha.hunt",
-                                                           "beta.drought.hunt",
-                                                           "beta.wintsev.hunt",
-                                                           "beta.jobs",
-                                                           "beta.income",
-                                                           "beta.license",
-                                                           "beta.spl.hunt",
-                                                           "sig.spl.hunt", 
-                                                           "sig.une",
-                                                           "mu.pdi",
-                                                           "sig.gas",
-                                                           "sig.pdi",
-                                                           "alpha.pdi",
-                                                           "beta.t.pdi",
-                                                           "ar1",
-                                                           "rho.hunt",
-                                                           "H")) 
+  mcmcConf <-  configureMCMC( model_test,   monitors2 =  pars1) 
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
@@ -350,5 +359,15 @@ samples1    <- list(chain1 =  out[[1]]$samples,
 mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
 mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
-MCMCtrace(mcmcList2, filename = "Hunter Effort MCMC Traceplots.pdf")
+#Save Outputs as file
+files <- list(mcmcList1,mcmcList2,code)
+save(files, file = 'model_output_HuntEff.rdata')
+
+
+### Traceplots
+# colnames(mcmcList2$chain1)
+#Individual parameters
+# MCMCtrace(mcmcList2, params = "alpha.hunt", plot = T, pdf = F)
+#Output full pdf with all trace plots
+MCMCtrace(mcmcList2, filename = "Traceplots - Hunter Effort MCMC.pdf")
 

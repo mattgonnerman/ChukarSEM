@@ -44,8 +44,8 @@ df$F.Year <- ifelse(df$Month == '10' | df$Month == '11' | df$Month == '12', as.n
 
 
 df_agg <- df %>% 
-          group_by(Station,F.Year,Season) %>%
-          summarize(m.PDSI = mean(PDSI, na.rm = TRUE))
+  group_by(Station,F.Year,Season) %>%
+  summarize(m.PDSI = mean(PDSI, na.rm = TRUE))
 
 
 df_cast <- cast(df_agg, F.Year + Season ~ Station, value = 'm.PDSI')
@@ -147,7 +147,7 @@ ggplot(data = df) +
   labs(y = 'Numbers of hunters and chukar (log-scaled)', x = 'Year') +
   theme_bw()
 
- upland[7,10,] <- NA # Season closed
+upland[7,10,] <- NA # Season closed
 hunters[7,10,] <- NA # Season closed 
 
 eastern_pdsi <- read.csv('Eastern_PDSIZ.csv')
@@ -196,18 +196,18 @@ PDI <- (econ_data_sub$Per.Capita.Personal.Disposable.Income/10000)
 GAS <- econ_data_sub$Gas.Price..July.Oct.
 
 mean_ratio <- 2.581635
-  sd_ratio <- 0.8894599
-  
-  ratio <- PDI/GAS
+sd_ratio <- 0.8894599
+
+ratio <- PDI/GAS
 ############################################################################################################################
 # Specify model
 ############################################################################################################################
 code_gib <- nimbleCode( {
-
+  
   for(t in 1:n.year){
-   PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
-   GAS[t] ~ T(dnorm(b0.gas + bt.gas[era[t]]*t, sd = sig.gas),0,)
-   REL.COST[t] <- ((PDI[t]/GAS[t]) - 2.581635)/0.8894599
+    PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
+    GAS[t] ~ T(dnorm(b0.gas + bt.gas[era[t]]*t, sd = sig.gas),0,)
+    REL.COST[t] <- ((PDI[t]/GAS[t]) - 2.581635)/0.8894599
   }
   sig.pdi~ T(dt(0, pow(2.5,-2), 1),0,)
   sig.gas~ T(dt(0, pow(2.5,-2), 1),0,)
@@ -216,17 +216,17 @@ code_gib <- nimbleCode( {
   b0.gas ~ dnorm(1.5, 1)
   bt.gas[1] ~ dnorm(0, 0.01)
   bt.gas[2] ~ dnorm(0, 0.01)
-     ar1 ~ dunif(-1,1)
+  ar1 ~ dunif(-1,1)
   pdi.trend[1] <- b0.pdi + bt.pdi * 1
-     mu.pdi[1] <- pdi.trend[1]
+  mu.pdi[1] <- pdi.trend[1]
   for(t in 2:n.year){
-       mu.pdi[t] <- pdi.trend[t] + ar1 * ( PDI[t-1] - pdi.trend[t-1] )
+    mu.pdi[t] <- pdi.trend[t] + ar1 * ( PDI[t-1] - pdi.trend[t-1] )
     pdi.trend[t] <- b0.pdi + bt.pdi * t
   }
-
+  
   for(l in 1:n.region){
     for(m in 1:n.species){
-          sig[m,l] ~ dgamma(1,1)
+      sig[m,l] ~ dgamma(1,1)
       Delta[m,m,l] <- pow(Q[m,m,l], -0.5)
       Lambda[m,m,l] <- sig[m,l]
     }
@@ -237,9 +237,9 @@ code_gib <- nimbleCode( {
       }
     }
     Sigma[1:n.species,1:n.species,l] <- Lambda[1:n.species,1:n.species,l] %*% P[1:n.species,1:n.species,l] %*% Lambda[1:n.species,1:n.species,l]
-        Q[1:n.species,1:n.species,l] ~ dinvwish(S = I[1:n.species,1:n.species,l], df = n.species + 1)
-        P[1:n.species,1:n.species,l] <- Delta[1:n.species,1:n.species,l] %*% Q[1:n.species,1:n.species,l] %*% Delta[1:n.species,1:n.species,l]
-
+    Q[1:n.species,1:n.species,l] ~ dinvwish(S = I[1:n.species,1:n.species,l], df = n.species + 1)
+    P[1:n.species,1:n.species,l] <- Delta[1:n.species,1:n.species,l] %*% Q[1:n.species,1:n.species,l] %*% Delta[1:n.species,1:n.species,l]
+    
     for (i in 1:n.species){
       for (j in 1:n.species){
         rho[i,j,l] <- Sigma[i,j,l]/sqrt(Sigma[i,i,l] * Sigma[j,j,l])
@@ -248,7 +248,7 @@ code_gib <- nimbleCode( {
     for(k in 1:n.species){
       for(h in 1:n.year){
         pred1[k,l,h] <- inprod(beta.trend[k,l,1:K], ZZ[h,1:K,k,l])
-           mu[k,l,h] <- lbo1[k,l] + inprod(beta.trend[k,l,1:K], ZZ[h,1:K,k,l]) + beta.general[k,l] * res[h] + beta.income[k,l] * REL.COST[h] + beta.drought2[k,l] * wpdsi[h,l] + beta.jobs[k,l] * une[h]
+        mu[k,l,h] <- lbo1[k,l] + inprod(beta.trend[k,l,1:K], ZZ[h,1:K,k,l]) + beta.general[k,l] * res[h] + beta.income[k,l] * REL.COST[h] + beta.drought2[k,l] * wpdsi[h,l] + beta.jobs[k,l] * une[h]
       }
     }
   }
@@ -266,32 +266,32 @@ code_gib <- nimbleCode( {
   for (k in 1:n.species){
     for(l in 1:n.region){
       beta.drought2[k,l] ~ dnorm(mu.drought2[l], sd = sig.drought2[l])
-          beta.jobs[k,l] ~ dnorm(mu.jobs[l], sd = sig.jobs[l])
-       beta.general[k,l] ~ dnorm(mu.gen[l], sd  = sig.gen[l])
-        beta.income[k,l] ~ dnorm(mu.incom[l], sd  = sig.incom[l])
-               lbo1[k,l] ~ dnorm(5, sd = 1)
-            log(H[k,1,l]) <- hunt.eps[k,l,1]
-                z[k,1,l] ~  dpois(H[k,1,l])
+      beta.jobs[k,l] ~ dnorm(mu.jobs[l], sd = sig.jobs[l])
+      beta.general[k,l] ~ dnorm(mu.gen[l], sd  = sig.gen[l])
+      beta.income[k,l] ~ dnorm(mu.incom[l], sd  = sig.incom[l])
+      lbo1[k,l] ~ dnorm(5, sd = 1)
+      log(H[k,1,l]) <- hunt.eps[k,l,1]
+      z[k,1,l] ~  dpois(H[k,1,l])
       for(h in 2:(n.year)){
         log(H[k,h,l]) <- hunt.eps[k,l,h]
-            z[k,h,l] ~  dpois(H[k,h,l])
+        z[k,h,l] ~  dpois(H[k,h,l])
       }
     }
   }
   for(l in 1:n.region){
-        mu.incom[l] ~ dnorm(0, 0.01)
-          mu.gen[l] ~ dnorm(0, 0.01)
-     mu.drought2[l] ~ dnorm(0, 0.01)
-         sig.gen[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
-       sig.incom[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    mu.incom[l] ~ dnorm(0, 0.01)
+    mu.gen[l] ~ dnorm(0, 0.01)
+    mu.drought2[l] ~ dnorm(0, 0.01)
+    sig.gen[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    sig.incom[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
     sig.drought2[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
-         mu.jobs[l] ~ dnorm(0, 0.01)
-        sig.jobs[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    mu.jobs[l] ~ dnorm(0, 0.01)
+    sig.jobs[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
     for (i in 1:n.species){
-         sig.trend[i,l] ~ T(dt(0, pow(2.5,-2), 1),0,)
-
+      sig.trend[i,l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+      
       for(k in 1:K){
-
+        
         beta.trend[i,l,k] ~ dnorm(0, sd = sig.trend[i,l])
       }
     }
@@ -301,7 +301,7 @@ code_gib <- nimbleCode( {
       }
     }
   }
-
+  
 })
 
 # ###Matt's Changes
@@ -433,7 +433,7 @@ code_gib <- nimbleCode( {
 #     } #r
 # 
 #   })
-  
+
 Posdef <- function (n, ev = runif(n, 0, 10)) 
 {
   Z <- matrix(ncol=n, rnorm(n^2))
@@ -474,7 +474,7 @@ time <- 1:(cut+4)
 for(i in 1:7){
   for(j in 1:2){
     BM1[,,i,j] <- bs_bbase(time, nseg = 10)
-     Z1[,,i,j] <-  BM1[,,i,j]%*% Q1
+    Z1[,,i,j] <-  BM1[,,i,j]%*% Q1
     
   }
 }
@@ -486,44 +486,44 @@ ZZ1[is.na(ZZ1)] <- 0
 library(LaplacesDemon)
 
 n.species<- dim(hunters)[1]
-   sig = rgamma(n.species,1,1)
+sig = rgamma(n.species,1,1)
 Lambda = diag(sig)
-     I = diag(n.species)
-    nu = n.species + 1
-     Q = rinvwishart(nu, I)    # note output is an array
- Delta = matrix(0, n.species, n.species)
+I = diag(n.species)
+nu = n.species + 1
+Q = rinvwishart(nu, I)    # note output is an array
+Delta = matrix(0, n.species, n.species)
 
 for (j in 1:n.species){
   Delta[j,j] = Q[j,j]^(-0.5)
 }
-    P = Delta %*% Q %*% Delta
+P = Delta %*% Q %*% Delta
 Sigma = Lambda %*% P %*% Lambda
 
 Sigma = nearPD(Sigma, corr = FALSE,doSym = TRUE)
 
 
 constants_gib <- list(      n.species = 7, K= 12,
-                        n.region = 2,
-                        n.year = cut+4,
-                        mu.hunt = rep(0, 7),
-                        era = c(rep(1,19),rep(2, 27)),
-                        mean.H = apply(hunters, c(1,3), mean, na.rm = TRUE),
-                          sd.H = apply(hunters, c(1,3), sd, na.rm = TRUE),
-                         I = abind(I,I,along = 3))
+                            n.region = 2,
+                            n.year = cut+4,
+                            mu.hunt = rep(0, 7),
+                            era = c(rep(1,19),rep(2, 27)),
+                            mean.H = apply(hunters, c(1,3), mean, na.rm = TRUE),
+                            sd.H = apply(hunters, c(1,3), sd, na.rm = TRUE),
+                            I = abind(I,I,along = 3))
 
 data_gib <- list(une = c(une,NA), PDI = PDI, GAS = GAS,
-             z = abind(hunters,array(NA, dim = c(7,4,2)) ,along = 2), 
-             ZZ = ZZ1, res= scale(res)[,1],
-             wpdsi = data.matrix(abind(wpdsi,matrix(NA,1,2), along = 1)))
+                 z = abind(hunters,array(NA, dim = c(7,4,2)) ,along = 2), 
+                 ZZ = ZZ1, res= scale(res)[,1],
+                 wpdsi = data.matrix(abind(wpdsi,matrix(NA,1,2), along = 1)))
 
 # Initial values
-       Hi <- hunters + 2500
- Hi[,-1,] <- NA
+Hi <- hunters + 2500
+Hi[,-1,] <- NA
 Hi[7,10,] <- rpois(2,colMeans(hunters[7,-10,]))
-       Hi <- abind(Hi[,1:cut,],hunters[,cut,],hunters[,cut,],hunters[,cut,],hunters[,cut,], along = 2)
-       zi <- abind(hunters,hunters[,cut,],hunters[,cut,],hunters[,cut,],hunters[,cut,], along = 2)
-       zi[7,10,] <- Hi[7,10,]  
-       
+Hi <- abind(Hi[,1:cut,],hunters[,cut,],hunters[,cut,],hunters[,cut,],hunters[,cut,], along = 2)
+zi <- abind(hunters,hunters[,cut,],hunters[,cut,],hunters[,cut,],hunters[,cut,], along = 2)
+zi[7,10,] <- Hi[7,10,]  
+
 rho.hunt.init <- diag(7)
 PDI.inits <- ifelse(is.na(PDI) == TRUE, mean(PDI, na.rm = TRUE), PDI)
 GAS.inits <- ifelse(is.na(GAS) == TRUE, 0.9, GAS)
@@ -531,22 +531,22 @@ GAS.inits <- ifelse(is.na(GAS) == TRUE, 0.9, GAS)
 initsFunction <- function() list( 
   GAS = GAS.inits, PDI = PDI.inits, sig.pdi = 1, sig.gas = 1,
   beta.drought2 = matrix(0, 7, 2), mu.drought2 = c(0,0), sig.drought2 = c(1,1),
-    beta.income = matrix(0, 7, 2), mu.incom = c(0,0), sig.incom= c(1,1),
-      beta.jobs = matrix(0, 7, 2), mu.jobs = c(0,0), sig.jobs = c(1,1), sig.wpdsi = c(1,1), sig.une = 1,
+  beta.income = matrix(0, 7, 2), mu.incom = c(0,0), sig.incom= c(1,1),
+  beta.jobs = matrix(0, 7, 2), mu.jobs = c(0,0), sig.jobs = c(1,1), sig.wpdsi = c(1,1), sig.une = 1,
   
   b0.pdi = 2.9, bt.pdi = 0, b0.gas = 0.9,  ar1 = 0, bt.gas = c(0,0),
   Q = abind(Q,Q,along = 3),
   Sigma = abind(Sigma,Sigma,along = 3),
   P = abind(P,P,along = 3),
   Lambda = abind(Lambda,Lambda,along = 3),
-   Delta = abind(Delta,Delta,along = 3),
-     rho = abind(diag(n.species),diag(n.species),along = 3),
+  Delta = abind(Delta,Delta,along = 3),
+  rho = abind(diag(n.species),diag(n.species),along = 3),
   
   H = Hi, x = zi,
   sig.trend = matrix(1, ncol = 2, nrow = 7),
   beta.general = matrix(0, ncol = 2, nrow = 7), 
   mu.gen = c(0,0), sig.gen = c(1,1),
-       lbo1 = matrix(0, ncol = 2, nrow = 7),
+  lbo1 = matrix(0, ncol = 2, nrow = 7),
   
   lambda1 = array(1, dim = c(7,cut+3,2) ),
   log.r1  = array(0, dim = c(7,cut+3,2) ),
@@ -554,7 +554,7 @@ initsFunction <- function() list(
   
   wpdsi = matrix(0,46,2), WPDSI = matrix(0,46,2),
   une = rep(0,46), UNE = rep(0,46)
-
+  
   
 )
 
@@ -582,9 +582,9 @@ out_gib <- clusterEvalQ(cl, {
   library(coda)
   model_test <- nimbleModel( code = code_gib, constants = constants_gib,  data =  data_gib, inits = inits_gib )
   
-   model_test$simulate(c('sig', 'pred1', 'mu', 'une', 'wpdsi',  'beta.trend'))
-   model_test$initializeInfo()
-   model_test$calculate()
+  model_test$simulate(c('sig', 'pred1', 'mu', 'une', 'wpdsi',  'beta.trend'))
+  model_test$initializeInfo()
+  model_test$calculate()
   mcmcConf <-  configureMCMC( model_test,   monitors2 =  c('lbo1','beta.drought2','beta.jobs','wpdsi', 'une','GAS','PDI', 'REL.COST',
                                                            'hunt.eps', 'H','mu','rho','pred1','ar1', 'beta.income',
                                                            'lambda1', 'beta.trend', 'beta.general'))
@@ -668,128 +668,128 @@ ZZ[is.na(ZZ)] <- 0
 code <- nimbleCode( {
   for(l in 1:n.region){
     for(m in 1:n.species){
-            sig[m,l] ~ dgamma(1,1)
-        Delta[m,m,l] <- pow(Q[m,m,l], -0.5)
-       Lambda[m,m,l] <- sig[m,l]
-       
-           sig2[m,l] ~ dgamma(1,1)
-       Delta2[m,m,l] <- pow(Q2[m,m,l], -0.5)
+      sig[m,l] ~ dgamma(1,1)
+      Delta[m,m,l] <- pow(Q[m,m,l], -0.5)
+      Lambda[m,m,l] <- sig[m,l]
+      
+      sig2[m,l] ~ dgamma(1,1)
+      Delta2[m,m,l] <- pow(Q2[m,m,l], -0.5)
       Lambda2[m,m,l] <- sig2[m,l]
-      }
-      for (i in 2:n.species){
-        for (j in 1:(i-1)){
-          Lambda[i,j,l] <- 0
-           Delta[i,j,l] <- 0
-          
-          Lambda2[i,j,l] <- 0
-           Delta2[i,j,l] <- 0
-        }
-      }  
-      Sigma[1:n.species,1:n.species,l] <- Lambda[1:n.species,1:n.species,l] %*% P[1:n.species,1:n.species,l] %*% Lambda[1:n.species,1:n.species,l]  
-          Q[1:n.species,1:n.species,l] ~ dinvwish(S = I[1:n.species,1:n.species,l], df = n.species + 1)
-          P[1:n.species,1:n.species,l] <- Delta[1:n.species,1:n.species,l] %*% Q[1:n.species,1:n.species,l] %*% Delta[1:n.species,1:n.species,l]
-        
-      Sigma2[1:n.species,1:n.species,l] <- Lambda2[1:n.species,1:n.species,l] %*% P2[1:n.species,1:n.species,l] %*% Lambda2[1:n.species,1:n.species,l]  
-          Q2[1:n.species,1:n.species,l] ~ dinvwish(S = I2[1:n.species,1:n.species,l], df = n.species + 1)
-          P2[1:n.species,1:n.species,l] <- Delta2[1:n.species,1:n.species,l] %*% Q2[1:n.species,1:n.species,l] %*% Delta2[1:n.species,1:n.species,l]  
-          
-      for (i in 1:n.species){
-        for (j in 1:n.species){
-           rho[i,j,l] <- Sigma[i,j,l]/sqrt(Sigma[i,i,l] * Sigma[j,j,l])   
-          rho2[i,j,l] <- Sigma2[i,j,l]/sqrt(Sigma2[i,i,l] * Sigma2[j,j,l])   
-        }
-      }
-
-          sig.wpdsi[l] ~ dunif(0,5)
-          sig.pdsi[l] ~ dunif(0,5)
-  for(h in 1:n.year){
-    wpdsi[h,l] ~ dnorm(0, sd = sig.wpdsi[l])
-     pdsi[h,l] ~ dnorm(0, sd = sig.pdsi[l])
-  }        
-          
-  for(k in 1:n.species){
-    for(h in 1:n.year){
-      pred1[k,l,h] <- inprod(beta.trend[k,l,1:K], ZZ[h,1:K,k,l])
-         mu[k,l,h] <- lbo1[k,l] + inprod(beta.trend[k,l,1:K], ZZ[h,1:K,k,l]) + beta.drought2[k,l] * wpdsi[h,l] + beta.jobs[k,l] * une[h]
     }
-  }
+    for (i in 2:n.species){
+      for (j in 1:(i-1)){
+        Lambda[i,j,l] <- 0
+        Delta[i,j,l] <- 0
+        
+        Lambda2[i,j,l] <- 0
+        Delta2[i,j,l] <- 0
+      }
+    }  
+    Sigma[1:n.species,1:n.species,l] <- Lambda[1:n.species,1:n.species,l] %*% P[1:n.species,1:n.species,l] %*% Lambda[1:n.species,1:n.species,l]  
+    Q[1:n.species,1:n.species,l] ~ dinvwish(S = I[1:n.species,1:n.species,l], df = n.species + 1)
+    P[1:n.species,1:n.species,l] <- Delta[1:n.species,1:n.species,l] %*% Q[1:n.species,1:n.species,l] %*% Delta[1:n.species,1:n.species,l]
+    
+    Sigma2[1:n.species,1:n.species,l] <- Lambda2[1:n.species,1:n.species,l] %*% P2[1:n.species,1:n.species,l] %*% Lambda2[1:n.species,1:n.species,l]  
+    Q2[1:n.species,1:n.species,l] ~ dinvwish(S = I2[1:n.species,1:n.species,l], df = n.species + 1)
+    P2[1:n.species,1:n.species,l] <- Delta2[1:n.species,1:n.species,l] %*% Q2[1:n.species,1:n.species,l] %*% Delta2[1:n.species,1:n.species,l]  
+    
+    for (i in 1:n.species){
+      for (j in 1:n.species){
+        rho[i,j,l] <- Sigma[i,j,l]/sqrt(Sigma[i,i,l] * Sigma[j,j,l])   
+        rho2[i,j,l] <- Sigma2[i,j,l]/sqrt(Sigma2[i,i,l] * Sigma2[j,j,l])   
+      }
+    }
+    
+    sig.wpdsi[l] ~ dunif(0,5)
+    sig.pdsi[l] ~ dunif(0,5)
+    for(h in 1:n.year){
+      wpdsi[h,l] ~ dnorm(0, sd = sig.wpdsi[l])
+      pdsi[h,l] ~ dnorm(0, sd = sig.pdsi[l])
+    }        
+    
+    for(k in 1:n.species){
+      for(h in 1:n.year){
+        pred1[k,l,h] <- inprod(beta.trend[k,l,1:K], ZZ[h,1:K,k,l])
+        mu[k,l,h] <- lbo1[k,l] + inprod(beta.trend[k,l,1:K], ZZ[h,1:K,k,l]) + beta.drought2[k,l] * wpdsi[h,l] + beta.jobs[k,l] * une[h]
+      }
+    }
   }
   sig.une~ dunif(0,5)
   for(h in 1:(n.year)){
-   une[h] ~ dnorm(0, sd = sig.une)
-  for(l in 1:n.region){
-        hunt.eps[1:n.species,l,h] ~ dmnorm( mu[1:n.species,l,h], cov =  Sigma[1:n.species,1:n.species,l] )
+    une[h] ~ dnorm(0, sd = sig.une)
+    for(l in 1:n.region){
+      hunt.eps[1:n.species,l,h] ~ dmnorm( mu[1:n.species,l,h], cov =  Sigma[1:n.species,1:n.species,l] )
     }
   }
-    for (k in 1:n.species){
-      for(l in 1:n.region){
-     beta.drought2[k,l] ~ dnorm(mu.drought2[l], sd = sig.drought2[l]) 
-         beta.jobs[k,l] ~ dnorm(mu.jobs[l], sd = sig.jobs[l]) 
-              lbo1[k,l] ~ dnorm(5, sd = 1)
-               lbo[k,l] ~ dnorm(0, sd = 1)
-           log(H[k,1,l]) <- hunt.eps[k,l,1]
-               z[k,1,l] ~  dpois(H[k,1,l])
-         for(h in 2:(n.year)){
-              log(H[k,h,l]) <- hunt.eps[k,l,h]
-                  z[k,h,l] ~  dpois(H[k,h,l])
+  for (k in 1:n.species){
+    for(l in 1:n.region){
+      beta.drought2[k,l] ~ dnorm(mu.drought2[l], sd = sig.drought2[l]) 
+      beta.jobs[k,l] ~ dnorm(mu.jobs[l], sd = sig.jobs[l]) 
+      lbo1[k,l] ~ dnorm(5, sd = 1)
+      lbo[k,l] ~ dnorm(0, sd = 1)
+      log(H[k,1,l]) <- hunt.eps[k,l,1]
+      z[k,1,l] ~  dpois(H[k,1,l])
+      for(h in 2:(n.year)){
+        log(H[k,h,l]) <- hunt.eps[k,l,h]
+        z[k,h,l] ~  dpois(H[k,h,l])
       }
-     }
     }
+  }
   for(l in 1:n.region){
     mu.drought[l] ~ dnorm(0, 0.01)
-   sig.drought[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
-   mu.drought2[l] ~ dnorm(0, 0.01)
-  sig.drought2[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
-       mu.jobs[l] ~ dnorm(0, 0.01)
-      sig.jobs[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    sig.drought[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    mu.drought2[l] ~ dnorm(0, 0.01)
+    sig.drought2[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    mu.jobs[l] ~ dnorm(0, 0.01)
+    sig.jobs[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
     for (i in 1:n.species){
-        beta.drought[i,l] ~ dnorm(mu.drought[l], sd = sig.drought[l])
-        sig.pressure[i,l] ~ T(dt(0, pow(2.5,-2), 1),0,)
-           sig.trend[i,l] ~ T(dt(0, pow(2.5,-2), 1),0,)
-        for(k in 1:K){
-           beta.pressure[i,l,k] ~ dnorm(0, sd = sig.pressure[i,l]) 
-              beta.trend[i,l,k] ~ dnorm(0, sd = sig.trend[i,l])
-         }
+      beta.drought[i,l] ~ dnorm(mu.drought[l], sd = sig.drought[l])
+      sig.pressure[i,l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+      sig.trend[i,l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+      for(k in 1:K){
+        beta.pressure[i,l,k] ~ dnorm(0, sd = sig.pressure[i,l]) 
+        beta.trend[i,l,k] ~ dnorm(0, sd = sig.trend[i,l])
+      }
     } 
-  for (i in 1:n.species){
-                      N[i,1,l] ~ dpois(y[i,1,l])
-                    bph[i,1,l] <-  N[i,1,l]/H[i,1,l]
+    for (i in 1:n.species){
+      N[i,1,l] ~ dpois(y[i,1,l])
+      bph[i,1,l] <-  N[i,1,l]/H[i,1,l]
       for(h in 2:(n.year)){
-                  mu2[i,h-1,l] <- lbo[i,l] + inprod(beta.pressure[i,l,1:K], Z[h-1,1:K,i,l]) + beta.drought[i,l] * pdsi[h-1,l]
+        mu2[i,h-1,l] <- lbo[i,l] + inprod(beta.pressure[i,l,1:K], Z[h-1,1:K,i,l]) + beta.drought[i,l] * pdsi[h-1,l]
       }
-  }
-   for(h in 2:(n.year)){
+    }
+    for(h in 2:(n.year)){
       log.r[1:n.species,h-1,l]  ~ dmnorm( mu2[1:n.species,h-1,l], cov =  Sigma2[1:n.species,1:n.species,l])
-   }
-   for(h in 2:(n.year)){
+    }
+    for(h in 2:(n.year)){
       for (i in 1:n.species){
-          pred[i,h-1,l] <- inprod(beta.pressure[i,l,1:K], Z[h-1,1:K,i,l]) 
+        pred[i,h-1,l] <- inprod(beta.pressure[i,l,1:K], Z[h-1,1:K,i,l]) 
         lambda[i,h-1,l] <- exp(log.r[i,h-1,l])
-       lambda1[i,h-1,l] <- H[i,h,l]/H[i,h-1,l]
-               N[i,h,l] <- lambda[i,h-1,l] * N[i,h-1,l]
-               y[i,h,l] ~  dpois(N[i,h,l]) 
-             bph[i,h,l] <-  N[i,h,l]/H[i,h,l]
-        }
+        lambda1[i,h-1,l] <- H[i,h,l]/H[i,h-1,l]
+        N[i,h,l] <- lambda[i,h-1,l] * N[i,h-1,l]
+        y[i,h,l] ~  dpois(N[i,h,l]) 
+        bph[i,h,l] <-  N[i,h,l]/H[i,h,l]
       }
+    }
   }
-
+  
   for(l in 1:n.site){
-      sigma.chuk[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
-            lbo2[l] ~ dlogis(0,1)
-          theta2[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
-             C[l,1] ~ dpois(x[l,1])
-             mod[l] ~ dlogis(0,1)
+    sigma.chuk[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    lbo2[l] ~ dlogis(0,1)
+    theta2[l] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    C[l,1] ~ dpois(x[l,1])
+    mod[l] ~ dlogis(0,1)
     for(h in 2:n.yr){
       log.r2[l,h-1] <- lbo2[l] + chuk.eps[l,h-1]
-     lambda2[l,h-1] <- exp(log.r2[l,h-1])
-             C[l,h] <- lambda2[l,h-1] * C[l,h-1]
-         rate2[l,h] <- theta2[l]/(theta2[l] + C[l,h])
-             x[l,h] ~   dnegbin(rate2[l,h], theta2[l])  
+      lambda2[l,h-1] <- exp(log.r2[l,h-1])
+      C[l,h] <- lambda2[l,h-1] * C[l,h-1]
+      rate2[l,h] <- theta2[l]/(theta2[l] + C[l,h])
+      x[l,h] ~   dnegbin(rate2[l,h], theta2[l])  
     }
-  for(h in 1:(n.yr-1)){
-    chuk.eps[l,h]  ~ dnorm(mod[l] * log.r[3,h+14,1], sd = sigma.chuk[l])
+    for(h in 1:(n.yr-1)){
+      chuk.eps[l,h]  ~ dnorm(mod[l] * log.r[3,h+14,1], sd = sigma.chuk[l])
+    }
   }
-}
   
   
 })
@@ -833,7 +833,7 @@ hunter.prime <- abind(hunters, array(NA, dim = c(7,4,2)),along = 2)
 for(i in 1:7){
   for(j in 1:2){
     BM[,,i,j] <- bs_bbase(hunter.prime[i,1:(cut+4),j], nseg = 10)
-     Z[,,i,j] <-  BM[,,i,j]%*% Q
+    Z[,,i,j] <-  BM[,,i,j]%*% Q
   }
 }
 
@@ -850,7 +850,7 @@ time <- 1:(cut+4)
 for(i in 1:7){
   for(j in 1:2){
     BM1[,,i,j] <- bs_bbase(time, nseg = 10)
-     Z1[,,i,j] <-  BM1[,,i,j]%*% Q1
+    Z1[,,i,j] <-  BM1[,,i,j]%*% Q1
   }
 }
 
@@ -948,52 +948,52 @@ rho.hunt.init <- diag(7)
 
 # Initial values
 initsFunction <- function() list( 
-                    phi = matrix(rbeta(14,1,1),7,2),
-                    beta.drought = matrix(0, 7, 2), mu.drought = c(0,0), sig.drought = c(1,1),
-                    beta.drought2 = matrix(0, 7, 2), mu.drought2 = c(0,0), sig.drought2 = c(1,1),
-                    beta.jobs = matrix(0, 7, 2), mu.jobs = c(0,0), sig.jobs = c(1,1),
-                    
-                    C = chukar_na + 50,
-                    x =  chukar_na,
-                    sigma.chuk = rep(1,13),
-                 
-                    X0 = matrix(5, ncol = 2, nrow = 7), 
-                    theta2 = rep(1,13),
-
-                    Q = abind(Q,Q,along = 3),
-                   # Sigma = abind(Sigma,Sigma,along = 3),
-                    P = abind(P,P,along = 3),
-                    Lambda = abind(diag(n.species),diag(n.species),along = 3),
-                    Delta = abind(Delta,Delta,along = 3),
-                    rho = abind(diag(n.species),diag(n.species),along = 3),
-                    
-                    Q2 = abind(Q2,Q2,along = 3),
-                   # Sigma2 = abind(Sigma2,Sigma2,along = 3),
-                    P2 = abind(P2,P2,along = 3),
-                    Lambda2 = abind(diag(n.species),diag(n.species),along = 3),
-                    Delta2 = abind(Delta2,Delta2,along = 3),
-                    rho2 = abind(diag(n.species),diag(n.species),along = 3),
-                    
-                    bird.eps = bird.inits,
-                    sig.bird =  matrix(.25, ncol = 7, nrow = 2),
-                    N = Ni,  H = Hi, z= zi, y = yi,
-                    sig.pressure = matrix(1, ncol = 2, nrow = 7),  sig.trend = matrix(1, ncol = 2, nrow = 7),
-                    lbo1 = matrix(0, ncol = 2, nrow = 7),
-                    lbo = matrix(0, ncol = 2, nrow = 7),
-                    lbo2 =  rep(0,13),
-                
-                    lambda1 = array(1, dim = c(7,cut+3,2) ),
-                    log.r1  = array(0, dim = c(7,cut+3,2) ),
-                    hunt.eps = array(rnorm(7*2*cut+4,0,0.1),dim = c(7,2,cut+4)),
-                    pdsi = matrix(0,46,2), 
-                    wpdsi = matrix(0,46,2), 
-                    une = rep(0,46), 
-                   
-                    lambda = array(1, dim = c(7,cut+3,2) ),
-                    log.r  = array(0, dim = c(7,cut+3,2) )
-                   
+  phi = matrix(rbeta(14,1,1),7,2),
+  beta.drought = matrix(0, 7, 2), mu.drought = c(0,0), sig.drought = c(1,1),
+  beta.drought2 = matrix(0, 7, 2), mu.drought2 = c(0,0), sig.drought2 = c(1,1),
+  beta.jobs = matrix(0, 7, 2), mu.jobs = c(0,0), sig.jobs = c(1,1),
   
-                    
+  C = chukar_na + 50,
+  x =  chukar_na,
+  sigma.chuk = rep(1,13),
+  
+  X0 = matrix(5, ncol = 2, nrow = 7), 
+  theta2 = rep(1,13),
+  
+  Q = abind(Q,Q,along = 3),
+  # Sigma = abind(Sigma,Sigma,along = 3),
+  P = abind(P,P,along = 3),
+  Lambda = abind(diag(n.species),diag(n.species),along = 3),
+  Delta = abind(Delta,Delta,along = 3),
+  rho = abind(diag(n.species),diag(n.species),along = 3),
+  
+  Q2 = abind(Q2,Q2,along = 3),
+  # Sigma2 = abind(Sigma2,Sigma2,along = 3),
+  P2 = abind(P2,P2,along = 3),
+  Lambda2 = abind(diag(n.species),diag(n.species),along = 3),
+  Delta2 = abind(Delta2,Delta2,along = 3),
+  rho2 = abind(diag(n.species),diag(n.species),along = 3),
+  
+  bird.eps = bird.inits,
+  sig.bird =  matrix(.25, ncol = 7, nrow = 2),
+  N = Ni,  H = Hi, z= zi, y = yi,
+  sig.pressure = matrix(1, ncol = 2, nrow = 7),  sig.trend = matrix(1, ncol = 2, nrow = 7),
+  lbo1 = matrix(0, ncol = 2, nrow = 7),
+  lbo = matrix(0, ncol = 2, nrow = 7),
+  lbo2 =  rep(0,13),
+  
+  lambda1 = array(1, dim = c(7,cut+3,2) ),
+  log.r1  = array(0, dim = c(7,cut+3,2) ),
+  hunt.eps = array(rnorm(7*2*cut+4,0,0.1),dim = c(7,2,cut+4)),
+  pdsi = matrix(0,46,2), 
+  wpdsi = matrix(0,46,2), 
+  une = rep(0,46), 
+  
+  lambda = array(1, dim = c(7,cut+3,2) ),
+  log.r  = array(0, dim = c(7,cut+3,2) )
+  
+  
+  
 )
 
 # Parameters monitored
@@ -1021,7 +1021,7 @@ out <- clusterEvalQ(cl, {
   library(coda)
   model_test <- nimbleModel( code = code, constants = constants,  data =  data, inits = inits )
   
-   mcmcConf <-  configureMCMC( model_test,   monitors2 =  c('lbo1','lbo','N', 'lambda','pred','beta.drought2','beta.drought','beta.jobs',
+  mcmcConf <-  configureMCMC( model_test,   monitors2 =  c('lbo1','lbo','N', 'lambda','pred','beta.drought2','beta.drought','beta.jobs',
                                                            'hunt.eps', 'H','bph','mu','mu2','pred1','rho','rho2',
                                                            'lambda1', 'beta.pressure','beta.trend',
                                                            'lbo2', 'chuk.eps', 'lambda2',
@@ -1031,7 +1031,7 @@ out <- clusterEvalQ(cl, {
   Cmcmc    <- compileNimble(mcmc)
   
   samplesList <- runMCMC(Cmcmc,nburnin = 250000, niter = 500000, thin = 10, thin2 = 10)
-
+  
   return(samplesList)
 })
 
@@ -1097,20 +1097,20 @@ test.N   <- MCMCsummary(mcmcList2, 'N')
 test.df <- cbind.data.frame(expand.grid(species = species[-c(4,8)], 
                                         year = 1976:2021, 
                                         region = c('west','east') ),
-                                        test.H, hunters = c(abind(hunters, array(NA, dim = c(7,4,2)),along = 2)))
-                           
+                            test.H, hunters = c(abind(hunters, array(NA, dim = c(7,4,2)),along = 2)))
+
 test.dfn <- cbind.data.frame(expand.grid(species = species[-c(4,8)], 
-                                        year = 1976:2021, 
-                                        region = c('west','east') ),
-                                        test.N, upland = c(abind(upland, array(NA, dim = c(7,4,2)),along = 2)))
+                                         year = 1976:2021, 
+                                         region = c('west','east') ),
+                             test.N, upland = c(abind(upland, array(NA, dim = c(7,4,2)),along = 2)))
 
 fig_upland <-   ggplot(data = test.dfn, aes(x = year, y = mean)) +
-                geom_pointrange2(aes(x = year, y = mean, ymin = `2.5%`,ymax = `97.5%`),  size = .75) +
-                geom_pointrange2(data = subset(test.dfn,year>2017), aes(x = year, y = mean, ymin = `2.5%`,ymax = `97.5%`), color = 'red',  size = .75) +
-                facet_wrap(region~species,scales = 'free', ncol = 7) +
-                geom_hline(yintercept = 1000, color = NA) +  geom_hline(yintercept = 0, color = NA) +
-                labs(y = 'Predicted number of birds reported as harvested', x = 'Year') +
-                scale_fill_flat_d() + theme_modern()
+  geom_pointrange2(aes(x = year, y = mean, ymin = `2.5%`,ymax = `97.5%`),  size = .75) +
+  geom_pointrange2(data = subset(test.dfn,year>2017), aes(x = year, y = mean, ymin = `2.5%`,ymax = `97.5%`), color = 'red',  size = .75) +
+  facet_wrap(region~species,scales = 'free', ncol = 7) +
+  geom_hline(yintercept = 1000, color = NA) +  geom_hline(yintercept = 0, color = NA) +
+  labs(y = 'Predicted number of birds reported as harvested', x = 'Year') +
+  scale_fill_flat_d() + theme_modern()
 fig_upland
 
 fig_hunters <-  ggplot(data = test.df, aes(x = year, y = mean)) +
@@ -1123,68 +1123,68 @@ fig_hunters
 
 ggsave(fig_hunters, file = 'fig_hunters.tiff', height = 6, width = 15, dpi = 320)
 
-            ggplot(data = test.df, aes(x = year, y = mean)) +
-            geom_pointrange2(aes(x = year, y = mean, ymin = `2.5%`,ymax = `97.5%`), fill = 'black', shape = 21, size = .75, position = position_dodge(1)) +
-            geom_point(aes(x = year, y = hunters), color = 'red') +
-            facet_wrap(region~species,scales = 'free', ncol = 7) +
-            geom_hline(yintercept = 1) +
-            scale_fill_flat_d() + theme_modern()
+ggplot(data = test.df, aes(x = year, y = mean)) +
+  geom_pointrange2(aes(x = year, y = mean, ymin = `2.5%`,ymax = `97.5%`), fill = 'black', shape = 21, size = .75, position = position_dodge(1)) +
+  geom_point(aes(x = year, y = hunters), color = 'red') +
+  facet_wrap(region~species,scales = 'free', ncol = 7) +
+  geom_hline(yintercept = 1) +
+  scale_fill_flat_d() + theme_modern()
 
 test <- MCMCsummary(mcmcList2, 'pred')
 test.df <- cbind.data.frame(expand.grid(species = species[-c(4,8)], year = 1977:2021, region = c('east','west') ),
                             test, hunters =  c(abind(hunters, array(NA, dim = c(7,3,2)),along = 2)))
 
 fig1 <- ggplot(data = test.df, aes(x = hunters, y = mean, group = region)) +
-        geom_pointrange2(aes(x =hunters, y = mean, ymin = `2.5%`,ymax = `97.5%`, fill = species),shape  = 21, color = 'black', size = .75, position = position_dodge(1)) +
-        geom_hline(yintercept = 0) + labs(y = 'Trends in Hunter Pressure', x = 'Year') + facet_wrap(region ~ species, scales = 'free', ncol = 7) +  scale_fill_flat_d() + theme_modern(legend.position = 'none')
+  geom_pointrange2(aes(x =hunters, y = mean, ymin = `2.5%`,ymax = `97.5%`, fill = species),shape  = 21, color = 'black', size = .75, position = position_dodge(1)) +
+  geom_hline(yintercept = 0) + labs(y = 'Trends in Hunter Pressure', x = 'Year') + facet_wrap(region ~ species, scales = 'free', ncol = 7) +  scale_fill_flat_d() + theme_modern(legend.position = 'none')
 fig1
 
 test1 <- MCMCsummary(mcmcList2, 'pred1')
 test1.df <- cbind.data.frame(expand.grid(species = species[-c(4,8)],  region = c('east','west'), year = 1976:2021 ), test1)
 
 fig2 <- ggplot(data = test1.df, aes(x = year, y = mean, group = region)) +
-        geom_pointrange2(aes(x =year, y = mean, ymin = `2.5%`,ymax = `97.5%`, fill = species),shape  = 21, color = 'black', size = .75, position = position_dodge(1)) +
-        geom_hline(yintercept = 0) + labs(y = 'Trends in Hunter Numbers', x = 'Year') + facet_grid(region ~ species) +  scale_fill_flat_d() + theme_modern()
+  geom_pointrange2(aes(x =year, y = mean, ymin = `2.5%`,ymax = `97.5%`, fill = species),shape  = 21, color = 'black', size = .75, position = position_dodge(1)) +
+  geom_hline(yintercept = 0) + labs(y = 'Trends in Hunter Numbers', x = 'Year') + facet_grid(region ~ species) +  scale_fill_flat_d() + theme_modern()
 fig2
 
 test.NH <- cbind.data.frame(expand.grid(species = species[-c(4,8)], year = 1976:2021, region = c('west','east')), test.bph)
 
 fig1 <- ggplot(data = subset(test.NH, year == 2017), aes(x = species, y = mean, group = region)) +
-        geom_pointrange2(aes(x =species, y = mean, ymin = `2.5%`,ymax = `97.5%`, shape = region),color = 'black', size = .75, position = position_dodge(1)) +
-       # geom_point(aes(x = species, y = bph,shape = region),size = 2, color = 'red', position = position_dodge(1)) +
-        geom_text(data = subset(test.dfn, year == 2017), aes(x =species, y = -1, group = region, label = round(mean,0)),position = position_dodge(1))+
-        geom_text(data = subset(test.dfn, year == 2017), aes(x =species, y = -3, group = region, label = round(upland,0)),position = position_dodge(1), color = 'red')+
-        geom_hline(yintercept = 0) + labs(y = 'Forecasted number of individuals harvested per hunter in 2017', x = 'Species') +
-        theme_modern()
+  geom_pointrange2(aes(x =species, y = mean, ymin = `2.5%`,ymax = `97.5%`, shape = region),color = 'black', size = .75, position = position_dodge(1)) +
+  # geom_point(aes(x = species, y = bph,shape = region),size = 2, color = 'red', position = position_dodge(1)) +
+  geom_text(data = subset(test.dfn, year == 2017), aes(x =species, y = -1, group = region, label = round(mean,0)),position = position_dodge(1))+
+  geom_text(data = subset(test.dfn, year == 2017), aes(x =species, y = -3, group = region, label = round(upland,0)),position = position_dodge(1), color = 'red')+
+  geom_hline(yintercept = 0) + labs(y = 'Forecasted number of individuals harvested per hunter in 2017', x = 'Species') +
+  theme_modern()
 fig1
 ggsave(fig1, file = 'prelim_model.tiff', dpi = 320, height = 6, width = 10)
 
 ggplot(data = test.NH, aes(x = year, y = mean, fill = region)) +
   geom_pointrange2(aes(x =year, y = mean, ymin = `2.5%`,ymax = `97.5%`, shape = region),color = 'black', size = .75, position = position_dodge(1)) +
-        facet_wrap(region~species,scales = 'free', ncol = 7) +
-        geom_hline(yintercept = 1) +
-        scale_fill_flat_d() + theme_modern()
+  facet_wrap(region~species,scales = 'free', ncol = 7) +
+  geom_hline(yintercept = 1) +
+  scale_fill_flat_d() + theme_modern()
 
 ggplot(data = test.NH, aes(x = year, y = mean, fill = region)) +
-      geom_pointrange2(aes(x =year, y = mean, ymin = `2.5%`,ymax = `97.5%`), shape = 21, size = .75, position = position_dodge(1)) +
-      facet_wrap(region ~ species, ncol = 7, scales = 'free_y') +
-      geom_hline(yintercept = 0) + labs(y = 'Estimated number of individuals harvested per hunter', x = 'Species') +
-      scale_fill_flat_d() +  scale_color_metro_d() + theme_modern()
+  geom_pointrange2(aes(x =year, y = mean, ymin = `2.5%`,ymax = `97.5%`), shape = 21, size = .75, position = position_dodge(1)) +
+  facet_wrap(region ~ species, ncol = 7, scales = 'free_y') +
+  geom_hline(yintercept = 0) + labs(y = 'Estimated number of individuals harvested per hunter', x = 'Species') +
+  scale_fill_flat_d() +  scale_color_metro_d() + theme_modern()
 
 library(see)
 ggplot(data = test.df, aes(x = hunters, y = mean, fill = region)) +
   geom_pointrange2(aes(x = hunters, y = mean, ymin = `2.5%`,ymax = `97.5%`), linetype = 'dashed', shape = 21, size = .66, position = position_dodge(1)) +
   facet_wrap(region~species,scales = 'free', ncol = 7) +
   labs(x = 'Number of self-reported active hunters in year t', y = 'Observed impact on the number of individuals reportd as harvested in year t+1') +
-    geom_hline(yintercept = 0) +
-    scale_fill_flat_d() + theme_modern()
-  
+  geom_hline(yintercept = 0) +
+  scale_fill_flat_d() + theme_modern()
+
 ggplot(data = test.df, aes(x = year, y = mean, fill = region)) +
-    geom_pointrange2(aes(x = year, y = mean, ymin = `2.5%`,ymax = `97.5%`), linetype = 'dashed', shape = 21, size = .66, position = position_dodge(1)) +
-    facet_wrap(region~species,scales = 'free', ncol = 7) +
+  geom_pointrange2(aes(x = year, y = mean, ymin = `2.5%`,ymax = `97.5%`), linetype = 'dashed', shape = 21, size = .66, position = position_dodge(1)) +
+  facet_wrap(region~species,scales = 'free', ncol = 7) +
   labs(x = 'Year', y = 'Observed impact of active hunters in year t on the number\n of individuals reported as harvested in year t+1') +
-    geom_hline(yintercept = 0) +
-    scale_fill_flat_d() + theme_modern()
+  geom_hline(yintercept = 0) +
+  scale_fill_flat_d() + theme_modern()
 
 plot(hunters[1,1:41,1], test_matrix[1,,1])
 
