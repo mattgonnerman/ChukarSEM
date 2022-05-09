@@ -588,7 +588,7 @@ pars1 <- c(### Hunter Effort
            "beta.jobs",
            "beta.income",
            "beta.license",
-           "beta.spl.hunt",
+           # "beta.spl.hunt",
            "pred.spl.hunt",
            "rho.hunt",
            
@@ -596,7 +596,7 @@ pars1 <- c(### Hunter Effort
            "alpha.harv",
            "beta.drought.harv",
            "beta.wintsev.harv",
-           "beta.spl.harv",
+           # "beta.spl.harv",
            "beta.rabbit",
            "pred.spl.harv",
            "rho.harv",

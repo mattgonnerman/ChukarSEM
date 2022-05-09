@@ -126,14 +126,17 @@ hunters[7,10,] <- NA # Season closed
 #Format WingBee Data
 sg.wingb <- read.csv("./Data/SG_WingData_2004-2020.csv") %>%
   select(Region = NDOWREGION, Year, AHY.Male, AHY.Female, HY.Male, HY.Female) %>%
-  mutate(Total = rowSums(.[3:6], na.rm = T)) %>%
-  select(Region, Year, Total) %>%
   group_by(Region, Year) %>%
-  summarize(Total.SG = sum(Total)) %>%
-  pivot_wider(names_from = "Region", values_from = "Total.SG")
+  summarize(AHY.F = sum(AHY.Female, na.rm = T),
+            HY.F = sum(HY.Female, na.rm = T),
+            HY.M = sum(HY.Male, na.rm = T)) %>%
+  mutate(HY = HY.M + HY.F) %>%
+  select(Region, Year, HY, AHY.F) %>%
+  pivot_wider(names_from = "Region", values_from = c("AHY.F", "HY"))
 
-wing.b <- t(sg.wingb[,-1])
-n.years.sg <- ncol(wing.b)
+wing.b.ahy <- t(sg.wingb[,2:3])
+wing.b.hy <- t(sg.wingb[,4:5])
+n.years.sg <- ncol(wing.b.ahy)
 time.shift.sg <- min(sg.wingb$Year) - min(harvest_data$Year) - 1
 
 
@@ -295,3 +298,43 @@ awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
   select(-Year)
 
 awssi <- t(awssi.df)
+
+# #BBS Data
+# #https://openresearchsoftware.metajnl.com/articles/10.5334/jors.329/
+# require("bbsBayes")
+# 
+# fetch_bbs_data(level = "state")
+# load_bbs_data(level = "state")
+# bbs_strat <- stratify(by = "state")
+# 
+# #Common Ravens
+# raven_bbs_data <- prepare_data(bbs_strat, 
+#                                model = "slope",
+#                                species_to_run = "Common Raven",
+#                                min_year = 1975)
+# raven_bbs_model <- run_model(raven_bbs_data,
+#                              n_iter = 10000,
+#                              n_burnin = 5000,
+#                              n_thin = 5)
+# raven_index <- generate_indices(raven_bbs_model,
+#                                 raven_bbs_data,
+#                                 regions = "prov_state")$data_summary %>%
+#   filter(Region_alt == "NEVADA") %>%
+#   select(Year, Index)
+# ravens <- raven_index[,2]
+# 
+# #Red-tailed Hawk
+# rth_bbs_data <- prepare_data(bbs_strat, 
+#                                model = "slope",
+#                                species_to_run = "Red Tailed Hawk",
+#                                min_year = 1975)
+# rth_bbs_model <- run_model(rth_bbs_data,
+#                              n_iter = 10000,
+#                              n_burnin = 5000,
+#                              n_thin = 5)
+# rth_index <- generate_indices(rth_bbs_model,
+#                                 rth_bbs_data,
+#                                 regions = "prov_state")$data_summary %>%
+#   filter(Region_alt == "NEVADA") %>%
+#   select(Year, Index)
+# rthawk <- rth_index[,2]

@@ -2,38 +2,23 @@
 source("./ChukarSEM - 1 Data Prep.R")
 
 ### Model
+# Based on Boyce et al. 2001? https://www.jstor.org/stable/3803103
+# https://georgederpa.github.io/teaching/countModels.html
 code <- nimbleCode( {
   ################################################################################
   ### Sage Grouse Wing-Bee ###
-  ### Chukar Site Abundance
-  beta.drought.sg ~ dnorm(0, 0.01)
-  beta.wintsev.sg ~ dnorm(0, 0.01)
-  beta.rabbit.sg ~ dnorm(0, 0.01)
-  
   for(r in 1:n.region){
-    alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept for
+    mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
     theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB overdispersion parameter
-    C.sg[r,1] ~ dpois(wing.b[r,1]) #Equivalent of Poisson lambda
+    sigma.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #Amount of between year variation in change
     
-    # sigma.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    # mod.sg[r] ~ dlogis(0,1)
-    
-    for(t in 2:n.years.sg){
-      # mu.sg[r, t-1] <- mod.sg[r]
-      # sg.eps[r,t-1] ~ dnorm(mu.sg[r, t-1], sd = sigma.sg[r])
-      
-      log.r.sg[r,t-1] <- alpha.sg + 
-        # + sg.eps[r,t-1] + #Variation associated with change in harvest
-        beta.drought.sg * pdsi[t+25,r] + #previous breeding season drought index
-        beta.wintsev.sg * awssi[r,t+25] + #previous year's winter severity
-        beta.rabbit.sg * rabbits[t+25,r] #concurrent rabbit harvest
-        
+    for(t in 1:n.years.sg){
+      log.r.sg[r,t] ~ dnorm(log.r.sg[7, t+24, r]*mod.sg[r], sd = sigma.chuk[r])
+      lambda.sg[r,t] <- exp(log.r.sg[r,t]) #Change in wing-b is proportional to change in harvest
+      C.HY.sg[r,t] <- dpois(AHY.sg[r,t]*lambda.sg[r,t])
+      rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + C.HY.sg[r,t]) #NB rate
+      HY.sg[r,t] ~ dnegbin(rate.sg[r,t], theta.sg[r])
       lambda.sg[r,t-1] <- exp(log.r.sg[r,t-1]) # Tranform between finite and instantaneous growth rate
-      
-      C.sg[r,t] <- lambda.sg[r,t-1] * C.sg[r,t-1] #Change in Count over time
-      
-      rate.sg[r,t-1] <- theta.sg[r]/(theta.sg[r] + C.sg[r,t]) #NB rate
-      wing.b[r,t] ~ dnegbin(rate.sg[r,t-1], theta.sg[r]) #Wing-Bee data follows negative binomial
     } #t
   } #r
 })
@@ -42,7 +27,8 @@ code <- nimbleCode( {
 ### Specify Data Inputs
 data <- list(
   ### Sage Grouse WingBee
-  wing.b =  wing.b,
+  AHY.sg =  wing.b.ahy,
+  HY.sg =  wing.b.hy,
   awssi = awssi, #winter severity index, scaled
   pdsi = pdsi, #Previous breeding season drought index
   rabbits = rabbits #Number of rabbits harvested 
