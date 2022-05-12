@@ -132,7 +132,8 @@ sg.wingb <- read.csv("./Data/SG_WingData_2004-2020.csv") %>%
             HY.M = sum(HY.Male, na.rm = T)) %>%
   mutate(HY = HY.M + HY.F) %>%
   select(Region, Year, HY, AHY.F) %>%
-  pivot_wider(names_from = "Region", values_from = c("AHY.F", "HY"))
+  pivot_wider(names_from = "Region", values_from = c("AHY.F", "HY")) %>%
+  filter(Year < 2018)
 
 wing.b.ahy <- t(sg.wingb[,2:3])
 wing.b.hy <- t(sg.wingb[,4:5])
@@ -281,7 +282,7 @@ rabbits <- as.matrix(read.csv('./Data/all_species_harvest_data.csv') %>%
   select(Region = Section, Year, Rabbits = Animals) %>%
   mutate(Rabbits = scale(Rabbits)) %>%
   pivot_wider(values_from = "Rabbits", names_from = "Region") %>%
-  select(Eastern, Western))
+  select(Eastern, Western)) #row 1 = 1976
 
   
 #Winter Severity (AWSSI)
@@ -294,12 +295,12 @@ awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
   summarise(AWSSI = mean(AWSSI)) %>%
   filter(Year > 1974 & Year < 2018 & Region != "Southern") %>%
   mutate(AWSSI = scale(AWSSI)[,1]) %>%
-  pivot_wider(names_from = Region, values_from = AWSSI) %>%
-  select(-Year)
+  pivot_wider(names_from = Region, values_from = AWSSI) 
 
-awssi <- t(awssi.df)
+awssi <- t(awssi.df %>%
+             select(-Year))
 
-# #BBS Data
+#BBS Data
 # #https://openresearchsoftware.metajnl.com/articles/10.5334/jors.329/
 # require("bbsBayes")
 # 
@@ -308,7 +309,7 @@ awssi <- t(awssi.df)
 # bbs_strat <- stratify(by = "state")
 # 
 # #Common Ravens
-# raven_bbs_data <- prepare_data(bbs_strat, 
+# raven_bbs_data <- prepare_data(bbs_strat,
 #                                model = "slope",
 #                                species_to_run = "Common Raven",
 #                                min_year = 1975)
@@ -324,9 +325,9 @@ awssi <- t(awssi.df)
 # ravens <- raven_index[,2]
 # 
 # #Red-tailed Hawk
-# rth_bbs_data <- prepare_data(bbs_strat, 
+# rth_bbs_data <- prepare_data(bbs_strat,
 #                                model = "slope",
-#                                species_to_run = "Red Tailed Hawk",
+#                                species_to_run = "Red-tailed Hawk (all forms)",
 #                                min_year = 1975)
 # rth_bbs_model <- run_model(rth_bbs_data,
 #                              n_iter = 10000,
@@ -338,3 +339,47 @@ awssi <- t(awssi.df)
 #   filter(Region_alt == "NEVADA") %>%
 #   select(Year, Index)
 # rthawk <- rth_index[,2]
+# 
+# #Northern Harrier
+# nh_bbs_data <- prepare_data(bbs_strat,
+#                              model = "slope",
+#                              species_to_run = "Northern Harrier",
+#                              min_year = 1975)
+# nh_bbs_model <- run_model(nh_bbs_data,
+#                            n_iter = 10000,
+#                            n_burnin = 5000,
+#                            n_thin = 5)
+# nh_index <- generate_indices(nh_bbs_model,
+#                              nh_bbs_data,
+#                               regions = "prov_state")$data_summary %>%
+#   filter(Region_alt == "NEVADA") %>%
+#   select(Year, Index)
+# nharrier <- nh_index[,2]
+# 
+# #Prairie Falcon
+# pf_bbs_data <- prepare_data(bbs_strat,
+#                             model = "slope",
+#                             species_to_run = "Northern Harrier",
+#                             min_year = 1975)
+# pf_bbs_model <- run_model(pf_bbs_data,
+#                           n_iter = 10000,
+#                           n_burnin = 5000,
+#                           n_thin = 5)
+# pf_index <- generate_indices(pf_bbs_model,
+#                              pf_bbs_data,
+#                              regions = "prov_state")$data_summary %>%
+#   filter(Region_alt == "NEVADA") %>%
+#   select(Year, Index)
+# pfalcon <- pf_index[,2]
+# 
+# # Combine into data frame and save so you don't have to run this every time.
+# bbs.df <- data.frame(Year = 1975:(1974+length(ravens)),
+#                      raven = ravens,
+#                      rthawk = rthawk,
+#                      nharrier = nharrier,
+#                      pfalcon = pfalcon)
+# write.csv(bbs.df, "bbs_indices.csv", row.names = F)
+bbs.df <- read.csv("bbs_indices.csv") %>%
+  mutate_at(c("raven", "rthawk", "nharrier", "pfalcon"), scale)
+
+# cor(bbs.df[,2:5])

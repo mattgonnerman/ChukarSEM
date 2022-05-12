@@ -7,18 +7,30 @@ source("./ChukarSEM - 1 Data Prep.R")
 code <- nimbleCode( {
   ################################################################################
   ### Sage Grouse Wing-Bee ###
+  beta.drought.sg ~ dnorm(0, 0.01)
+  beta.wintsev.sg ~ dnorm(0, 0.01)
+  beta.rabbit.sg ~ dnorm(0, 0.01)
+  beta.raven.sg ~ dnorm(0, 0.01)
+  beta.nharrier.sg ~ dnorm(0, 0.01)
+  
   for(r in 1:n.region){
-    mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
-    theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB overdispersion parameter
-    sigma.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #Amount of between year variation in change
+    alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
+    # mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
+    theta.sg[r] ~ dunif(0,1) #NB "probability" parameter, between 0 and 1
     
     for(t in 1:n.years.sg){
-      log.r.sg[r,t] ~ dnorm(log.r.sg[7, t+24, r]*mod.sg[r], sd = sigma.chuk[r])
-      lambda.sg[r,t] <- exp(log.r.sg[r,t]) #Change in wing-b is proportional to change in harvest
-      C.HY.sg[r,t] <- dpois(AHY.sg[r,t]*lambda.sg[r,t])
-      rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + C.HY.sg[r,t]) #NB rate
-      HY.sg[r,t] ~ dnegbin(rate.sg[r,t], theta.sg[r])
-      lambda.sg[r,t-1] <- exp(log.r.sg[r,t-1]) # Tranform between finite and instantaneous growth rate
+      # sg.eps[r, t] <- mod.sg[r] * log.r.harv[7, t+28, r] #log.r.harv[t=25] is 2004
+      
+      log.r.sg[r,t] <- alpha.sg[r] + 
+        # sg.eps[r,t] + #Unlinked change in recruitment
+        beta.drought.sg * pdsi[t+28,r] + #previous breeding season drought index
+        beta.wintsev.sg * awssi[r,t+28] + #previous winter severity
+        beta.rabbit.sg * rabbits[t+27,r] + #previous year's rabbit harvest
+        beta.raven.sg * raven[t+29] + #previous spring BBS raven index
+        beta.nharrier.sg * nharrier[t+29]  #previous spring BBS northern harrier index
+      
+      rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
+      HY.sg[r,t] ~ dnegbin(size = rate.sg[r,t], prob = theta.sg[r])
     } #t
   } #r
 })
@@ -31,7 +43,9 @@ data <- list(
   HY.sg =  wing.b.hy,
   awssi = awssi, #winter severity index, scaled
   pdsi = pdsi, #Previous breeding season drought index
-  rabbits = rabbits #Number of rabbits harvested 
+  rabbits = rabbits, #Number of rabbits harvested 
+  raven = as.vector(bbs.df$raven), #bbs bayes index for ravens, t = 1 is 1975
+  nharrier = as.vector(bbs.df$nharrier) #bbs bayes index for northern harriers, t = 1 is 1975
              )
 
 
@@ -44,23 +58,19 @@ constants <- list(
 
 ### Specify Initial Values
 C.sg.i <- matrix(NA, nrow = 2, ncol = n.years.sg)
-C.sg.i[,1] <- floor(rowMeans(wing.b, na.rm = T))
+C.sg.i[,1] <- floor(rowMeans(wing.b.hy, na.rm = T))
 
 initsFunction <- function() list(   
   ### Sage Grouse Wing-Bee
   theta.sg = rep(1,2),
-  # sigma.sg = rep(0,2),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
-  C.sg = C.sg.i,
-  # mod.sg = rep(1,2),
+  mod.sg = rep(1,2),
   alpha.sg =  rep(0,2),
   beta.drought.sg = 0,
   beta.wintsev.sg = 0,
-  beta.rabbit.sg = 0
-  # alpha.sg =  rep(0,2),
-  # beta.drought.sg = rep(0, 2),
-  # beta.wintsev.sg = rep(0, 2),
-  # beta.rabbit.sg = rep(0, 2)
+  beta.rabbit.sg = 0,
+  beta.raven.sg = 0,
+  beta.nharrier.sg = 0
 )
 
 inits <- initsFunction()
@@ -74,8 +84,7 @@ model_test <- nimbleModel( code = code,
                            constants = constants,
                            data =  data)
 
-model_test$simulate(c('log.r.sg',
-                      'C.sg'))
+model_test$simulate(c('theta.sg', 'rate.sg', 'log.r.sg'))
 model_test$initializeInfo()
 model_test$calculate()
 
@@ -84,6 +93,8 @@ pars1 <- c("alpha.sg",
            "beta.wintsev.sg",
            "beta.drought.sg",
            "beta.rabbit.sg",
+           "beta.raven.sg",
+           "beta.nharrier.sg",
            
            "theta.sg",
            "log.r.sg"
@@ -118,7 +129,7 @@ out <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
- samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 10, thin2 = 10)
+ samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 3, thin2 = 3)
   
   return(samplesList)
 })

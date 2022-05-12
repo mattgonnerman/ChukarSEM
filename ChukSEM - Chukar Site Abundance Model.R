@@ -8,30 +8,33 @@ code <- nimbleCode( {
   beta.drought.chuk ~ dnorm(0, 0.01)
   beta.wintsev.chuk ~ dnorm(0, 0.01)
   beta.rabbit.chuk ~ dnorm(0, 0.01)
+  beta.raven.chuk ~ dnorm(0, 0.01)
+  beta.nharrier.chuk ~ dnorm(0, 0.01)
+  
+  for(r in 1:n.region){
+    alpha.chuk[r] ~ dnorm(0, sd = 100) #Intercept
+    theta.chuk[r] ~ dunif(0,1) #NB "probability" parameter
+    # mod.chuk[r] ~ dlogis(0,1)
+  }
   
   for(p in 1:n.site){
-    alpha.chuk[p] ~ dnorm(0, sd = 100) #Intercept
-    
-    theta.chuk[p] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB overdispersion parameter
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
-    # sigma.chuk[p] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    # mod.chuk[p] ~ dlogis(0,1)
     
     for(t in 2:n.year.chuk){
-      # mu.chuk[p, t-1] <- mod.chuk[p] * log.r.harv[3, t+12, reg.chuk[p]] #log.r.harv[t=14] is 1990-1991
-      # chuk.eps[p,t-1]  ~ dnorm(mu.chuk[p, t-1], sd = sigma.chuk[p]) #Coeffient for annual change
+      # chuk.eps[p, t-1] <- mod.chuk[chuk.reg[p]] * log.r.harv[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
       
       log.r.chuk[p,t-1] <- alpha.chuk[p] + 
         # chuk.eps[p,t-1] + #Unlinked change in abundance, log.harv.chuk[t=1] is 1990-1991
-        beta.drought.chuk * pdsi[t+13,chuk.reg[p]] + #previous breeding season drought index
-        beta.wintsev.chuk * awssi[chuk.reg[p],t+14] + #previous year's winter severity
-        beta.rabbit.chuk * rabbits[t+13,chuk.reg[p]] #previous year's rabbit harvest
-      lambda.chuk[p,t-1] <- exp(log.r.chuk[p,t-1]) #Change in abundance
+        beta.drought.chuk * pdsi[t+12,chuk.reg[p]] + #previous breeding season drought index
+        beta.wintsev.chuk * awssi[chuk.reg[p],t+13] + #previous year's winter severity
+        beta.rabbit.chuk * rabbits[t+12,chuk.reg[p]] + #previous year's rabbit harvest
+        beta.raven.chuk * raven[t+13] + #previous year's spring BBS index
+        beta.nharrier.chuk * nharrier[t+13] #previous year's spring BBS index
       
-      C.chuk[p,t] <- lambda.chuk[p,t-1] * C.chuk[p,t-1] #Equivalent of Poisson lambda
+      C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
       
       rate.chuk[p,t-1] <- theta.chuk[p]/(theta.chuk[p] + C.chuk[p,t]) #NB success parameter
-      n.chuk[p,t] ~ dnegbin(rate.chuk[p,t-1], theta.chuk[p]) #obs. # of chukars follow neg-bin
+      n.chuk[p,t] ~ dnegbin(size = rate.chuk[p,t-1], prob = theta.chuk[p]) #obs. # of chukars follow neg-bin
     } #t
   } #p 
 })
@@ -43,7 +46,9 @@ data <- list(
   n.chuk = data.matrix(chukar),
   awssi = awssi, #winter severity index, scaled
   pdsi = pdsi, #Previous breeding season drought index
-  rabbits = rabbits #Number of rabbits harvested 
+  rabbits = rabbits, #Number of rabbits harvested 
+  raven = as.vector(bbs.df$raven), #bbs bayes index for ravens, t = 1 is 1975
+  nharrier = as.vector(bbs.df$nharrier) #bbs bayes index for northern harriers, t = 1 is 1975
 )
 
 
@@ -58,23 +63,40 @@ constants <- list(
 
 ### Initial Values
 chukar_na <- chukar 
-chukar_na <- ifelse(is.na(chukar == TRUE), floor(mean(as.matrix(chukar), na.rm = T)), NA)
+
+for(i in 1:nrow(chukar_na)){
+  for(j in 1:ncol(chukar_na)){
+    if(is.na(chukar_na[i,j])){
+      chukar_na[i,j] <- floor(mean(as.matrix(chukar[i,]), na.rm = T))
+    # }else{
+    #   chukar_na[i,j] <- NA
+    }
+  }
+}
+
+r.chuk.init <- matrix(NA, nrow = nrow(chukar), ncol = ncol(chukar)-1)
+for(i in 1:nrow(chukar_na)){
+  for(j in 2:ncol(chukar_na)){
+    r.chuk.init[i,j-1] <- chukar_na[i,j]/chukar_na[i,j-1]
+  }
+}
+
+C.chuk.init <- chukar
+C.chuk.init[is.na(C.chuk.init)] <- floor(mean(as.matrix(chukar), na.rm = T))
 
 initsFunction <- function() list( 
   ### Chukar Site Abundance
-  theta.chuk = rep(1,13),
-  # sigma.chuk = rep(0,2),
+  # theta.chuk = rep(1,13),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.chuk-1),
-  n.chuk = chukar_na,
   # mod.chuk = rep(1,2),
   alpha.chuk =  rep(0,13),
   beta.drought.chuk = 0,
   beta.wintsev.chuk = 0,
-  beta.rabbit.chuk = 0
-  # alpha.sg =  rep(0,2),
-  # beta.drought.sg = rep(0, 2),
-  # beta.wintsev.sg = rep(0, 2),
-  # beta.rabbit.sg = rep(0, 2)
+  beta.rabbit.chuk = 0,
+  beta.raven.chuk = 0,
+  beta.nharrier.chuk = 0,
+  n.chuk = as.matrix(chukar_na),
+  log.r.chuk = r.chuk.init
 )
 
 inits <- initsFunction()
@@ -87,7 +109,9 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits)
 
-model_test$simulate(c("log.r.chuk", "C.chuk", "rate.chuk"))
+# model_test$simulate(c('alpha.chuk', 'beta.drought.chuk', 'beta.wintsev.chuk', 'beta.rabbit.chuk',
+#                       'theta.chuk','rate.chuk', 'C.chuk', 'log.r.chuk'))
+model_test$simulate(c('C.chuk', 'rate.chuk', 'theta.chuk'))
 model_test$initializeInfo()
 model_test$calculate()
 
@@ -97,6 +121,8 @@ pars1 <- c(
   "beta.wintsev.chuk",
   "beta.drought.chuk",
   "beta.rabbit.chuk",
+  "beta.raven.chuk",
+  "beta.nharrier.chuk",
   
   "theta.chuk",
   "log.r.chuk"
@@ -128,7 +154,7 @@ out <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 10, thin2 = 10)
+  samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 3, thin2 = 3)
   
   return(samplesList)
 })

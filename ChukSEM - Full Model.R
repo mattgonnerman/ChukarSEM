@@ -54,9 +54,9 @@ code <- nimbleCode( {
   for(s in 1:n.species){
     beta.drought.hunt[s] ~ dnorm(0, sd = 100)
     beta.wintsev.hunt[s] ~ dnorm(0, sd  = 100)
-    beta.jobs[s] ~ dnorm(0, sd = 100)
-    beta.income[s] ~ dnorm(0, sd  = 100)
-    beta.license[s] ~ dnorm(0, sd  = 100)
+    beta.jobs.hunt[s] ~ dnorm(0, sd = 100)
+    beta.income.hunt[s] ~ dnorm(0, sd  = 100)
+    beta.license.hunt[s] ~ dnorm(0, sd  = 100)
   }
   
   for(r in 1:n.region){
@@ -72,9 +72,9 @@ code <- nimbleCode( {
         mu.hunt[s,r,t] <- alpha.hunt[s,r] + #intercept
           beta.drought.hunt[s] * wpdsi[t,r] + #concurrent winter drought index
           beta.wintsev.hunt[s] * awssi.hunt[r,t] + #concurrent winter severity
-          beta.jobs[s] * une[t] + #concurrent years unemployment
-          beta.income[s] * rel.cost[t] + #PDI/Gas Price
-          beta.license[s] * res[t] + #Hunting licences sold that season
+          beta.jobs.hunt[s] * une[t] + #concurrent years unemployment
+          beta.income.hunt[s] * rel.cost[t] + #PDI/Gas Price
+          beta.license.hunt[s] * res[t] + #Hunting licences sold that season
           inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #spline smoothing
         
         pred.spl.hunt[s,r,t] <- inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #Derive spline smoothing for examination later
@@ -119,7 +119,9 @@ code <- nimbleCode( {
   for(s in 1:n.species){
     beta.drought.harv[s] ~ dnorm(0, sd = 100)
     beta.wintsev.harv[s] ~ dnorm(0, sd  = 100)
-    beta.rabbit[s] ~ dnorm(0, sd  = 100)
+    beta.rabbit.harv[s] ~ dnorm(0, sd  = 100)
+    beta.raven.harv[s] ~ dnorm(0, sd  = 100)
+    beta.nharrier.harv[s] ~ dnorm(0, sd  = 100)
   }
   
   for(r in 1:n.region){
@@ -138,7 +140,9 @@ code <- nimbleCode( {
         mu.harv[s,t-1,r] <- alpha.harv[s,r] +#regression formula
           beta.drought.harv[s] * pdsi[t,r] + #previous breeding season drought index
           beta.wintsev.harv[s] * awssi[r,t] + #concurrent winter severity
-          beta.rabbit[s] * rabbits[t,r] + #concurrent rabbit harvest
+          beta.rabbit.harv[s] * rabbits[t,r] + #concurrent rabbit harvest
+          beta.raven.harv[s] * raven[t] + #BBS index from previous spring (Raven/Red Tail hawk highly correlated)
+          beta.nharrier.harv[s] * nharrier[t] + #BBS index from previous spring (Harrier/Falcon highly correlated)
           inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #spline smoothing
         
         pred.spl.harv[s,r,t-1] <- inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #Derive spline smoothing for examination later
@@ -183,35 +187,26 @@ code <- nimbleCode( {
   
   ################################################################################
   ### Sage Grouse Wing-Bee ###
-  ### Chukar Site Abundance
   beta.drought.sg ~ dnorm(0, 0.01)
   beta.wintsev.sg ~ dnorm(0, 0.01)
   beta.rabbit.sg ~ dnorm(0, 0.01)
   
-  sigma.sg ~ T(dt(0, pow(2.5,-2), 1),0,)
-    mod.sg ~ dlogis(0,1)
-    theta.sg ~ T(dt(0, pow(2.5,-2), 1),0,) #NB overdispersion parameter
-  
   for(r in 1:n.region){
-    alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept for
-    C.sg[r,1] ~ dpois(wing.b[r,1]) #Equivalent of Poisson lambda
+    alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
+    mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
+    theta.sg[r] ~ dunif(0,1) #NB "probability" parameter, between 0 and 1
     
-    for(t in 2:n.years.sg){
-      mu.sg[r, t-1] <- mod.sg * log.r.harv[7, t+24, r] #log.r.harv[t=29] is 2004-2005
-      sg.eps[r,t-1] ~ dnorm(mu.sg[r, t-1], sd = sigma.sg)
+    for(t in 1:n.years.sg){
+      sg.eps[r, t] <- mod.sg[r] * log.r.harv[7, t+24, r] #log.r.harv[t=13] is 1990-1991
       
-      log.r.sg[r,t-1] <- alpha.sg[r] + 
-        sg.eps[r,t-1] + #Variation associated with change in harvest
+      log.r.sg[r,t] <- alpha.sg[r] + 
+        sg.eps[r,t] + #Unlinked change in abundance, log.harv.chuk[t=1] is 1990-1991
         beta.drought.sg * pdsi[t+25,r] + #previous breeding season drought index
         beta.wintsev.sg * awssi[r,t+25] + #previous year's winter severity
-        beta.rabbit.sg * rabbits[t+25,r] #concurrent rabbit harvest
+        beta.rabbit.sg * rabbits[t+25,r] #previous year's rabbit harvest
       
-      lambda.sg[r,t-1] <- exp(log.r.sg[r,t-1]) # Tranform between finite and instantaneous growth rate
-      
-      C.sg[r,t] <- lambda.sg[r,t-1] * C.sg[r,t-1] #Change in Count over time
-      
-      rate.sg[r,t-1] <- theta.sg/(theta.sg + C.sg[r,t]) #NB rate
-      wing.b[r,t] ~ dnegbin(rate.sg[r,t-1], theta.sg) #Wing-Bee data follows negative binomial
+      rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
+      HY.sg[r,t] ~ dnegbin(size = rate.sg[r,t], prob = theta.sg[r])
     } #t
   } #r
   
@@ -221,34 +216,25 @@ code <- nimbleCode( {
   beta.wintsev.chuk ~ dnorm(0, 0.01)
   beta.rabbit.chuk ~ dnorm(0, 0.01)
   
-  sigma.chuk ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mod.chuk ~ dlogis(0,1)
-  theta.chuk ~ T(dt(0, pow(2.5,-2), 1),0,) #NB overdispersion parameter
-
-  for(r in 1:n.region){
-    for(t in 2:n.year.chuk){
-      mu.chuk[r, t-1] <- mod.chuk * log.r.harv[3, t+13, r] #log.r.harv[t=13] is 1990-1991
-    }
-  }
-  
   for(p in 1:n.site){
     alpha.chuk[p] ~ dnorm(0, sd = 100) #Intercept
+    theta.chuk[p] ~ dunif(0,1) #NB "probability" parameter
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
+    mod.chuk[p] ~ dlogis(0,1)
     
     for(t in 2:n.year.chuk){
-      chuk.eps[p,t-1]  ~ dnorm(mu.chuk[chuk.reg[p], t-1], sd = sigma.chuk) #Coeffient for annual change
+      chuk.eps[p, t-1] <- mod.chuk[p] * log.r.harv[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
       
       log.r.chuk[p,t-1] <- alpha.chuk[p] + 
         chuk.eps[p,t-1] + #Unlinked change in abundance, log.harv.chuk[t=1] is 1990-1991
-        beta.drought.chuk * pdsi[t+13,chuk.reg[p]] + #previous breeding season drought index
-        beta.wintsev.chuk * awssi[chuk.reg[p],t+14] + #previous year's winter severity
-        beta.rabbit.chuk * rabbits[t+13,chuk.reg[p]] #previous year's rabbit harvest
-      lambda.chuk[p,t-1] <- exp(log.r.chuk[p,t-1]) #Change in abundance
+        beta.drought.chuk * pdsi[t+13,reg.chuk[p]] + #previous breeding season drought index
+        beta.wintsev.chuk * awssi[reg.chuk[p],t+14] + #previous year's winter severity
+        beta.rabbit.chuk * rabbits[t+13,reg.chuk[p]] #previous year's rabbit harvest
       
-      C.chuk[p,t] <- lambda.chuk[p,t-1] * C.chuk[p,t-1] #Equivalent of Poisson lambda
+      C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
       
-      rate.chuk[p,t-1] <- theta.chuk/(theta.chuk + C.chuk[p,t]) #NB success parameter
-      n.chuk[p,t] ~ dnegbin(rate.chuk[p,t-1], theta.chuk) #obs. # of chukars follow neg-bin
+      rate.chuk[p,t-1] <- theta.chuk[p]/(theta.chuk[p] + C.chuk[p,t]) #NB success parameter
+      n.chuk[p,t] ~ dnegbin(size = rate.chuk[p,t-1], prob = theta.chuk[p]) #obs. # of chukars follow neg-bin
     } #t
   } #p 
   
@@ -299,7 +285,7 @@ for(i in 1:7){
 ZZ <- Z
 ZZ[is.na(ZZ)] <- 0
 
-# Time?
+# Time
 time <- 1:cut
 
 BM1 <- array(NA, dim = c(cut,nseg+3,7,2))
@@ -328,6 +314,8 @@ data <- list(
   pdsi = pdsi, #Previous breeding season drought index
   wpdsi = wpdsi, #winter drought index, scaled
   rabbits = rabbits, #Number of rabbits harvested 
+  raven = as.vector(bbs.df$raven), #bbs bayes index for ravens, t = 1 is 1975
+  nharrier = as.vector(bbs.df$nharrier), #bbs bayes index for northern harriers, t = 1 is 1975
   
   ### Hunter Effort
   n.hunt = hunters, #Observed number of hunters for each species each year
@@ -338,7 +326,8 @@ data <- list(
   Z.harv = ZZ, #Spline
   
   ### Sage Grouse WingBee
-  wing.b =  wing.b,
+  AHY.sg =  wing.b.ahy,
+  HY.sg =  wing.b.hy,
   
   ### Chukar Site Abundance
   n.chuk = data.matrix(chukar)
@@ -376,7 +365,7 @@ constants <- list(
   ### Chukar Site Abundance
   n.site = 13,
   n.year.chuk = ncol(chukar),
-  chuk.reg = chuk.reg
+  reg.chuk = chuk.reg
 )
 
 
@@ -417,11 +406,14 @@ Ni[,1,] <- upland[,1,] + 50
 
 ## Sage Grouse Wing-Bee
 C.sg.i <- matrix(NA, nrow = 2, ncol = n.years.sg)
-C.sg.i[,1] <- floor(rowMeans(wing.b, na.rm = T))
+C.sg.i[,1] <- floor(rowMeans(wing.b.hy, na.rm = T))
 
 ## Chukar Site Abundance
 chukar_na <- chukar 
 chukar_na <- ifelse(is.na(chukar == TRUE), floor(mean(as.matrix(chukar), na.rm = T)), NA)
+
+C.chuk.init <- chukar
+C.chuk.init[is.na(C.chuk.init)] <- floor(mean(as.matrix(chukar), na.rm = T))
 
 
 # Wrapper Function
@@ -471,9 +463,9 @@ initsFunction <- function() list(
   sig.hunt = matrix(1, ncol = 2, nrow = 7),
   beta.drought.hunt = rep(0, 7),
   beta.wintsev.hunt = rep(0, 7),
-  beta.jobs = rep(0, 7),
-  beta.income = rep(0, 7),
-  beta.license = rep(0, 7),
+  beta.jobs.hunt = rep(0, 7),
+  beta.income.hunt = rep(0, 7),
+  beta.license.hunt = rep(0, 7),
   
   ### Total Harvest
   n.harv = n.harv.i,
@@ -488,53 +480,37 @@ initsFunction <- function() list(
   N = Ni,
   beta.drought.harv = rep(0, 7),
   beta.wintsev.harv = rep(0, 7),
-  beta.rabbit = rep(0, 7),
+  beta.rabbit.harv = rep(0, 7),
+  beta.raven.harv = rep(0, 7),
+  beta.nharrier.harv = rep(0, 7),
   beta.spl.harv = array(0, dim = c(7,2,12)),
   
   ### Sage Grouse Wing-Bee
-  theta.sg = 1,
-  # sigma.sg = rep(0,2),
-  # sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
-  C.sg = C.sg.i,
-  # mod.sg = rep(1,2),
+  theta.sg = rep(1,2),
+  mod.sg = rep(1,2),
   alpha.sg =  rep(0,2),
   beta.drought.sg = 0,
   beta.wintsev.sg = 0,
   beta.rabbit.sg = 0,
-  # alpha.sg =  rep(0,2),
-  # beta.drought.sg = rep(0, 2),
-  # beta.wintsev.sg = rep(0, 2),
-  # beta.rabbit.sg = rep(0, 2),
-  sigma.sg = 1,
-  sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
-  mod.sg = 1,
   
   ### Chukar Site Abundance
-  theta.chuk = 1,
+  theta.chuk = rep(1,13),
   # sigma.chuk = rep(0,2),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.chuk-1),
   n.chuk = chukar_na,
-  # mod.chuk = rep(1,2),
+  # C.chuk = C.chuk.init, 
+  mod.chuk = rep(1,13),
   alpha.chuk =  rep(0,13),
   beta.drought.chuk = 0,
   beta.wintsev.chuk = 0,
-  beta.rabbit.chuk = 0,
+  beta.rabbit.chuk = 0
   # alpha.sg =  rep(0,2),
   # beta.drought.sg = rep(0, 2),
   # beta.wintsev.sg = rep(0, 2),
-  # beta.rabbit.sg = rep(0, 2),
-  sigma.chuk = 1,
-  chuk.eps = matrix(0, nrow = 13, ncol = ncol(chukar_na)-1),
-  mod.chuk = 1
+  # beta.rabbit.sg = rep(0, 2)
 )
 
 inits <- initsFunction()
-
-### Specify Dimensions
-dimensions <- list(
-  mu.chuk = c(2,27),
-  mu.sg = c(2,16)
-  )
 
 ### MCMC
 #Check Model
@@ -545,42 +521,13 @@ model_test <- nimbleModel( code = code,
 
 model_test$simulate(c("beta.spl.hunt", "mu.hunt", "pred.spl.hunt", "hunt.eps", "H", "Sigma.hunt",
                       "mu.harv",
-                      'log.r.sg','C.sg',
-                      "log.r.chuk", "C.chuk", "rate.chuk"))
+                      'alpha.sg', 'beta.drought.sg', 'beta.wintsev.sg', 'beta.rabbit.sg', 'theta.sg', 'rate.sg', 'log.r.sg',
+                      'alpha.chuk', 'beta.drought.chuk', 'beta.wintsev.chuk', 'beta.rabbit.chuk', 'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk',
+                      'BPH'))
 model_test$initializeInfo()
 model_test$calculate()
 
-#Set Monitors
-# pars1 <- c("alpha.hunt",
-#              "Q.hunt",
-#              "sig.hunt", 
-#              "mu.drought.hunt",
-#              "sig.drought.hunt",
-#              "mu.wintsev.hunt",
-#              "sig.wintsev.hunt",
-#              "mu.jobs",
-#              "sig.jobs",
-#              "mu.income",
-#              "sig.income",
-#              "mu.license",
-#              "sig.license",
-#              "alpha.hunt",
-#              "beta.drought.hunt",
-#              "beta.wintsev.hunt",
-#              "beta.jobs",
-#              "beta.income",
-#              "beta.license",
-#              "beta.spl.hunt",
-#              "sig.spl.hunt", 
-#              "sig.une",
-#              "mu.pdi",
-#              "sig.gas",
-#              "sig.pdi",
-#              "alpha.pdi",
-#              "beta.t.pdi",
-#              "ar1",
-#              "rho.hunt",
-#              "H")
+
 pars1 <- c(### Hunter Effort
            "alpha.hunt",
            "beta.drought.hunt",
@@ -598,6 +545,8 @@ pars1 <- c(### Hunter Effort
            "beta.wintsev.harv",
            "beta.spl.harv",
            "beta.rabbit",
+           "beta.raven",
+           "beta.nharrier",
            "pred.spl.harv",
            "rho.harv",
            
@@ -606,16 +555,17 @@ pars1 <- c(### Hunter Effort
            "beta.wintsev.sg",
            "beta.drought.sg",
            "beta.rabbit.sg",
-           "sg.eps",
            "mod.sg",
+           "theta.sg",
+           "log.r.sg",
            
            ### Chukar Site Abundance
            "alpha.chuk",
            "beta.wintsev.chuk",
            "beta.drought.chuk",
            "beta.rabbit.chuk",
-           "chuk.eps",
-           "mod.chuk",
+           "theta.chuk",
+           "log.r.chuk",
            
            ### Birds per Hunter
            "BPH"
@@ -655,7 +605,7 @@ out <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 250000, niter = 500000, thin = 10, thin2 = 10)
+  samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 10, thin2 = 10)
   
   return(samplesList)
 })
