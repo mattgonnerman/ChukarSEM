@@ -48,25 +48,28 @@ code <- nimbleCode( {
   
   ################################################################################
   ### Hunter Effort ###
+  mu.drought.hunt ~ dnorm(0, 0.01)
+  sig.drought.hunt ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.wintsev.hunt ~ dnorm(0, 0.01)
+  sig.wintsev.hunt ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.jobs ~ dnorm(0, 0.01)
+  sig.jobs ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.income ~ dnorm(0, 0.01)
+  sig.income ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.license ~ dnorm(0, 0.01)
+  sig.license ~ T(dt(0, pow(2.5,-2), 1),0,)
+  
+  for(s in 1:n.species){
+    beta.drought.hunt[s] ~ dnorm(mu.drought.hunt, sd = sig.drought.hunt)
+    beta.wintsev.hunt[s] ~ dnorm(mu.wintsev.hunt, sd  = sig.wintsev.hunt)
+    beta.jobs[s] ~ dnorm(mu.jobs, sd = sig.jobs)
+    beta.income[s] ~ dnorm(mu.income, sd  = sig.income)
+    beta.license[s] ~ dnorm(mu.license, sd  = sig.license)
+  }
+  
   for(r in 1:n.region){
-    mu.drought.hunt[r] ~ dnorm(0, 0.01)
-    sig.drought.hunt[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    mu.wintsev.hunt[r] ~ dnorm(0, 0.01)
-    sig.wintsev.hunt[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    mu.jobs[r] ~ dnorm(0, 0.01)
-    sig.jobs[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    mu.income[r] ~ dnorm(0, 0.01)
-    sig.income[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    mu.license[r] ~ dnorm(0, 0.01)
-    sig.license[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    
     for(s in 1:n.species){
       alpha.hunt[s,r] ~ dnorm(5, sd = 1)
-      beta.drought.hunt[s,r] ~ dnorm(mu.drought.hunt[r], sd = sig.drought.hunt[r])
-      beta.wintsev.hunt[s,r] ~ dnorm(mu.wintsev.hunt[r], sd  = sig.wintsev.hunt[r])
-      beta.jobs[s,r] ~ dnorm(mu.jobs[r], sd = sig.jobs[r])
-      beta.income[s,r] ~ dnorm(mu.income[r], sd  = sig.income[r])
-      beta.license[s,r] ~ dnorm(mu.license[r], sd  = sig.license[r])
       for(k in 1:K){
         beta.spl.hunt[s,r,k] ~ dnorm(0, sd = sig.spl.hunt[s,r])
       } #k
@@ -75,11 +78,11 @@ code <- nimbleCode( {
       for(t in 1:n.year){ 
         #Unlinked estimate of Hunter Numbers
         mu.hunt[s,r,t] <- alpha.hunt[s,r] + #intercept
-          beta.drought.hunt[s,r] * wpdsi[t,r] + #concurrent winter drought index
-          beta.wintsev.hunt[s,r] * awssi[r,t] + #concurrent winter severity
-          beta.jobs[s,r] * une[t] + #concurrent years unemployment
-          beta.income[s,r] * rel.cost[t] + #PDI/Gas Price
-          beta.license[s,r] * res[t] + #Hunting licences sold that season
+          beta.drought.hunt[s] * wpdsi[t,r] + #concurrent winter drought index
+          beta.wintsev.hunt[s] * awssi[r,t] + #concurrent winter severity
+          beta.jobs[s] * une[t] + #concurrent years unemployment
+          beta.income[s] * rel.cost[t] + #PDI/Gas Price
+          beta.license[s] * res[t] + #Hunting licences sold that season
           inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #spline smoothing
         
         pred.spl.hunt[s,r,t] <- inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #Derive spline smoothing for examination later
@@ -158,7 +161,7 @@ ZZ1[is.na(ZZ1)] <- 0
 data <- list(
   ### Hunter Effort
   n.hunt = hunters, #Observed number of hunters for each species each year
-  awssi = awssi[,-1], #winter severity index, scaled
+  awssi = awssi, #winter severity index, scaled
   une = une, #BL Unemployment information for Nevada, scaled
   Z.hunt = ZZ1, #Spline 
   res = scale(res)[,1], #Residential license sales
@@ -224,19 +227,18 @@ initsFunction <- function() list(
   beta.gas = rep(0,2),
   sig.gas = 1,
   sig.une = 1,
-  sig.wpdsi = rep(1,2),
   
   sig.spl.hunt = matrix(1, ncol = 2, nrow = 7),
-  mu.drought.hunt = rep(0,2),
-  sig.drought.hunt = rep(1,2),
-  mu.wintsev.hunt = rep(0,2),
-  sig.wintsev.hunt = rep(1,2),
-  mu.jobs = rep(0,2),
-  sig.jobs = rep(1,2),
-  mu.income = rep(0,2),
-  sig.income = rep(1,2),
-  mu.license = rep(0,2),
-  sig.license = rep(1,2),
+  mu.drought.hunt = 0,
+  sig.drought.hunt = 1,
+  mu.wintsev.hunt = 0,
+  sig.wintsev.hunt = 1,
+  mu.jobs = 0,
+  sig.jobs = 1,
+  mu.income = 0,
+  sig.income = 1,
+  mu.license = 0,
+  sig.license = 1,
   
   ### Hunter Effort
   n.hunt = n.hunt.i,
@@ -248,11 +250,11 @@ initsFunction <- function() list(
   rho.hunt = abind(diag(n.species),diag(n.species),along = 3),
   alpha.hunt = matrix(0, ncol = 2, nrow = 7),
   sig.hunt = matrix(1, ncol = 2, nrow = 7),
-  beta.drought.hunt = matrix(0, 7, 2),
-  beta.wintsev.hunt = matrix(0, 7, 2),
-  beta.jobs = matrix(0, 7, 2),
-  beta.income = matrix(0, 7, 2),
-  beta.license = matrix(0, 7, 2)
+  beta.drought.hunt = rep(0, 7),
+  beta.wintsev.hunt = rep(0, 7),
+  beta.jobs = rep(0, 7),
+  beta.income = rep(0, 7),
+  beta.license = rep(0, 7)
 )
 
 inits <- initsFunction()

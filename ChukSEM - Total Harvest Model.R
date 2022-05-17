@@ -5,20 +5,28 @@ source("./ChukarSEM - 1 Data Prep.R")
 code <- nimbleCode( {
   ################################################################################
   ### Total Harvest ###
+  mu.drought.harv ~ dnorm(0, 0.01)
+  sig.drought.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.wintsev.harv ~ dnorm(0, 0.01)
+  sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.rabbit ~ dnorm(0, 0.01)
+  sig.rabbit ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.raven ~ dnorm(0, 0.01)
+  sig.raven ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.nharrier ~ dnorm(0, 0.01)
+  sig.nharrier ~ T(dt(0, pow(2.5,-2), 1),0,)
+  
+  for(s in 1:n.species){
+    beta.drought.harv[s] ~ dnorm(mu.drought.harv, sd = sig.drought.harv)
+    beta.wintsev.harv[s] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
+    beta.rabbit[s] ~ dnorm(mu.rabbit, sd  = sig.rabbit)
+    beta.raven[s] ~ dnorm(mu.raven, sd  = sig.raven)
+    beta.nharrier[s] ~ dnorm(mu.nharrier, sd  = sig.nharrier)
+  } #s
+  
   for(r in 1:n.region){
-    mu.drought.harv[r] ~ dnorm(0, 0.01)
-    sig.drought.harv[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    mu.wintsev.harv[r] ~ dnorm(0, 0.01)
-    sig.wintsev.harv[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    mu.rabbit[r] ~ dnorm(0, 0.01)
-    sig.rabbit[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    
     for(s in 1:n.species){
-      # Regression Coefficients
       alpha.harv[s,r] ~ dnorm(0, sd = 1)
-      beta.drought.harv[s,r] ~ dnorm(mu.drought.harv[r], sd = sig.drought.harv[r])
-      beta.wintsev.harv[s,r] ~ dnorm(mu.wintsev.harv[r], sd  = sig.wintsev.harv[r])
-      beta.rabbit[s,r] ~ dnorm(mu.rabbit[r], sd  = sig.rabbit[r])
       for(k in 1:K){
         beta.spl.harv[s,r,k] ~ dnorm(0, sd = sig.spl.harv[s,r])
       } #k
@@ -29,9 +37,11 @@ code <- nimbleCode( {
       
       for(t in 2:(n.year)){
         mu.harv[s,t-1,r] <- alpha.harv[s,r] +#regression formula
-          beta.drought.harv[s,r] * pdsi[t,r] + #previous breeding season drought index
-          beta.wintsev.harv[s,r] * awssi[r,t] + #concurrent winter severity
-          beta.rabbit[s,r] * rabbits[t,r] + #concurrent rabbit harvest
+          beta.drought.harv[s] * pdsi[t-1,r] + #previous breeding season drought index
+          beta.wintsev.harv[s] * awssi[r,t-1] + #concurrent winter severity
+          beta.rabbit[s] * rabbits[t-1,r] + #concurrent rabbit harvest
+          beta.raven[s] * raven[t] + #prior BBS index 
+          beta.nharrier[s] * nharrier[t] + #prior BBS index 
           inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #spline smoothing
 
         pred.spl.harv[s,r,t-1] <- inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #Derive spline smoothing for examination later
@@ -117,6 +127,8 @@ data <- list(
   awssi = awssi, #winter severity index, scaled
   pdsi = pdsi, #Previous breeding season drought index
   rabbits = rabbits, #Number of rabbits harvested 
+  raven = as.vector(bbs.df$raven), #bbs bayes index for ravens, t = 1 is 1975
+  nharrier = as.vector(bbs.df$nharrier), #bbs bayes index for northern harriers, t = 1 is 1975
   Z.harv = ZZ1 #Spline
 )
 
@@ -176,12 +188,16 @@ Ni[,1,] <- upland[,1,] + 50
 initsFunction <- function() list(   
   ### Predictors
   sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
-  mu.drought.harv = rep(0,2),
-  sig.drought.harv = rep(1,2),
-  mu.wintsev.harv = rep(0,2),
-  sig.wintsev.harv = rep(1,2),
-  mu.rabbit = rep(0,2),
-  sig.rabbit = rep(1,2),
+  mu.drought.harv = 0,
+  sig.drought.harv = 1,
+  mu.wintsev.harv = 0,
+  sig.wintsev.harv = 1,
+  mu.rabbit = 0,
+  sig.rabbit = 1,
+  mu.raven = 0,
+  sig.raven = 1,
+  mu.nharrier = 0,
+  sig.nharrier = 1,
   
   ### Total Harvest
   n.harv = n.harv.i,
@@ -194,9 +210,11 @@ initsFunction <- function() list(
   sig.harv = matrix(1, ncol = 2, nrow = 7),
   log.r.harv = array(0, dim = c(7,cut-1,2) ),
   N = Ni,
-  beta.drought.harv = matrix(0, 7, 2),
-  beta.wintsev.harv = matrix(0, 7, 2),
-  beta.rabbit = matrix(0, 7, 2),
+  beta.drought.harv = rep(0, 7),
+  beta.wintsev.harv = rep(0, 7),
+  beta.rabbit = rep(0, 7),
+  beta.raven = rep(0, 7),
+  beta.nharrier = rep(0, 7),
   beta.spl.harv = array(0, dim = c(7,2,12))
 )
 
@@ -244,7 +262,13 @@ pars1 <- c(
   "beta.drought.harv",
   "beta.wintsev.harv",
   "beta.spl.harv",
-  "beta.rabbit"
+  "beta.rabbit",
+  "beta.raven",
+  "beta.nharrier",
+  "pred.spl.harv",
+  "log.r.harv",
+  "rho.harv"
+  
 )
 
 ### Parallel Processing Code
@@ -270,7 +294,7 @@ out <- clusterEvalQ(cl, {
                              data =  data,
                              inits = inits )
   
-  model_test$simulate(c("alpha.sg", "sg.eps", "C.sg", "theta.sg", "mod.sg", "rate.sg"))
+  model_test$simulate(c("mu.harv"))
   model_test$initializeInfo()
   model_test$calculate()
   mcmcConf <-  configureMCMC( model_test,   monitors2 =  pars1)

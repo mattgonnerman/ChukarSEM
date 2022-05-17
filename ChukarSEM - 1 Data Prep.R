@@ -269,6 +269,9 @@ econ_data_sub <- subset(econ_data, Year > 1975)
 PDI <- (econ_data_sub$Per.Capita.Personal.Disposable.Income/10000)
 GAS <- econ_data_sub$Gas.Price..July.Oct.
 
+ggplot(data = data.frame(PDI= PDI, Year = 1:length(PDI)), aes(x = Year, y = PDI)) +
+         geom_line()
+
 #Objects not used but values are represented in model
 mean_ratio <- 2.581635
 sd_ratio <- 0.8894599
@@ -293,7 +296,7 @@ awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
   group_by(Region, Year) %>%
   filter(!is.na(AWSSI)) %>%
   summarise(AWSSI = mean(AWSSI)) %>%
-  filter(Year > 1974 & Year < 2018 & Region != "Southern") %>%
+  filter(Year > 1975 & Year < 2018 & Region != "Southern") %>%
   mutate(AWSSI = scale(AWSSI)[,1]) %>%
   pivot_wider(names_from = Region, values_from = AWSSI) 
 
@@ -301,12 +304,12 @@ awssi <- t(awssi.df %>%
              select(-Year))
 
 #BBS Data
-# #https://openresearchsoftware.metajnl.com/articles/10.5334/jors.329/
-# require("bbsBayes")
-# 
+#https://openresearchsoftware.metajnl.com/articles/10.5334/jors.329/
+require("bbsBayes")
+
 # fetch_bbs_data(level = "state")
-# load_bbs_data(level = "state")
-# bbs_strat <- stratify(by = "state")
+load_bbs_data(level = "state")
+bbs_strat <- stratify(by = "state")
 # 
 # #Common Ravens
 # raven_bbs_data <- prepare_data(bbs_strat,
@@ -359,7 +362,7 @@ awssi <- t(awssi.df %>%
 # #Prairie Falcon
 # pf_bbs_data <- prepare_data(bbs_strat,
 #                             model = "slope",
-#                             species_to_run = "Northern Harrier",
+#                             species_to_run = "Prairie Falcon",
 #                             min_year = 1975)
 # pf_bbs_model <- run_model(pf_bbs_data,
 #                           n_iter = 10000,
@@ -371,15 +374,18 @@ awssi <- t(awssi.df %>%
 #   filter(Region_alt == "NEVADA") %>%
 #   select(Year, Index)
 # pfalcon <- pf_index[,2]
-# 
+
 # # Combine into data frame and save so you don't have to run this every time.
 # bbs.df <- data.frame(Year = 1975:(1974+length(ravens)),
 #                      raven = ravens,
 #                      rthawk = rthawk,
 #                      nharrier = nharrier,
 #                      pfalcon = pfalcon)
-# write.csv(bbs.df, "bbs_indices.csv", row.names = F)
-bbs.df <- read.csv("bbs_indices.csv") %>%
+# write.csv(bbs.df, "./Data/bbs_indices.csv", row.names = F)
+bbs.df <- read.csv("./Data/bbs_indices.csv") %>%
   mutate_at(c("raven", "rthawk", "nharrier", "pfalcon"), scale)
-
+# 
+# ggplot(bbs.df, aes(x = Year, y = pfalcon)) +
+#   geom_line()
+# 
 # cor(bbs.df[,2:5])

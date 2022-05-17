@@ -16,7 +16,7 @@ code <- nimbleCode( {
   for(r in 1:n.region){
     alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
     # mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
-    theta.sg[r] ~ dunif(0,1) #NB "probability" parameter, between 0 and 1
+    theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     
     for(t in 1:n.years.sg){
       # sg.eps[r, t] <- mod.sg[r] * log.r.harv[7, t+28, r] #log.r.harv[t=25] is 2004
@@ -24,13 +24,13 @@ code <- nimbleCode( {
       log.r.sg[r,t] <- alpha.sg[r] + 
         # sg.eps[r,t] + #Unlinked change in recruitment
         beta.drought.sg * pdsi[t+28,r] + #previous breeding season drought index
-        beta.wintsev.sg * awssi[r,t+28] + #previous winter severity
+        beta.wintsev.sg * awssi[r,t+27] + #previous winter severity (2003-2004 winter for t = 1)
         beta.rabbit.sg * rabbits[t+27,r] + #previous year's rabbit harvest
         beta.raven.sg * raven[t+29] + #previous spring BBS raven index
         beta.nharrier.sg * nharrier[t+29]  #previous spring BBS northern harrier index
       
       rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
-      HY.sg[r,t] ~ dnegbin(size = rate.sg[r,t], prob = theta.sg[r])
+      HY.sg[r,t] ~ dnegbin(prob = rate.sg[r,t], size = theta.sg[r])
     } #t
   } #r
 })

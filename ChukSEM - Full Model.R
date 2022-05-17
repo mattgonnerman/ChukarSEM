@@ -41,22 +41,33 @@ code <- nimbleCode( {
     une[t] ~ dnorm(0, sd = sig.une)
   } #t
   
-  #Drought Index
-  for(r in 1:n.region){
-    sig.wpdsi[r] ~ dunif(0,5)
-    for(t in 1:n.year){
-      wpdsi[t,r] ~ dnorm(0, sd = sig.wpdsi[r])
-    } #t
-  } #r
+  # #Drought Index
+  # for(r in 1:n.region){
+  #   sig.wpdsi[r] ~ dunif(0,5)
+  #   for(t in 1:n.year){
+  #     wpdsi[t,r] ~ dnorm(0, sd = sig.wpdsi[r])
+  #   } #t
+  # } #r
   
   ################################################################################
   ### Hunter Effort ###
+  mu.drought.hunt ~ dnorm(0, 0.01)
+  sig.drought.hunt ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.wintsev.hunt ~ dnorm(0, 0.01)
+  sig.wintsev.hunt ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.jobs ~ dnorm(0, 0.01)
+  sig.jobs ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.income ~ dnorm(0, 0.01)
+  sig.income ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.license ~ dnorm(0, 0.01)
+  sig.license ~ T(dt(0, pow(2.5,-2), 1),0,)
+  
   for(s in 1:n.species){
-    beta.drought.hunt[s] ~ dnorm(0, sd = 100)
-    beta.wintsev.hunt[s] ~ dnorm(0, sd  = 100)
-    beta.jobs.hunt[s] ~ dnorm(0, sd = 100)
-    beta.income.hunt[s] ~ dnorm(0, sd  = 100)
-    beta.license.hunt[s] ~ dnorm(0, sd  = 100)
+    beta.drought.hunt[s] ~ dnorm(mu.drought.hunt, sd = sig.drought.hunt)
+    beta.wintsev.hunt[s] ~ dnorm(mu.wintsev.hunt, sd  = sig.wintsev.hunt)
+    beta.jobs[s] ~ dnorm(mu.jobs, sd = sig.jobs)
+    beta.income[s] ~ dnorm(mu.income, sd  = sig.income)
+    beta.license[s] ~ dnorm(mu.license, sd  = sig.license)
   }
   
   for(r in 1:n.region){
@@ -71,22 +82,29 @@ code <- nimbleCode( {
         #Unlinked estimate of Hunter Numbers
         mu.hunt[s,r,t] <- alpha.hunt[s,r] + #intercept
           beta.drought.hunt[s] * wpdsi[t,r] + #concurrent winter drought index
-          beta.wintsev.hunt[s] * awssi.hunt[r,t] + #concurrent winter severity
-          beta.jobs.hunt[s] * une[t] + #concurrent years unemployment
-          beta.income.hunt[s] * rel.cost[t] + #PDI/Gas Price
-          beta.license.hunt[s] * res[t] + #Hunting licences sold that season
+          beta.wintsev.hunt[s] * awssi[r,t] + #concurrent winter severity
+          beta.jobs[s] * une[t] + #concurrent years unemployment
+          beta.income[s] * rel.cost[t] + #PDI/Gas Price
+          beta.license[s] * res[t] + #Hunting licences sold that season
           inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #spline smoothing
         
         pred.spl.hunt[s,r,t] <- inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #Derive spline smoothing for examination later
         
         log(H[s,t,r]) <- hunt.eps[s,r,t] #Log Link
+        
         n.hunt[s,t,r] ~  dpois(H[s,t,r]) #Number of hunters follows Poisson
       } #t
+      
+      for(t in 1:(n.year-1)){
+        lambda1[s,t,r] <- H[s,t+1,r]/H[s,t,r]
+        log.r.hunt[s,t,r] <- log(lambda1[s,t,r])
+      }
     } #s
     
     for(t in 1:n.year){
       hunt.eps[1:n.species,r,t] ~ dmnorm(mu.hunt[1:n.species,r,t], cov =  Sigma.hunt[1:n.species,1:n.species,r] )
     }
+    
     
     # Correlation Matrices
     Q.hunt[1:n.species,1:n.species,r] ~ dinvwish(S = I.hunt[1:n.species,1:n.species,r], df = n.species + 1)
@@ -114,19 +132,31 @@ code <- nimbleCode( {
     } #s1
   } #r
   
+  
+  
   ################################################################################
   ### Total Harvest ###
+  mu.drought.harv ~ dnorm(0, 0.01)
+  sig.drought.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.wintsev.harv ~ dnorm(0, 0.01)
+  sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.rabbit ~ dnorm(0, 0.01)
+  sig.rabbit ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.raven ~ dnorm(0, 0.01)
+  sig.raven ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.nharrier ~ dnorm(0, 0.01)
+  sig.nharrier ~ T(dt(0, pow(2.5,-2), 1),0,)
+  
   for(s in 1:n.species){
-    beta.drought.harv[s] ~ dnorm(0, sd = 100)
-    beta.wintsev.harv[s] ~ dnorm(0, sd  = 100)
-    beta.rabbit.harv[s] ~ dnorm(0, sd  = 100)
-    beta.raven.harv[s] ~ dnorm(0, sd  = 100)
-    beta.nharrier.harv[s] ~ dnorm(0, sd  = 100)
-  }
+    beta.drought.harv[s] ~ dnorm(mu.drought.harv, sd = sig.drought.harv)
+    beta.wintsev.harv[s] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
+    beta.rabbit[s] ~ dnorm(mu.rabbit, sd  = sig.rabbit)
+    beta.raven[s] ~ dnorm(mu.raven, sd  = sig.raven)
+    beta.nharrier[s] ~ dnorm(mu.nharrier, sd  = sig.nharrier)
+  } #s
   
   for(r in 1:n.region){
     for(s in 1:n.species){
-      # Regression Coefficients
       alpha.harv[s,r] ~ dnorm(0, sd = 1)
       for(k in 1:K){
         beta.spl.harv[s,r,k] ~ dnorm(0, sd = sig.spl.harv[s,r])
@@ -138,11 +168,11 @@ code <- nimbleCode( {
       
       for(t in 2:(n.year)){
         mu.harv[s,t-1,r] <- alpha.harv[s,r] +#regression formula
-          beta.drought.harv[s] * pdsi[t,r] + #previous breeding season drought index
-          beta.wintsev.harv[s] * awssi[r,t] + #concurrent winter severity
-          beta.rabbit.harv[s] * rabbits[t,r] + #concurrent rabbit harvest
-          beta.raven.harv[s] * raven[t] + #BBS index from previous spring (Raven/Red Tail hawk highly correlated)
-          beta.nharrier.harv[s] * nharrier[t] + #BBS index from previous spring (Harrier/Falcon highly correlated)
+          beta.drought.harv[s] * pdsi[t-1,r] + #previous breeding season drought index
+          beta.wintsev.harv[s] * awssi[r,t-1] + #concurrent winter severity
+          beta.rabbit[s] * rabbits[t-1,r] + #concurrent rabbit harvest
+          beta.raven[s] * raven[t] + #prior BBS index 
+          beta.nharrier[s] * nharrier[t] + #prior BBS index 
           inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #spline smoothing
         
         pred.spl.harv[s,r,t-1] <- inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #Derive spline smoothing for examination later
@@ -190,23 +220,27 @@ code <- nimbleCode( {
   beta.drought.sg ~ dnorm(0, 0.01)
   beta.wintsev.sg ~ dnorm(0, 0.01)
   beta.rabbit.sg ~ dnorm(0, 0.01)
+  beta.raven.sg ~ dnorm(0, 0.01)
+  beta.nharrier.sg ~ dnorm(0, 0.01)
   
   for(r in 1:n.region){
     alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
     mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
-    theta.sg[r] ~ dunif(0,1) #NB "probability" parameter, between 0 and 1
+    theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     
     for(t in 1:n.years.sg){
-      sg.eps[r, t] <- mod.sg[r] * log.r.harv[7, t+24, r] #log.r.harv[t=13] is 1990-1991
+      sg.eps[r, t] <- mod.sg[r] * log.r.harv[7, t+27, r] #log.r.harv[t=25] is 2004
       
       log.r.sg[r,t] <- alpha.sg[r] + 
-        sg.eps[r,t] + #Unlinked change in abundance, log.harv.chuk[t=1] is 1990-1991
-        beta.drought.sg * pdsi[t+25,r] + #previous breeding season drought index
-        beta.wintsev.sg * awssi[r,t+25] + #previous year's winter severity
-        beta.rabbit.sg * rabbits[t+25,r] #previous year's rabbit harvest
+        sg.eps[r,t] + #Unlinked change in recruitment
+        beta.drought.sg * pdsi[t+28,r] + #previous breeding season drought index
+        beta.wintsev.sg * awssi[r,t+27] + #previous winter severity
+        beta.rabbit.sg * rabbits[t+27,r] + #previous year's rabbit harvest
+        beta.raven.sg * raven[t+29] + #previous spring BBS raven index
+        beta.nharrier.sg * nharrier[t+29]  #previous spring BBS northern harrier index
       
       rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
-      HY.sg[r,t] ~ dnegbin(size = rate.sg[r,t], prob = theta.sg[r])
+      HY.sg[r,t] ~ dnegbin(prob = rate.sg[r,t], size = theta.sg[r])
     } #t
   } #r
   
@@ -215,26 +249,33 @@ code <- nimbleCode( {
   beta.drought.chuk ~ dnorm(0, 0.01)
   beta.wintsev.chuk ~ dnorm(0, 0.01)
   beta.rabbit.chuk ~ dnorm(0, 0.01)
+  beta.raven.chuk ~ dnorm(0, 0.01)
+  beta.nharrier.chuk ~ dnorm(0, 0.01)
+  
+  for(r in 1:n.region){
+    alpha.chuk[r] ~ dnorm(0, sd = 100) #Intercept
+    theta.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+    mod.chuk[r] ~ dlogis(0,1)
+  }
   
   for(p in 1:n.site){
-    alpha.chuk[p] ~ dnorm(0, sd = 100) #Intercept
-    theta.chuk[p] ~ dunif(0,1) #NB "probability" parameter
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
-    mod.chuk[p] ~ dlogis(0,1)
     
     for(t in 2:n.year.chuk){
-      chuk.eps[p, t-1] <- mod.chuk[p] * log.r.harv[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
+      chuk.eps[p, t-1] <- mod.chuk[reg.chuk[p]] * log.r.harv[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
       
-      log.r.chuk[p,t-1] <- alpha.chuk[p] + 
+      log.r.chuk[p,t-1] <- alpha.chuk[reg.chuk[p]] + 
         chuk.eps[p,t-1] + #Unlinked change in abundance, log.harv.chuk[t=1] is 1990-1991
-        beta.drought.chuk * pdsi[t+13,reg.chuk[p]] + #previous breeding season drought index
-        beta.wintsev.chuk * awssi[reg.chuk[p],t+14] + #previous year's winter severity
-        beta.rabbit.chuk * rabbits[t+13,reg.chuk[p]] #previous year's rabbit harvest
+        beta.drought.chuk * pdsi[t+12,reg.chuk[p]] + #previous breeding season drought index
+        beta.wintsev.chuk * awssi[reg.chuk[p],t+12] + #previous year's winter severity
+        beta.rabbit.chuk * rabbits[t+12,reg.chuk[p]] + #previous year's rabbit harvest
+        beta.raven.chuk * raven[t+13] + #previous year's spring BBS index
+        beta.nharrier.chuk * nharrier[t+13] #previous year's spring BBS index
       
       C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
       
-      rate.chuk[p,t-1] <- theta.chuk[p]/(theta.chuk[p] + C.chuk[p,t]) #NB success parameter
-      n.chuk[p,t] ~ dnegbin(size = rate.chuk[p,t-1], prob = theta.chuk[p]) #obs. # of chukars follow neg-bin
+      rate.chuk[p,t-1] <- theta.chuk[reg.chuk[p]]/(theta.chuk[reg.chuk[p]] + C.chuk[p,t]) #NB success parameter
+      n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[reg.chuk[p]]) #obs. # of chukars follow neg-bin
     } #t
   } #p 
   
@@ -310,7 +351,6 @@ data <- list(
   PDI = PDI, #personal disposable income
   GAS = GAS, #gas prices
   awssi = awssi, #winter severity index, scaled
-  awssi.hunt = awssi[,-1], #winter severity index, scaled
   pdsi = pdsi, #Previous breeding season drought index
   wpdsi = wpdsi, #winter drought index, scaled
   rabbits = rabbits, #Number of rabbits harvested 
@@ -388,6 +428,17 @@ PDI.inits <- ifelse(is.na(PDI) == TRUE, mean(PDI, na.rm = TRUE), NA)
 GAS.inits <- ifelse(is.na(GAS) == TRUE, 0.9, NA)
 
 ##Total Harvest
+nu = n.species + 1 #degrees of freedom for rinvwishart
+Q = rinvwishart(nu, I)    # note output is an array
+Delta = matrix(0, n.species, n.species)
+for (j in 1:n.species){
+  Delta[j,j] = Q[j,j]^(-0.5)
+}
+P = Delta %*% Q %*% Delta
+Sigma <- Lambda %*% P %*% Lambda
+
+Sigma <- as.matrix(Matrix::nearPD(Sigma, corr = FALSE,doSym = TRUE)$mat)
+
 nu = n.species + 1
 Q2 = rinvwishart(nu, I)    # note output is an array
 Delta2 = matrix(0, n.species, n.species)
@@ -410,11 +461,26 @@ C.sg.i[,1] <- floor(rowMeans(wing.b.hy, na.rm = T))
 
 ## Chukar Site Abundance
 chukar_na <- chukar 
-chukar_na <- ifelse(is.na(chukar == TRUE), floor(mean(as.matrix(chukar), na.rm = T)), NA)
+
+for(i in 1:nrow(chukar_na)){
+  for(j in 1:ncol(chukar_na)){
+    if(is.na(chukar_na[i,j])){
+      chukar_na[i,j] <- floor(mean(as.matrix(chukar[i,]), na.rm = T))
+      # }else{
+      #   chukar_na[i,j] <- NA
+    }
+  }
+}
+
+r.chuk.init <- matrix(NA, nrow = nrow(chukar), ncol = ncol(chukar)-1)
+for(i in 1:nrow(chukar_na)){
+  for(j in 2:ncol(chukar_na)){
+    r.chuk.init[i,j-1] <- chukar_na[i,j]/chukar_na[i,j-1]
+  }
+}
 
 C.chuk.init <- chukar
 C.chuk.init[is.na(C.chuk.init)] <- floor(mean(as.matrix(chukar), na.rm = T))
-
 
 # Wrapper Function
 initsFunction <- function() list(
@@ -432,24 +498,28 @@ initsFunction <- function() list(
   sig.wpdsi = rep(1,2),
 
   sig.spl.hunt = matrix(1, ncol = 2, nrow = 7),
-  # mu.drought.hunt = rep(0,2),
-  # sig.drought.hunt = rep(1,2),
-  # mu.wintsev.hunt = rep(0,2),
-  # sig.wintsev.hunt = rep(1,2),
-  # mu.jobs = rep(0,2),
-  # sig.jobs = rep(1,2),
-  # mu.income = rep(0,2),
-  # sig.income = rep(1,2),
-  # mu.license = rep(0,2),
-  # sig.license = rep(1,2),
+  mu.drought.hunt = 0,
+  sig.drought.hunt = 1,
+  mu.wintsev.hunt = 0,
+  sig.wintsev.hunt = 1,
+  mu.jobs = 0,
+  sig.jobs = 1,
+  mu.income = 0,
+  sig.income = 1,
+  mu.license = 0,
+  sig.license = 1,
   
   sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
-  # mu.drought.harv = rep(0,2),
-  # sig.drought.harv = rep(1,2),
-  # mu.wintsev.harv = rep(0,2),
-  # sig.wintsev.harv = rep(1,2),
-  # mu.rabbit = rep(0,2),
-  # sig.rabbit = rep(1,2),
+  mu.drought.harv = 0,
+  sig.drought.harv = 1,
+  mu.wintsev.harv = 0,
+  sig.wintsev.harv = 1,
+  mu.rabbit = 0,
+  sig.rabbit = 1,
+  mu.raven = 0,
+  sig.raven = 1,
+  mu.nharrier = 0,
+  sig.nharrier = 1,
   
   ### Hunter Effort
   n.hunt = n.hunt.i,
@@ -463,9 +533,9 @@ initsFunction <- function() list(
   sig.hunt = matrix(1, ncol = 2, nrow = 7),
   beta.drought.hunt = rep(0, 7),
   beta.wintsev.hunt = rep(0, 7),
-  beta.jobs.hunt = rep(0, 7),
-  beta.income.hunt = rep(0, 7),
-  beta.license.hunt = rep(0, 7),
+  beta.jobs = rep(0, 7),
+  beta.income = rep(0, 7),
+  beta.license = rep(0, 7),
   
   ### Total Harvest
   n.harv = n.harv.i,
@@ -477,37 +547,37 @@ initsFunction <- function() list(
   alpha.harv = matrix(0, ncol = 2, nrow = 7),
   sig.harv = matrix(1, ncol = 2, nrow = 7),
   log.r.harv = array(0, dim = c(7,cut-1,2) ),
-  N = Ni,
+  # N = Ni,
   beta.drought.harv = rep(0, 7),
   beta.wintsev.harv = rep(0, 7),
-  beta.rabbit.harv = rep(0, 7),
-  beta.raven.harv = rep(0, 7),
-  beta.nharrier.harv = rep(0, 7),
+  beta.rabbit = rep(0, 7),
+  beta.raven = rep(0, 7),
+  beta.nharrier = rep(0, 7),
   beta.spl.harv = array(0, dim = c(7,2,12)),
   
   ### Sage Grouse Wing-Bee
   theta.sg = rep(1,2),
+  # sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
   mod.sg = rep(1,2),
   alpha.sg =  rep(0,2),
   beta.drought.sg = 0,
   beta.wintsev.sg = 0,
   beta.rabbit.sg = 0,
+  beta.raven.sg = 0,
+  beta.nharrier.sg = 0,
   
   ### Chukar Site Abundance
-  theta.chuk = rep(1,13),
-  # sigma.chuk = rep(0,2),
+  # theta.chuk = rep(1,13),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.chuk-1),
-  n.chuk = chukar_na,
-  # C.chuk = C.chuk.init, 
-  mod.chuk = rep(1,13),
-  alpha.chuk =  rep(0,13),
+  # mod.chuk = rep(1,2),
+  alpha.chuk =  rep(0,2),
   beta.drought.chuk = 0,
   beta.wintsev.chuk = 0,
-  beta.rabbit.chuk = 0
-  # alpha.sg =  rep(0,2),
-  # beta.drought.sg = rep(0, 2),
-  # beta.wintsev.sg = rep(0, 2),
-  # beta.rabbit.sg = rep(0, 2)
+  beta.rabbit.chuk = 0,
+  beta.raven.chuk = 0,
+  beta.nharrier.chuk = 0,
+  n.chuk = as.matrix(chukar_na),
+  log.r.chuk = r.chuk.init
 )
 
 inits <- initsFunction()
@@ -519,10 +589,10 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits)
 
-model_test$simulate(c("beta.spl.hunt", "mu.hunt", "pred.spl.hunt", "hunt.eps", "H", "Sigma.hunt",
-                      "mu.harv",
+model_test$simulate(c('beta.spl.hunt', 'mu.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt',
+                      'mu.harv', 'N',
                       'alpha.sg', 'beta.drought.sg', 'beta.wintsev.sg', 'beta.rabbit.sg', 'theta.sg', 'rate.sg', 'log.r.sg',
-                      'alpha.chuk', 'beta.drought.chuk', 'beta.wintsev.chuk', 'beta.rabbit.chuk', 'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk',
+                      'alpha.chuk', 'beta.drought.chuk', 'beta.wintsev.chuk', 'beta.rabbit.chuk', 'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                       'BPH'))
 model_test$initializeInfo()
 model_test$calculate()
@@ -535,41 +605,55 @@ pars1 <- c(### Hunter Effort
            "beta.jobs",
            "beta.income",
            "beta.license",
-           "beta.spl.hunt",
            "pred.spl.hunt",
-           "rho.hunt",
            
            ### Total Harvest
            "alpha.harv",
            "beta.drought.harv",
            "beta.wintsev.harv",
-           "beta.spl.harv",
            "beta.rabbit",
            "beta.raven",
            "beta.nharrier",
            "pred.spl.harv",
-           "rho.harv",
            
            ### Sage Grouse Wing-Bee
            "alpha.sg",
            "beta.wintsev.sg",
            "beta.drought.sg",
            "beta.rabbit.sg",
+           "beta.raven.sg",
+           "beta.nharrier.sg",
            "mod.sg",
            "theta.sg",
-           "log.r.sg",
            
            ### Chukar Site Abundance
            "alpha.chuk",
            "beta.wintsev.chuk",
            "beta.drought.chuk",
            "beta.rabbit.chuk",
-           "theta.chuk",
-           "log.r.chuk",
-           
-           ### Birds per Hunter
-           "BPH"
+           "beta.raven.chuk",
+           "beta.nharrier.chuk"
            )
+
+pars2 <- c(### Hunter Effort
+  "H",
+  "rho.hunt",
+  "log.r.hunt",
+  
+  ### Total Harvest
+  "N",
+  "rho.harv",
+  "log.r.harv",
+  
+  ### Sage Grouse Wing-Bee
+  "log.r.sg",
+  
+  ### Chukar Site Abundance
+  
+  "log.r.chuk",
+  
+  ### Birds per Hunter
+  "BPH")
 
 # Parallel Processing Setup
 lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
@@ -578,7 +662,7 @@ start_time
 nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000) #Start 3 parallel processing clusters
 
-clusterExport(cl, c("code", "inits", "data", "constants", "pars1")) #identify what is to be exported to each cluster
+clusterExport(cl, c("code", "inits", "data", "constants", "pars1", "pars2")) #identify what is to be exported to each cluster
 
 for (j in seq_along(cl)) {
   set.seed(j)
@@ -594,18 +678,19 @@ out <- clusterEvalQ(cl, {
                              data =  data,
                              inits = inits )
   
-  model_test$simulate(c("beta.spl.hunt", "mu.hunt", "pred.spl.hunt", "hunt.eps", "H", "Sigma.hunt",
-                        "mu.harv",
-                        'log.r.sg','C.sg',
-                        "log.r.chuk", "C.chuk", "rate.chuk"))
+  model_test$simulate(c('beta.spl.hunt', 'mu.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt',
+                        'mu.harv', 'N',
+                        'alpha.sg', 'beta.drought.sg', 'beta.wintsev.sg', 'beta.rabbit.sg', 'theta.sg', 'rate.sg', 'log.r.sg',
+                        'alpha.chuk', 'beta.drought.chuk', 'beta.wintsev.chuk', 'beta.rabbit.chuk', 'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
+                        'BPH'))
   model_test$initializeInfo()
   model_test$calculate()
-  mcmcConf <-  configureMCMC( model_test,   monitors2 =  pars1) 
+  mcmcConf <-  configureMCMC( model_test,   monitors =  pars1, monitors2 = pars2) 
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 10, thin2 = 10)
+  samplesList <- runMCMC(Cmcmc,nburnin = 100000, niter = 500000, thin = 100, thin2 = 100)
   
   return(samplesList)
 })
@@ -616,19 +701,20 @@ stopCluster(cl)
 end_time <- Sys.time()
 end_time - start_time
 
+samples1 <- list(chain1 =  out[[1]]$samples, 
+                 chain2 =  out[[2]]$samples, 
+                 chain3 =  out[[3]]$samples)
+
+mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
+
 samples2 <- list(chain1 =  out[[1]]$samples2, 
                  chain2 =  out[[2]]$samples2, 
                  chain3 =  out[[3]]$samples2)
 
-samples1    <- list(chain1 =  out[[1]]$samples, 
-                    chain2 =  out[[2]]$samples, 
-                    chain3 =  out[[3]]$samples)
-
-mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
 mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
 #Save Outputs as file
-files <- list(mcmcList1,mcmcList2,code)
+files <- list(mcmcList1, mcmcList2, code)
 save(files, file = 'model_output_FullModel.rdata')
 
 
@@ -637,5 +723,7 @@ save(files, file = 'model_output_FullModel.rdata')
 #Individual parameters
 # MCMCtrace(mcmcList2, params = "alpha.hunt", plot = T, pdf = F)
 #Output full pdf with all trace plots
-MCMCtrace(mcmcList2, filename = "Traceplots - Full Model MCMC.pdf")
+MCMCtrace(mcmcList1, filename = "./Traceplots - Full Model MCMC Betas.pdf")
+
+MCMCtrace(mcmcList2, filename = "./Traceplots - Full Model MCMC - PopMetrics.pdf")
 

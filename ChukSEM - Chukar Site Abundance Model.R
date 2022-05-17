@@ -13,7 +13,7 @@ code <- nimbleCode( {
   
   for(r in 1:n.region){
     alpha.chuk[r] ~ dnorm(0, sd = 100) #Intercept
-    theta.chuk[r] ~ dunif(0,1) #NB "probability" parameter
+    theta.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     # mod.chuk[r] ~ dlogis(0,1)
   }
   
@@ -23,18 +23,18 @@ code <- nimbleCode( {
     for(t in 2:n.year.chuk){
       # chuk.eps[p, t-1] <- mod.chuk[chuk.reg[p]] * log.r.harv[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
       
-      log.r.chuk[p,t-1] <- alpha.chuk[p] + 
+      log.r.chuk[p,t-1] <- alpha.chuk[chuk.reg[p]] + 
         # chuk.eps[p,t-1] + #Unlinked change in abundance, log.harv.chuk[t=1] is 1990-1991
         beta.drought.chuk * pdsi[t+12,chuk.reg[p]] + #previous breeding season drought index
-        beta.wintsev.chuk * awssi[chuk.reg[p],t+13] + #previous year's winter severity
+        beta.wintsev.chuk * awssi[chuk.reg[p],t+12] + #previous year's winter severity
         beta.rabbit.chuk * rabbits[t+12,chuk.reg[p]] + #previous year's rabbit harvest
         beta.raven.chuk * raven[t+13] + #previous year's spring BBS index
         beta.nharrier.chuk * nharrier[t+13] #previous year's spring BBS index
       
       C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
       
-      rate.chuk[p,t-1] <- theta.chuk[p]/(theta.chuk[p] + C.chuk[p,t]) #NB success parameter
-      n.chuk[p,t] ~ dnegbin(size = rate.chuk[p,t-1], prob = theta.chuk[p]) #obs. # of chukars follow neg-bin
+      rate.chuk[p,t-1] <- theta.chuk[chuk.reg[p]]/(theta.chuk[chuk.reg[p]] + C.chuk[p,t]) #NB success parameter
+      n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[chuk.reg[p]]) #obs. # of chukars follow neg-bin
     } #t
   } #p 
 })
@@ -56,6 +56,7 @@ data <- list(
 ### Specify Contansts
 constants <- list(
   n.site = 13,
+  n.region = 2,
   n.year.chuk = ncol(chukar),
   chuk.reg = chuk.reg
 )
@@ -89,7 +90,7 @@ initsFunction <- function() list(
   # theta.chuk = rep(1,13),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.chuk-1),
   # mod.chuk = rep(1,2),
-  alpha.chuk =  rep(0,13),
+  alpha.chuk =  rep(0,2),
   beta.drought.chuk = 0,
   beta.wintsev.chuk = 0,
   beta.rabbit.chuk = 0,
@@ -109,8 +110,6 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits)
 
-# model_test$simulate(c('alpha.chuk', 'beta.drought.chuk', 'beta.wintsev.chuk', 'beta.rabbit.chuk',
-#                       'theta.chuk','rate.chuk', 'C.chuk', 'log.r.chuk'))
 model_test$simulate(c('C.chuk', 'rate.chuk', 'theta.chuk'))
 model_test$initializeInfo()
 model_test$calculate()
