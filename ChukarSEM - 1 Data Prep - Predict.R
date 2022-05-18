@@ -21,6 +21,7 @@ df_full <- left_join(df_full, df)
 #Format wider
 df_ch <- dcast(df_full, Population ~ Year)
 chukar <- df_ch[,-c(1:19)]
+chukar <- cbind(chukar , matrix(NA, nrow = nrow(chukar), ncol = n.add.y))
 
 chuk_site_data <- read.csv("./Data/Chukar_Surveys_locations.csv") %>%
   select(Population = Survey.Location, Region = NDOWREGION) %>%
@@ -107,20 +108,13 @@ hunters <- abind(hunters_widew, hunters_wide, along = 3)
 hunters <-hunters[-c(4,8),,]
 upland <- upland[-c(4,8),,]
 
-#limit to just chukar and hunter numbers
-df <- cbind.data.frame(year = c(1976:2017), chukar = c(upland[2,,1]), hunter = c(hunters[2,,1])) 
-
-#Show chukar and hunter numbers of time
-ggplot(data = df) +
-  geom_point(aes(x = year, y = log(chukar)), size = 3, shape = 21, fill = 'dodgerblue') +
-  geom_point(aes(x = year, y = log(hunter)), size = 3, shape = 21, fill = 'goldenrod') +
-  labs(y = 'Numbers of hunters and chukar (log-scaled)', x = 'Year') +
-  theme_bw()
-
 #Change closed season values to NA
 upland[7,10,] <- NA # Season closed
 hunters[7,10,] <- NA # Season closed 
 
+#Add NA values to predict 
+upland <- abind(upland, array(NA, dim = c(nrow(upland), n.add.y, 2)), along = 2)
+hunters <- abind(hunters, array(NA, dim = c(nrow(hunters), n.add.y, 2)), along = 2)
 
 ### Sage Grouse Wing Bee
 #Format WingBee Data
@@ -136,7 +130,9 @@ sg.wingb <- read.csv("./Data/SG_WingData_2004-2020.csv") %>%
   filter(Year < 2018)
 
 wing.b.ahy <- t(sg.wingb[,2:3])
+wing.b.ahy <- cbind(wing.b.ahy , matrix(NA, nrow = 2, ncol = n.add.y))
 wing.b.hy <- t(sg.wingb[,4:5])
+wing.b.hy <- cbind(wing.b.hy , matrix(NA, nrow = 2, ncol = n.add.y))
 n.years.sg <- ncol(wing.b.ahy)
 time.shift.sg <- min(sg.wingb$Year) - min(harvest_data$Year) - 1
 
@@ -219,7 +215,9 @@ pdsi_df <- rbind(eastern_pdsi, western_pdsi) %>%
 
 #Average breeding and winter DPSI values for each section
 pdsi <- as.matrix(pdsi_df %>% select(Summer_Eastern, Summer_Western)) 
+pdsi <- rbind(pdsi, matrix(NA, ncol = 2, nrow = n.add.y))
 wpdsi <- as.matrix(pdsi_df %>% select(Winter_Eastern, Winter_Western))
+wpdsi <- rbind(pdsi, matrix(NA, ncol = 2, nrow = n.add.y))
 
 # #Load year/month specific Eastern PDSI values (Z standardized?)
 # eastern_pdsi <- read.csv('./Data/Eastern_PDSIZ.csv')
@@ -244,7 +242,7 @@ wpdsi <- as.matrix(pdsi_df %>% select(Winter_Eastern, Winter_Western))
 # western_pdsi <- subset(western_pdsi, Year > 1975)
 # wbreeding_means <- data.frame(year = western_pdsi$Year, breeding_drought = rowMeans(western_pdsi[,5:9]))
 # 
-cut <- 42 #Reference used to subset dataframes later
+cut <- 42 + n.add.y #Reference used to subset dataframes later
 # 
 # #Average breeding and winter DPSI values for each section
 # pdsi  <- data.frame(east = ebreeding_means$breeding_drought[1:44],west = wbreeding_means$breeding_drought[1:44] )
@@ -256,7 +254,7 @@ unemployment <- read.csv("./Data/NEvadaUnemploymentUSBL.csv", colClasses = c("in
   filter(Period == "Sep") %>%
   filter(Year > 1975) %>%
   mutate(Rate = unemployment/labor.force)
-une <- scale(unemployment$Rate)[,1]
+une <- c(scale(unemployment$Rate)[,1], rep(NA, n.add.y))
 
 
 ggplot(data = data.frame(UNE= une, Year = 1:length(une)), aes(x = Year, y = UNE)) +
@@ -265,13 +263,13 @@ ggplot(data = data.frame(UNE= une, Year = 1:length(une)), aes(x = Year, y = UNE)
 #Number of Resident Licenses Sold
 general <- read.csv(file = './Data/overall_hunting_data.csv')
 general_nv <- subset(general, ST == 'NV' & Year > 1975)
-res <- scale(general_nv$Resident.Licenses)[,1]
+res <- c(scale(general_nv$Resident.Licenses)[,1], rep(NA, n.add.y))
 
 #Gas Prices
 econ_data <- read.csv('./Data/economic_data.csv')
 econ_data_sub <- subset(econ_data, Year > 1975)
-PDI <- (econ_data_sub$Per.Capita.Personal.Disposable.Income/10000)
-GAS <- econ_data_sub$Gas.Price..July.Oct.
+PDI <- c((econ_data_sub$Per.Capita.Personal.Disposable.Income/10000), rep(NA, n.add.y))
+GAS <- c(econ_data_sub$Gas.Price..July.Oct., rep(NA, n.add.y))
 
 
 #Objects not used but values are represented in model
@@ -283,17 +281,13 @@ ratio <- PDI/GAS
 
 #Rabbit Harvest
 rabbits <- as.matrix(read.csv('./Data/all_species_harvest_data.csv') %>%
-  filter(Species == "RABBIT", Section !="Southern") %>%
-  select(Region = Section, Year, Rabbits = Animals) %>%
-  mutate(Rabbits = scale(Rabbits)) %>%
-  pivot_wider(values_from = "Rabbits", names_from = "Region") %>%
-  select(Eastern, Western)) #row 1 = 1976
+                       filter(Species == "RABBIT", Section !="Southern") %>%
+                       select(Region = Section, Year, Rabbits = Animals) %>%
+                       mutate(Rabbits = scale(Rabbits)) %>%
+                       pivot_wider(values_from = "Rabbits", names_from = "Region") %>%
+                       select(Eastern, Western)) #row 1 = 1976
+rabbits <- rbind(rabbits, matrix(NA, ncol = 2, nrow = n.add.y))
 
-rabbits.test <- as.data.frame(rabbits) %>% mutate(Year = 1:nrow(rabbits))
-ggplot(data = rabbits.test, aes(x = Year)) +
-  geom_line(aes(y = Eastern), color = "red") +
-  geom_line(aes(y = Western), color = "blue")
-  
 #Winter Severity (AWSSI)
 awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
   select(Station, Region, Start, End, AWSSI) %>%
@@ -306,97 +300,10 @@ awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
   mutate(AWSSI = scale(AWSSI)[,1]) %>%
   pivot_wider(names_from = Region, values_from = AWSSI) 
 
-awssi <- t(awssi.df %>%
-             select(-Year))
-
-# ggplot(data = awssi.df, aes(x = Year)) +
-#   geom_line(aes(y = Eastern), color = "red") +
-#   geom_line(aes(y = Western), color = "blue")
-
+awssi <- cbind(t(awssi.df %>%
+             select(-Year)), matrix(NA, nrow = 2, ncol = n.add.y))
 
 #BBS Data
-# #https://openresearchsoftware.metajnl.com/articles/10.5334/jors.329/
-# require("bbsBayes")
-# 
-# # fetch_bbs_data(level = "state")
-# load_bbs_data(level = "state")
-# bbs_strat <- stratify(by = "state")
-# 
-# #Common Ravens
-# raven_bbs_data <- prepare_data(bbs_strat,
-#                                model = "slope",
-#                                species_to_run = "Common Raven",
-#                                min_year = 1975)
-# raven_bbs_model <- run_model(raven_bbs_data,
-#                              n_iter = 10000,
-#                              n_burnin = 5000,
-#                              n_thin = 5)
-# raven_index <- generate_indices(raven_bbs_model,
-#                                 raven_bbs_data,
-#                                 regions = "prov_state")$data_summary %>%
-#   filter(Region_alt == "NEVADA") %>%
-#   select(Year, Index)
-# ravens <- raven_index[,2]
-# 
-# #Red-tailed Hawk
-# rth_bbs_data <- prepare_data(bbs_strat,
-#                                model = "slope",
-#                                species_to_run = "Red-tailed Hawk (all forms)",
-#                                min_year = 1975)
-# rth_bbs_model <- run_model(rth_bbs_data,
-#                              n_iter = 10000,
-#                              n_burnin = 5000,
-#                              n_thin = 5)
-# rth_index <- generate_indices(rth_bbs_model,
-#                                 rth_bbs_data,
-#                                 regions = "prov_state")$data_summary %>%
-#   filter(Region_alt == "NEVADA") %>%
-#   select(Year, Index)
-# rthawk <- rth_index[,2]
-# 
-# #Northern Harrier
-# nh_bbs_data <- prepare_data(bbs_strat,
-#                              model = "slope",
-#                              species_to_run = "Northern Harrier",
-#                              min_year = 1975)
-# nh_bbs_model <- run_model(nh_bbs_data,
-#                            n_iter = 10000,
-#                            n_burnin = 5000,
-#                            n_thin = 5)
-# nh_index <- generate_indices(nh_bbs_model,
-#                              nh_bbs_data,
-#                               regions = "prov_state")$data_summary %>%
-#   filter(Region_alt == "NEVADA") %>%
-#   select(Year, Index)
-# nharrier <- nh_index[,2]
-# 
-# #Prairie Falcon
-# pf_bbs_data <- prepare_data(bbs_strat,
-#                             model = "slope",
-#                             species_to_run = "Prairie Falcon",
-#                             min_year = 1975)
-# pf_bbs_model <- run_model(pf_bbs_data,
-#                           n_iter = 10000,
-#                           n_burnin = 5000,
-#                           n_thin = 5)
-# pf_index <- generate_indices(pf_bbs_model,
-#                              pf_bbs_data,
-#                              regions = "prov_state")$data_summary %>%
-#   filter(Region_alt == "NEVADA") %>%
-#   select(Year, Index)
-# pfalcon <- pf_index[,2]
-
-# # Combine into data frame and save so you don't have to run this every time.
-# bbs.df <- data.frame(Year = 1975:(1974+length(ravens)),
-#                      raven = ravens,
-#                      rthawk = rthawk,
-#                      nharrier = nharrier,
-#                      pfalcon = pfalcon)
-# write.csv(bbs.df, "./Data/bbs_indices.csv", row.names = F)
 bbs.df <- read.csv("./Data/bbs_indices.csv") %>%
   mutate_at(c("raven", "rthawk", "nharrier", "pfalcon"), scale)
-# 
-# ggplot(bbs.df, aes(x = Year, y = nharrier)) +
-#   geom_line()
-# 
-# cor(bbs.df[,2:5])
+bbs.df[(nrow(bbs.df)+1):(nrow(bbs.df)+n.add.y),] <- NA
