@@ -13,7 +13,7 @@ df <- gather(survey_data, "Population", "Count", 2:14)
 # Where chukar surveys occurred
 site_list <- unique(df$Population)
 # Years to assess
-year_list <- rep(1972:2017)
+year_list <- rep(1972:cutoff.y)
 #Create new df for all population*year combinations
 df_full <- data.frame("Population" = rep(site_list, times = length(year_list)), "Year" = rep(year_list, each = length(site_list)))
 #Join associated number of surveys at each location in each year
@@ -45,7 +45,8 @@ harvest_data <- read.csv('./Data/all_species_harvest_data.csv') %>%
          Animals = as.numeric(as.character(Animals)),
          Hunters = as.numeric(as.character(Hunters)),
          H.Days = as.numeric(as.character(H.Days))
-  )
+  ) %>%
+  filter(Year <= cutoff.y)
 
 #Add species codes
 harvest_data$Species_Code <- recode(harvest_data$Species, 
@@ -127,7 +128,7 @@ sg.wingb <- read.csv("./Data/SG_WingData_2004-2020.csv") %>%
   mutate(HY = HY.M + HY.F) %>%
   select(Region, Year, HY, AHY.F) %>%
   pivot_wider(names_from = "Region", values_from = c("AHY.F", "HY")) %>%
-  filter(Year < 2018)
+  filter(Year <= cutoff.y)
 
 wing.b.ahy <- t(sg.wingb[,2:3])
 wing.b.ahy <- cbind(wing.b.ahy , matrix(NA, nrow = 2, ncol = n.add.y))
@@ -199,7 +200,7 @@ eastern_pdsi <- read.csv('./Data/Eastern_PDSIZ.csv') %>%
   mutate(Summer = (Apr + May + Jun + Jul + Aug)/5,
          Winter = (Nov + Dec + lead(Jan) + lead(Feb) + lead(Mar))/5) %>%
   select(Year, Summer, Winter) %>%
-  filter(Year %in% 1976:2017) %>%
+  filter(Year %in% 1976:cutoff.y) %>%
   mutate(Region = "Eastern")
 
 western_pdsi <- read.csv('./Data/Western_PDSIZ.csv') %>%
@@ -207,7 +208,7 @@ western_pdsi <- read.csv('./Data/Western_PDSIZ.csv') %>%
   mutate(Summer = (Apr + May + Jun + Jul + Aug)/5,
          Winter = (Nov + Dec + lead(Jan) + lead(Feb) + lead(Mar))/5) %>%
   select(Year, Summer, Winter) %>%
-  filter(Year %in% 1976:2017) %>%
+  filter(Year %in% 1976:cutoff.y) %>%
   mutate(Region = "Western")
 
 pdsi_df <- rbind(eastern_pdsi, western_pdsi) %>%
@@ -242,7 +243,7 @@ wpdsi <- rbind(pdsi, matrix(NA, ncol = 2, nrow = n.add.y))
 # western_pdsi <- subset(western_pdsi, Year > 1975)
 # wbreeding_means <- data.frame(year = western_pdsi$Year, breeding_drought = rowMeans(western_pdsi[,5:9]))
 # 
-cut <- 42 + n.add.y #Reference used to subset dataframes later
+cut <- length(1976:cutoff.y) + n.add.y #Reference used to subset dataframes later
 # 
 # #Average breeding and winter DPSI values for each section
 # pdsi  <- data.frame(east = ebreeding_means$breeding_drought[1:44],west = wbreeding_means$breeding_drought[1:44] )
@@ -253,21 +254,20 @@ cut <- 42 + n.add.y #Reference used to subset dataframes later
 unemployment <- read.csv("./Data/NEvadaUnemploymentUSBL.csv", colClasses = c("integer", "character", rep("numeric", 2), rep("integer", 3), "numeric")) %>%
   filter(Period == "Sep") %>%
   filter(Year > 1975) %>%
+  filter(Year <= cutoff.y) %>%
   mutate(Rate = unemployment/labor.force)
 une <- c(scale(unemployment$Rate)[,1], rep(NA, n.add.y))
-
-
-ggplot(data = data.frame(UNE= une, Year = 1:length(une)), aes(x = Year, y = UNE)) +
-  geom_line()
+# ggplot(data = data.frame(UNE= une, Year = 1:length(une)), aes(x = Year, y = UNE)) +
+#   geom_line()
 
 #Number of Resident Licenses Sold
 general <- read.csv(file = './Data/overall_hunting_data.csv')
-general_nv <- subset(general, ST == 'NV' & Year > 1975)
+general_nv <- subset(general, ST == 'NV' & Year > 1975 & Year <= cutoff.y)
 res <- c(scale(general_nv$Resident.Licenses)[,1], rep(NA, n.add.y))
 
 #Gas Prices
 econ_data <- read.csv('./Data/economic_data.csv')
-econ_data_sub <- subset(econ_data, Year > 1975)
+econ_data_sub <- subset(econ_data, Year > 1975 & Year <= cutoff.y)
 PDI <- c((econ_data_sub$Per.Capita.Personal.Disposable.Income/10000), rep(NA, n.add.y))
 GAS <- c(econ_data_sub$Gas.Price..July.Oct., rep(NA, n.add.y))
 
@@ -283,6 +283,7 @@ ratio <- PDI/GAS
 rabbits <- as.matrix(read.csv('./Data/all_species_harvest_data.csv') %>%
                        filter(Species == "RABBIT", Section !="Southern") %>%
                        select(Region = Section, Year, Rabbits = Animals) %>%
+                       filter(Year <= cutoff.y) %>%
                        mutate(Rabbits = scale(Rabbits)) %>%
                        pivot_wider(values_from = "Rabbits", names_from = "Region") %>%
                        select(Eastern, Western)) #row 1 = 1976
@@ -296,7 +297,7 @@ awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
   group_by(Region, Year) %>%
   filter(!is.na(AWSSI)) %>%
   summarise(AWSSI = mean(AWSSI)) %>%
-  filter(Year > 1975 & Year < 2018 & Region != "Southern") %>%
+  filter(Year > 1975 & Year <= cutoff.y & Region != "Southern") %>%
   mutate(AWSSI = scale(AWSSI)[,1]) %>%
   pivot_wider(names_from = Region, values_from = AWSSI) 
 
@@ -305,5 +306,6 @@ awssi <- cbind(t(awssi.df %>%
 
 #BBS Data
 bbs.df <- read.csv("./Data/bbs_indices.csv") %>%
-  mutate_at(c("raven", "rthawk", "nharrier", "pfalcon"), scale)
+  mutate_at(c("raven", "rthawk", "nharrier", "pfalcon"), scale) %>%
+  filter(Year <= cutoff.y)
 bbs.df[(nrow(bbs.df)+1):(nrow(bbs.df)+n.add.y),] <- NA
