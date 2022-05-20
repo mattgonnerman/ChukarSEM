@@ -1,47 +1,73 @@
-#https://shiny.rstudio.com/images/shiny-cheatsheet.pdf
-#https://vimeo.com/131218530?embedded=true&source=video_title&owner=22717988
-#https://ecoforecast.org/workshops/r-shiny-seminar-series/
-
-
-
-
-
-
 # Load packages
 lapply(c("shiny"), require, character.only = T)
 
 ##################################################################################
 ### Setup page with a navigation bar
 ui <- navbarPage( title = "NDOW Upland Harvest",
-  
-  tabPanel(
-    title = "Instructions",
-    
-    p("This is where instructions will go!")),
-  
-  tabPanel(
-    title = "Harvest Forecast"
-    
-    ),
-  
-  tabPanel(
-    title = "Species-Specific"
-    
-    ),
-  
-  tabPanel(
-    title = "Download/Upload Data",
-    
-    p("This is where you will be able to view the currently available data,
-      download data that you need, and input new data as it becomes available."),
-           
-    #Download Specific CSV to input/download data
-    selectInput("dataset", "Choose a dataset:",
-                choices = c("Hunter Effort", "Total Harvest", "Chukar Site Abundance", "Sage Grouse Wing-Bee")),
-    
-    downloadButton("downloadData", "Download Current Dataset")   
-    
-           )
+                  
+                  ###INSTRUCTIONS
+                  tabPanel(
+                    title = "Instructions",
+                    
+                    p("This is where instructions will go!"),
+                    
+                    downloadButton("downloadallData", "Download Model Estimates")
+                  ),
+                  
+                  ### Harvest Forecast
+                  tabPanel(
+                    title = "Harvest Forecast",
+                    
+                    selectInput("alltoplot", "Which dataset would you like to see forcast?",
+                                choices = c("Hunter Effort", "Total Harvest")),
+                    
+                    conditionalPanel(
+                      condition = "input$alltoplot == 'Hunter Effort'",
+                      
+                      plotOutput("allHfc.plot"),
+                      
+                      plotOutput("allHcor.plot")
+                      
+                    ),
+                    
+                    conditionalPanel(
+                      condition = "input$alltoplot == 'Total Harvest'",
+                      
+                      plotOutput("allNfc.plot"),
+                      
+                      plotOutput("allNcor.plot")
+                      
+                    ),
+                    
+                  ),
+                  
+                  ### Species - Specific Information
+                  tabPanel(
+                    title = "Species-Specific",
+                    
+                    
+                    selectInput("speciestoplot", "Which species would you like to see data for?",
+                                choices = c("Hunter Effort", "Total Harvest", "Chukar Site Abundance", "Sage Grouse Wing-Bee")),
+                    
+                    plotOutput("oneNfc.plot"),
+                    
+                    plotOutput("oneHfc.plot"),
+                    
+                    plotOutput("oneNcor.plot"),
+                    
+                    conditionalPanel(
+                      condition = "input$speciestoplot == 'Sage Grouse'",
+                      plotOutput("sg.plot")
+                      
+                      ),
+                    
+                    conditionalPanel(
+                      input$speciestoplot == "input$speciestoplot == 'Chukar'",
+                      plotOutput("chuk.plot")
+                      
+                    ),
+                    
+                  )
 )
 
 
@@ -49,16 +75,27 @@ ui <- navbarPage( title = "NDOW Upland Harvest",
 ### Server Instructions
 server <-  function(input,output){
   
+  output$allNfc.plot <- renderPlot(
+    ggplot(data = read.csv("./www/out_N_all.csv"), aes(x = Year, y = Estimate, group = Species)) +
+      geom_line(aes(color = Species)) +
+      facet_wrap(vars(Region))
+  )
+  
+  output$allHfc.plot <- renderPlot(
+    ggplot(data = read.csv("./www/out_H_all.csv"), aes(x = Year, y = Estimate, group = Species)) +
+      geom_line(aes(color = Species)) +
+      facet_wrap(vars(Region))
+  )
   
   ### "Download/Input Data"
   # Reactive value for selected dataset ----
-  downdataDF <- reactive({
+  species.plot <- reactive({
     
-    switch(input$dataset,
-           "Hunter Effort" = cars,
-           "Total Harvest" = read.csv("./www/harv.csv"),
-           "Chukar Site Abundance" = cars,
-           "Sage Grouse Wing-Bee" = cars
+    switch(input$speciestoplot,
+           "Blue Grouse" = "blgr",
+           "California Quail" = "caqu",
+           "Chukar" = "chuk",
+           
            )
   })
   
@@ -68,7 +105,7 @@ server <-  function(input,output){
       paste(input$dataset, ".csv", sep = "")
     },
     content = function(file) {
-      write.csv(downdataDF(), file, row.names = F)
+      write.csv(read.csv("FullDataDownload.csv"), file, row.names = F)
     }
   )
 }
@@ -78,10 +115,11 @@ server <-  function(input,output){
 ### Construct Shiny App
 shinyApp(ui = ui, server = server)
 
-
-
-
 # ################################################################################
+#https://shiny.rstudio.com/images/shiny-cheatsheet.pdf
+#https://vimeo.com/131218530?embedded=true&source=video_title&owner=22717988
+#https://ecoforecast.org/workshops/r-shiny-seminar-series/
+#https://mastering-shiny.org/
 # ### Example code from the RStudio Tutorial Video
 # 
 # 

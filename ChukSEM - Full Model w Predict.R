@@ -385,7 +385,7 @@ pars1 <- c(### Hunter Effort
   "beta.jobs",
   "beta.income",
   "beta.license",
-  "pred.spl.hunt",
+  # "pred.spl.hunt",
   
   ### Total Harvest
   "alpha.harv",
@@ -394,7 +394,7 @@ pars1 <- c(### Hunter Effort
   "beta.rabbit.harv",
   "beta.raven.harv",
   "beta.nharrier.harv",
-  "pred.spl.harv",
+  # "pred.spl.harv",
   
   ### Sage Grouse Wing-Bee
   "alpha.sg",
@@ -403,8 +403,8 @@ pars1 <- c(### Hunter Effort
   "beta.rabbit.sg",
   "beta.raven.sg",
   "beta.nharrier.sg",
-  "mod.sg",
-  "theta.sg",
+  # "mod.sg",
+  # "theta.sg",
   
   ### Chukar Site Abundance
   "alpha.chuk",
@@ -418,19 +418,19 @@ pars1 <- c(### Hunter Effort
 pars2 <- c(### Hunter Effort
   "H",
   "rho.hunt",
-  "log.r.hunt",
+  # "log.r.hunt",
   
   ### Total Harvest
   "N",
   "rho.harv",
-  "log.r.harv",
+  # "log.r.harv",
   
-  ### Sage Grouse Wing-Bee
-  "log.r.sg",
-  
-  ### Chukar Site Abundance
-  
-  "log.r.chuk",
+  # ### Sage Grouse Wing-Bee
+  # "log.r.sg",
+  # 
+  # ### Chukar Site Abundance
+  # 
+  # "log.r.chuk",
   
   ### Birds per Hunter
   "BPH")
@@ -470,7 +470,7 @@ out.full.predict <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 100000, niter = 500000, thin = 100, thin2 = 100)
+  samplesList <- runMCMC(Cmcmc,nburnin = 400000, niter = 500000, thin = 100, thin2 = 100)
   
   return(samplesList)
 })
@@ -507,3 +507,30 @@ MCMCtrace(mcmcList1, filename = "./Traceplots - Full Model Predict MCMC Betas.pd
 
 MCMCtrace(mcmcList2, filename = "./Traceplots - Full Model Predict MCMC - PopMetrics.pdf")
 
+
+### Check outputs compared to known values
+test.bph <- MCMCsummary(mcmcList2, 'BPH') %>%
+  mutate(RowID = rownames(test.N)) %>%
+  mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+         Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+         Region = sub('.*\\,', '', RowID)) %>%
+  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+test.H   <- MCMCsummary(mcmcList2, 'H') %>%
+  mutate(RowID = rownames(test.N)) %>%
+  mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+         Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+         Region = sub('.*\\,', '', RowID)) %>%
+  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+test.N   <- MCMCsummary(mcmcList2, 'N') %>%
+  mutate(RowID = rownames(test.N)) %>%
+  mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+         Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+         Region = sub('.*\\,', '', RowID)) %>%
+  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+
+write.csv(test.bph, "./www/out_BPH_all.csv", row.names = F)
+write.csv(test.H, "./www/out_H_all.csv", row.names = F)
+write.csv(test.N, "./www/out_N_all.csv", row.names = F)

@@ -105,12 +105,12 @@ upland <- abind(animal_widew,animal_wide, along = 3)
 hunters <- abind(hunters_widew, hunters_wide, along = 3)
 
 #Remove additional rows associated with ?
-hunters <-hunters[-c(4,8),,]
-upland <- upland[-c(4,8),,]
+hunters <-hunters[-c(4,7,8),,]
+upland <- upland[-c(4,7,8),,]
 
 #Change closed season values to NA
-upland[7,10,] <- NA # Season closed
-hunters[7,10,] <- NA # Season closed 
+upland[6,10,] <- NA # Season closed
+hunters[6,10,] <- NA # Season closed 
 
 #Add NA values to predict 
 upland <- abind(upland, array(NA, dim = c(nrow(upland), n.add.y, 2)), along = 2)
