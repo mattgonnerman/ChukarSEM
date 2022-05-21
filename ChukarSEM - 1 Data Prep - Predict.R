@@ -105,9 +105,15 @@ hunters_widew <- hunters_widew[-6, ]
 upland <- abind(animal_widew,animal_wide, along = 3)
 hunters <- abind(hunters_widew, hunters_wide, along = 3)
 
-#Remove additional rows associated with ?
-hunters <-hunters[-c(4,7,8),,]
-upland <- upland[-c(4,7,8),,]
+#Remove additional rows associated with species we don't want to estimate
+if(drop.rabbit == "Y"){
+  hunters <-hunters[-c(4,7,8),,]
+  upland <- upland[-c(4,7,8),,]
+}else{
+  hunters <-hunters[-c(4,8),,]
+  upland <- upland[-c(4,8),,]
+}
+
 
 #Change closed season values to NA
 upland[6,10,] <- NA # Season closed

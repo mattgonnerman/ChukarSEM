@@ -62,7 +62,7 @@ ui <- navbarPage( title = "NDOW Upland Harvest",
                       ),
                     
                     conditionalPanel(
-                      input$speciestoplot == "input$speciestoplot == 'Chukar'",
+                      condition = "input$speciestoplot == 'Chukar'",
                       plotOutput("chuk.plot")
                       
                     ),

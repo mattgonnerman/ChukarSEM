@@ -274,7 +274,7 @@ code <- nimbleCode( {
     theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     
     for(t in 1:n.years.sg){
-      sg.eps[r, t] <- mod.sg[r] * log.r.harv[7, t+27, r] #log.r.harv[t=25] is 2004
+      sg.eps[r, t] <- mod.sg[r] * log.r.harv[ifelse(rab.use == 1, 7, 6), t+27, r] #log.r.harv[t=25] is 2004
       
       log.r.sg[r,t] <- alpha.sg[r] + 
         sg.eps[r,t] + #Unlinked change in recruitment

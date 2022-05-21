@@ -184,12 +184,12 @@ I2 = diag(n.species)
 
 constants <- list(
   n.region = 2,
-  n.species = 7,
+  n.species = nrow(upland),
   n.year = ncol(hunters),
   K = 12,
   
   ###Predictors
-  era = c(rep(1,19),rep(2, 27)), #Groupings for change in gas prices 
+  era = c(rep(1,length(1976:1994)),rep(2, length(1995:2017))), #Groupings for change in gas prices 
   
   ### Hunter Effort
   I.hunt = abind(I,I,along = 3)

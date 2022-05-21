@@ -1,6 +1,9 @@
 ### Run Initial Data Management
-n.add.y <- 3
-cutoff.y <- 2014
+cutoff.y <- 2014 #Only need to change this to adjust the number of years
+
+drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
+
+n.add.y <- 2017-cutoff.y
 source("./ChukarSEM - 1 Data Prep - Predict.R")
 
 
@@ -108,13 +111,13 @@ I2 = diag(n.species)
 
 constants <- list(
   n.region = 2,
-  n.species = 7,
+  n.species = nrow(upland),
   n.year = ncol(hunters),
   K = 12,
   
   ### Predictors
-  era.gas = c(rep(1,19),rep(2, 30)), #Groupings for change in gas prices 
-  era.awssi = c(rep(1,19),rep(2, 7), rep(1, 20 - (2017 - cutoff.y))), #Groupings for change in gas prices 
+  era.gas = c(rep(1,length(1976:1994)),rep(2, length(1995:2017))), #Groupings for change in gas prices 
+  era.awssi = c(rep(1,length(1976:1994)),rep(2, length(1995:2001)), rep(1, length(2002:2017))), #Groupings for change in gas prices 
   
   ### Hunter Effort
   I.hunt = abind(I,I,along = 3),
@@ -124,9 +127,10 @@ constants <- list(
   
   ### Sage Grouse Wing-Bee
   n.years.sg = n.years.sg,
+  rab.use = ifelse(drop.rabbit == "Y", 0, 1),
   
   ### Chukar Site Abundance
-  n.site = 13,
+  n.site = nrow(chukar),
   n.year.chuk = ncol(chukar),
   reg.chuk = chuk.reg
 )
