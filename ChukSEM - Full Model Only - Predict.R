@@ -127,7 +127,7 @@ code <- nimbleCode( {
       
       for(t in 1:n.year){ 
         #Unlinked estimate of Hunter Numbers
-        mu.hunt[s,r,t] <- alpha.hunt[s,r] + #intercept
+        mu.hunt[s,t,r] <- alpha.hunt[s,r] + #intercept
           beta.drought.hunt[s] * wpdsi[t,r] + #concurrent winter drought index
           beta.wintsev.hunt[s] * awssi[r,t] + #concurrent winter severity
           beta.jobs[s] * une[t] + #concurrent years unemployment
@@ -137,7 +137,7 @@ code <- nimbleCode( {
         
         pred.spl.hunt[s,r,t] <- inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #Derive spline smoothing for examination later
         
-        H[s,t,r] <- exp(hunt.eps[s,r,t]) #Log Link
+        H[s,t,r] <- exp(hunt.eps[s,t,r]) #Log Link
         
         n.hunt[s,t,r] ~ dpois(H[s,t,r]) #Number of hunters follows Poisson
       } #t
@@ -149,7 +149,7 @@ code <- nimbleCode( {
     } #s
     
     for(t in 1:n.year){
-      hunt.eps[1:n.species,r,t] ~ dmnorm(mu.hunt[1:n.species,r,t], cov =  Sigma.hunt[1:n.species,1:n.species,r] )
+      hunt.eps[1:n.species,t,r] ~ dmnorm(mu.hunt[1:n.species,t,r], cov =  Sigma.hunt[1:n.species,1:n.species,r] )
     }
     
     # Correlation Matrices

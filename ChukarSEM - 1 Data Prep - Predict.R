@@ -102,8 +102,8 @@ animal_widew <- animal_widew[-6,]
 hunters_widew <- hunters_widew[-6, ]
 
 #Combine datasets from East and West sections into arrays
-upland <- abind(animal_widew,animal_wide, along = 3)
-hunters <- abind(hunters_widew, hunters_wide, along = 3)
+upland <- abind(animal_wide, animal_widew,along = 3)
+hunters <- abind(hunters_wide, hunters_widew, along = 3)
 
 #Remove additional rows associated with species we don't want to estimate
 if(drop.rabbit == "Y"){
@@ -312,6 +312,11 @@ awssi <- cbind(t(awssi.df %>%
 
 #BBS Data
 bbs.df <- read.csv("./Data/bbs_indices.csv") %>%
-  mutate_at(c("raven", "rthawk", "nharrier", "pfalcon"), scale) %>%
+  mutate(raven = scale(raven)[,1],
+         rthawk = scale(rthawk)[,1],
+         nharrier = scale(nharrier)[,1],
+         pfalcon = scale(pfalcon)[,1]
+         ) %>%
   filter(Year <= cutoff.y)
+
 bbs.df[(nrow(bbs.df)+1):(nrow(bbs.df)+n.add.y),] <- NA

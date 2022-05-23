@@ -502,6 +502,10 @@ mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 files <- list(mcmcList1, mcmcList2, code)
 save(files, file = 'model_output_FullModel_predict.rdata')
 
+### Load back
+load(file = 'model_output_FullModel_predict.rdata')
+mcmcList1 <- files[[1]]
+mcmcList2 <- files[[2]]
 
 ### Traceplots
 # colnames(mcmcList2$chain1)
@@ -514,6 +518,8 @@ MCMCtrace(mcmcList2, filename = "./Traceplots - Full Model Predict MCMC - PopMet
 
 
 ### Check outputs compared to known values
+
+
 require(stringr)
 test.bph <- MCMCsummary(mcmcList2, 'BPH') %>%
   mutate(RowID = rownames(MCMCsummary(mcmcList2, 'BPH'))) %>%
@@ -590,10 +596,6 @@ rho.hunt.w.plot <- ggcorrplot::ggcorrplot(rho.hunt.w, lab = T) +
   labs(title = "Hunter Correlation - West")
 ggsave(rho.hunt.w.plot, filename = "CheckPlot - rho hunt West.jpg", dpi = 300)
 
-### Load back
-load(file = 'model_output_FullModel_predict.rdata')
-mcmcList1 <- files[[1]]
-mcmcList2 <- files[[2]]
 
 require(ggplot2)
 require(dplyr)
