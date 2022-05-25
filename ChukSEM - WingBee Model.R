@@ -1,11 +1,73 @@
 ### Run Initial Data Management
-source("./ChukarSEM - 1 Data Prep.R")
+lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
+cutoff.y <- 2017 #Only need to change this to adjust the number of years
+
+drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
+
+n.add.y <- 2017-cutoff.y
+source("./ChukarSEM - 1 Data Prep - Predict.R")
 
 ### Model
 # Based on Boyce et al. 2001? https://www.jstor.org/stable/3803103
 # https://georgederpa.github.io/teaching/countModels.html
 code <- nimbleCode( {
   ################################################################################
+  ### Predictors
+  #Drought Index
+  for(r in 1:n.region){
+    # sig.wpdsi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    sig.pdsi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    for(t in 1:n.year){
+      # wpdsi[t,r] ~ dnorm(0, sd = sig.wpdsi[r])
+      pdsi[t,r] ~ dnorm(0, sd = sig.pdsi[r])
+    } #t
+  } #r
+  
+  #Winter Severity
+  sig.awssi~ T(dt(0, pow(2.5,-2), 1),0,)
+  beta.awssi[1] ~ dnorm(0, 0.01)
+  beta.awssi[2] ~ dnorm(0, 0.01)
+  for(r in 1:n.region){
+    alpha.awssi[r] ~ dnorm(1.5, 1)
+    for(t in 1:n.year){
+      awssi[r,t] ~ dnorm(alpha.awssi[r] + beta.awssi[era.awssi[t]]*t, sd = sig.awssi)
+    }
+  }
+  
+  #Rabbits
+  sig.rabbits~ T(dt(0, pow(2.5,-2), 1),0,)
+  beta.rabbits ~ dnorm(0, 0.01)
+  for(r in 1:n.region){
+    alpha.rabbits[r] ~ dnorm(0, 1)
+    for(t in 1:n.year){
+      rabbits[t,r] ~ dnorm(alpha.rabbits[r] + beta.rabbits*t, sd = sig.rabbits)
+    }
+  }
+  
+  #Ravens (Highly correlated with Prairie Falcon and RTHawk)
+  alpha.rav ~ dnorm(0, 0.001) #intercept
+  beta.t.rav ~ dnorm(0, 0.01) #year
+  sig.rav~ T(dt(0, pow(2.5,-2), 1),0,)
+  
+  ar1.rav ~ dunif(-1,1) #Autoregressive parameter
+  
+  rav.trend[1] <- alpha.rav + beta.t.rav * 1
+  mu.rav[1] <- rav.trend[1]
+  for(t in 2:n.year){
+    rav.trend[t] <- alpha.rav + beta.t.rav * t
+    mu.rav[t] <- rav.trend[t] + ar1.rav * (raven[t-1] - rav.trend[t-1])
+  } #t
+  
+  for(t in 1:n.year){
+    raven[t] ~ dnorm(mu.rav[t], sd = sig.rav)
+  }
+  
+  #Northern Harrier
+  sig.nhar ~ dunif(0,5)
+  for(t in 1:(n.year)){
+    nharrier[t] ~ dnorm(0, sd = sig.nhar)
+  } #t
+  
   ### Sage Grouse Wing-Bee ###
   beta.drought.sg ~ dnorm(0, 0.01)
   beta.wintsev.sg ~ dnorm(0, 0.01)
@@ -51,8 +113,11 @@ data <- list(
 
 ### Contansts
 constants <- list(
+  n.year = ncol(hunters),
   n.years.sg = n.years.sg,
-  n.region = 2
+  n.region = 2,
+  era.awssi = c(rep(1,length(1976:1994)),rep(2, length(1995:2001)), rep(1, length(2002:2017))) #Groupings for change in gas prices 
+  
 )
 
 
@@ -60,17 +125,64 @@ constants <- list(
 C.sg.i <- matrix(NA, nrow = 2, ncol = n.years.sg)
 C.sg.i[,1] <- floor(rowMeans(wing.b.hy, na.rm = T))
 
+hy.sg.init <- wing.b.hy
+ahy.sg.init <- wing.b.ahy
+for(i in 1:2){
+  for(j in 1:ncol(wing.b.ahy)){
+    hy.sg.init[i,j] <- ifelse(is.na(wing.b.hy[i,j]), floor(mean(wing.b.hy[i,], na.rm = T)), NA)
+    ahy.sg.init[i,j] <- ifelse(is.na(wing.b.ahy[i,j]), floor(mean(wing.b.ahy[i,], na.rm = T)), NA)
+  }}
+
+### Predictors
+une.init <- ifelse(is.na(une), 0, NA)
+res.init <- ifelse(is.na(res), 0, NA)
+
+wpdsi.init <- wpdsi
+for(i in 1:2){wpdsi.init[,i] <- ifelse(is.na(wpdsi[,i]), 0, NA)}
+pdsi.init <- pdsi
+for(i in 1:2){pdsi.init[,i] <- ifelse(is.na(pdsi[,i]), 0, NA)}
+awssi.init <- awssi
+for(i in 1:2){awssi.init[i,] <- ifelse(is.na(awssi[i,]), 0, NA)}
+rabbits.init <- rabbits
+for(i in 1:2){rabbits.init[,i] <- ifelse(is.na(rabbits[,i]), 0, NA)}
+raven.init <- as.vector(ifelse(is.na(bbs.df$raven), 0, NA))
+nharrier.init <- as.vector(ifelse(is.na(bbs.df$nharrier), 0, NA))
+
 initsFunction <- function() list(   
+  #Drought Index
+  sig.pdsi = rep(1,2),
+  pdsi = pdsi.init,
+  #Winter Severity
+  sig.awssi = 1,
+  beta.awssi = rep(0,2),
+  alpha.awssi = rep(0,2),
+  awssi = awssi.init,
+  #Rabbits
+  sig.rabbits = 1,
+  beta.rabbits = 0,
+  alpha.rabbits = rep(0,2),
+  rabbits = rabbits.init,
+  #Ravens
+  alpha.rav = 0,
+  beta.t.rav = 0,
+  sig.rav = 1,
+  ar1.rav = 0,
+  raven = raven.init,
+  #Northern Harrier
+  sig.nhar = 1,
+  nharrier = nharrier.init,
   ### Sage Grouse Wing-Bee
   theta.sg = rep(1,2),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
-  mod.sg = rep(1,2),
+  # mod.sg = rep(1,2),
   alpha.sg =  rep(0,2),
   beta.drought.sg = 0,
   beta.wintsev.sg = 0,
   beta.rabbit.sg = 0,
   beta.raven.sg = 0,
-  beta.nharrier.sg = 0
+  beta.nharrier.sg = 0,
+  AHY.sg = ahy.sg.init,
+  HY.sg = hy.sg.init
 )
 
 inits <- initsFunction()
@@ -100,6 +212,38 @@ pars1 <- c("alpha.sg",
            "log.r.sg"
 )
 
+pars2 <- c(#"alpha.pdi",
+           # "beta.t.pdi",
+           # "sig.pdi",
+           # "ar1.pdi",
+           # "alpha.gas",
+           # "sig.gas",
+           # "beta.gas",
+           # "rel.cost",
+           # "sig.une",
+           # "une",
+           # "sig.res",
+           # "res",
+           # "sig.wpdsi",
+           "sig.pdsi",
+           # "wdpsi",
+           "pdsi", 
+           "sig.awssi",
+           "beta.awssi",
+           "alpha.awssi",
+           "awssi",
+           "sig.rabbits",
+           "beta.rabbits",
+           "alpha.rabbits",
+           "rabbits",
+           "alpha.rav",
+           "beta.t.rav",
+           "sig.rav",
+           "ar1.rav",
+           "raven",
+           "sig.nhar",
+           "nharrier")
+
 #Parallel Processing Setup
 lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
 start_time <- Sys.time()
@@ -107,7 +251,7 @@ start_time
 nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000)
 
-clusterExport(cl, c("code", "inits", "data", "constants", "pars1"))
+clusterExport(cl, c("code", "inits", "data", "constants", "pars1", "pars2"))
 
 for (j in seq_along(cl)) {
   set.seed(j)
@@ -124,12 +268,12 @@ out <- clusterEvalQ(cl, {
                              data =  data, 
                              inits = inits )
   
-  mcmcConf <-  configureMCMC( model_test,   monitors2 =  pars1)
+  mcmcConf <-  configureMCMC( model_test,   monitors =  pars1, monitors2 = pars2)
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
- samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 3, thin2 = 3)
+ samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 5, thin2 = 5)
   
   return(samplesList)
 })
@@ -161,4 +305,6 @@ save(files, file = 'model_output_SGWingBee.rdata')
 #Individual parameters
 # MCMCtrace(mcmcList2, params = "alpha.hunt", plot = T, pdf = F)
 #Output full pdf with all trace plots
-MCMCtrace(mcmcList2, filename = "Traceplots - SG WingBee MCMC.pdf")
+
+MCMCtrace(mcmcList1, filename = "Traceplots - SG WingBee MCMC - Process.pdf")
+MCMCtrace(mcmcList2, filename = "Traceplots - SG WingBee MCMC - Predictors.pdf")

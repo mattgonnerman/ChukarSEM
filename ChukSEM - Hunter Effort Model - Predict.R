@@ -1,19 +1,10 @@
-### Run Initial Data Management
-lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
-cutoff.y <- 2017 #Only need to change this to adjust the number of years
-
-drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
-
-n.add.y <- 2017-cutoff.y
-source("./ChukarSEM - 1 Data Prep - Predict.R")
-
 ### Model Code
 code <- nimbleCode( {
   ################################################################################
   ### Predictors
   #Personal Disposable Income
-  alpha.pdi ~ dnorm(0, sd = 100) #intercept
-  beta.t.pdi ~ dnorm(0, sd = 100) #year
+  alpha.pdi ~ dnorm(0, 0.001) #intercept
+  beta.t.pdi ~ dnorm(0, 0.01) #year
   sig.pdi~ T(dt(0, pow(2.5,-2), 1),0,)
   
   ar1.pdi ~ dunif(-1,1) #Autoregressive parameter
@@ -26,17 +17,15 @@ code <- nimbleCode( {
   } #t
   
   #Gas Prices
-  for(i in 1:2){
-    alpha.gas[i] ~ dnorm(0, sd = 10)
-  }
-  sig.gas~ T(dt(0, pow(2.5,-2), 1),0,)
-  # beta.gas[1] ~ dnorm(0, 0.01)
-  # beta.gas[2] ~ dnorm(0, 0.01)
+  alpha.gas ~ dnorm(1.5, 1)
+  sig.gas ~ T(dt(0, pow(2.5,-2), 1),0,)
+  beta.gas[1] ~ dnorm(0, 0.01)
+  beta.gas[2] ~ dnorm(0, 0.01)
   
   #Relative Cost of Gas
   for(t in 1:n.year){
     PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
-    GAS[t] ~ T(dnorm(alpha.gas[era.gas[t]], sd = sig.gas),0.000000000001,)
+    GAS[t] ~ T(dnorm(alpha.gas + beta.gas[era.gas[t]]*t, sd = sig.gas),0,)
     rel.cost[t] <- ((PDI[t]/GAS[t]) - 2.581635)/0.8894599
   } #t
   
@@ -61,12 +50,13 @@ code <- nimbleCode( {
   } #r
   
   #Winter Severity
-  beta.awssi ~ dnorm(0, sd = 100)
-  alpha.awssi ~ dnorm(0, sd = 100)
+  sig.awssi~ T(dt(0, pow(2.5,-2), 1),0,)
+  beta.awssi[1] ~ dnorm(0, 0.01)
+  beta.awssi[2] ~ dnorm(0, 0.01)
   for(r in 1:n.region){
-    sig.awssi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    alpha.awssi[r] ~ dnorm(1.5, 1)
     for(t in 1:n.year){
-      awssi[r,t] ~ dnorm(alpha.awssi + beta.awssi*(era.awssi[t]-1), sd = sig.awssi[r])
+      awssi[r,t] ~ dnorm(alpha.awssi[r] + beta.awssi[era.awssi[t]], sd = sig.awssi)
     }
   }
   
@@ -242,11 +232,13 @@ Sigma <- as.matrix(Matrix::nearPD(Sigma, corr = FALSE,doSym = TRUE)$mat)
 
 n.hunt.i <- ifelse(is.na(hunters), floor(mean(hunters, na.rm = T)), NA)
 
+PDI.inits <- ifelse(is.na(PDI) == TRUE, mean(PDI, na.rm = TRUE), NA)
+GAS.inits <- ifelse(is.na(GAS) == TRUE, 0.9, NA)
+
 ### Predictors
 une.init <- ifelse(is.na(une), 0, NA)
 res.init <- ifelse(is.na(res), 0, NA)
-PDI.inits <- ifelse(is.na(PDI) == TRUE, mean(PDI, na.rm = TRUE), NA)
-GAS.inits <- ifelse(is.na(GAS) == TRUE, 0.9, NA)
+
 wpdsi.init <- wpdsi
 for(i in 1:2){wpdsi.init[,i] <- ifelse(is.na(wpdsi[,i]), 0, NA)}
 pdsi.init <- pdsi
@@ -269,8 +261,8 @@ initsFunction <- function() list(
   PDI = PDI.inits,
   #Gas Prices
   GAS = GAS.inits,
-  alpha.gas = rep(.9,2),
-  # beta.gas = 0,
+  alpha.gas = .9,
+  beta.gas = rep(0,2),
   sig.gas = 1,
   #Unemployment
   sig.une = 1,
@@ -280,13 +272,11 @@ initsFunction <- function() list(
   res = res.init,
   #Drought Index
   sig.wpdsi = rep(1,2),
-  sig.pdsi = rep(1,2),
   wpdsi = wpdsi.init,
-  # pdsi = pdsi.init,
   #Winter Severity
-  sig.awssi = rep(1,2),
-  beta.awssi = 0,
-  alpha.awssi = 0,
+  sig.awssi = 1,
+  beta.awssi = rep(0,2),
+  alpha.awssi = rep(0,2),
   awssi = awssi.init,
   
   sig.spl.hunt = matrix(1, ncol = 2, nrow = 7),
@@ -339,29 +329,9 @@ pars1 <- c("ar1.pdi",
            "beta.jobs",
            "beta.income",
            "beta.license",
-           "beta.spl.hunt",
-           "rho.hunt",
+           "beta.spl.hunt")
+pars2 <- c("rho.hunt",
            "H")
-
-pars2 <- c(
-  "alpha.pdi",
-  "beta.t.pdi",
-  "sig.pdi",
-  "ar1.pdi",
-  "alpha.gas",
-  "sig.gas",
-  # "beta.gas",
-  "rel.cost",
-  "sig.une",
-  "une",
-  "sig.res",
-  "res",
-  "sig.wpdsi",
-  # "sig.pdsi",
-  "sig.awssi",
-  "beta.awssi",
-  "alpha.awssi"
-)
 
 # Parallel Processing Setup
 rm(out)
@@ -419,7 +389,7 @@ mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
 #Save Outputs as file
 files <- list(mcmcList1,mcmcList2,code)
-save(files, file = 'model_output_HuntEff.rdata')
+save(files, file = 'model_output_HuntEff_pred.rdata')
 
 
 ### Traceplots

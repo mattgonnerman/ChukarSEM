@@ -30,21 +30,21 @@ code <- nimbleCode( {
   } #t
   
   #Unemployment Rate
-  sig.une ~ dunif(0,5)
+  sig.une ~ T(dt(0, pow(2.5,-2), 1),0,)
   for(t in 1:(n.year)){
     une[t] ~ dnorm(0, sd = sig.une)
   } #t
   
   #Resident License sales
-  sig.res ~ dunif(0,5)
+  sig.res ~ T(dt(0, pow(2.5,-2), 1),0,)
   for(t in 1:n.year){
     res[t] ~ dnorm(0, sd = sig.res)
   }
   
   #Drought Index
   for(r in 1:n.region){
-    sig.wpdsi[r] ~ dunif(0,5)
-    sig.pdsi[r] ~ dunif(0,5)
+    sig.wpdsi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    sig.pdsi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
     for(t in 1:n.year){
       wpdsi[t,r] ~ dnorm(0, sd = sig.wpdsi[r])
       pdsi[t,r] ~ dnorm(0, sd = sig.pdsi[r])
@@ -261,29 +261,43 @@ code <- nimbleCode( {
   } #r
   
   ################################################################################
-  ### Sage Grouse Wing-Bee ###
-  beta.drought.sg ~ dnorm(0, 0.01)
-  beta.wintsev.sg ~ dnorm(0, 0.01)
-  beta.rabbit.sg ~ dnorm(0, 0.01)
-  beta.raven.sg ~ dnorm(0, 0.01)
-  beta.nharrier.sg ~ dnorm(0, 0.01)
+  # ### Sage Grouse Wing-Bee ###
+  # beta.drought.sg ~ dnorm(0, 0.01)
+  # beta.wintsev.sg ~ dnorm(0, 0.01)
+  # beta.rabbit.sg ~ dnorm(0, 0.01)
+  # beta.raven.sg ~ dnorm(0, 0.01)
+  # beta.nharrier.sg ~ dnorm(0, 0.01)
+  # 
+  # for(r in 1:n.region){
+  #   alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
+  #   mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
+  #   theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+  #   
+  #   for(t in 1:n.years.sg){
+  #     sg.eps[r, t] <- mod.sg[r] * log.r.harv[ifelse(rab.use == 1, 7, 6), t+27, r] #log.r.harv[t=25] is 2004
+  #     
+  #     log.r.sg[r,t] <- alpha.sg[r] + 
+  #       sg.eps[r,t] + #Unlinked change in recruitment
+  #       beta.drought.sg * pdsi[t+28,r] + #previous breeding season drought index
+  #       beta.wintsev.sg * awssi[r,t+27] + #previous winter severity
+  #       beta.rabbit.sg * rabbits[t+27,r] + #previous year's rabbit harvest
+  #       beta.raven.sg * raven[t+29] + #previous spring BBS raven index
+  #       beta.nharrier.sg * nharrier[t+29]  #previous spring BBS northern harrier index
+  #     
+  #     rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
+  #     HY.sg[r,t] ~ dnegbin(prob = rate.sg[r,t], size = theta.sg[r])
+  #   } #t
+  # } #r
   
+  ### Sage Grouse Wing-Bee ###
   for(r in 1:n.region){
-    alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
+    # alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
     mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
     theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
-    
+
     for(t in 1:n.years.sg){
-      sg.eps[r, t] <- mod.sg[r] * log.r.harv[ifelse(rab.use == 1, 7, 6), t+27, r] #log.r.harv[t=25] is 2004
-      
-      log.r.sg[r,t] <- alpha.sg[r] + 
-        sg.eps[r,t] + #Unlinked change in recruitment
-        beta.drought.sg * pdsi[t+28,r] + #previous breeding season drought index
-        beta.wintsev.sg * awssi[r,t+27] + #previous winter severity
-        beta.rabbit.sg * rabbits[t+27,r] + #previous year's rabbit harvest
-        beta.raven.sg * raven[t+29] + #previous spring BBS raven index
-        beta.nharrier.sg * nharrier[t+29]  #previous spring BBS northern harrier index
-      
+      log.r.sg[r,t] <- mod.sg[r] * log.r.harv[ifelse(rab.use == 1, 7, 6), t+27, r] #log.r.harv[t=25] is 2004
+
       rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
       HY.sg[r,t] ~ dnegbin(prob = rate.sg[r,t], size = theta.sg[r])
     } #t
@@ -291,14 +305,41 @@ code <- nimbleCode( {
   
   ################################################################################
   ### Chukar Site Abundance ###
-  beta.drought.chuk ~ dnorm(0, 0.01)
-  beta.wintsev.chuk ~ dnorm(0, 0.01)
-  beta.rabbit.chuk ~ dnorm(0, 0.01)
-  beta.raven.chuk ~ dnorm(0, 0.01)
-  beta.nharrier.chuk ~ dnorm(0, 0.01)
+  # beta.drought.chuk ~ dnorm(0, 0.01)
+  # beta.wintsev.chuk ~ dnorm(0, 0.01)
+  # beta.rabbit.chuk ~ dnorm(0, 0.01)
+  # beta.raven.chuk ~ dnorm(0, 0.01)
+  # beta.nharrier.chuk ~ dnorm(0, 0.01)
+  # 
+  # for(r in 1:n.region){
+  #   alpha.chuk[r] ~ dnorm(0, sd = 100) #Intercept
+  #   theta.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+  #   mod.chuk[r] ~ dlogis(0,1)
+  # }
+  # 
+  # for(p in 1:n.site){
+  #   C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
+  #   
+  #   for(t in 2:n.year.chuk){
+  #     chuk.eps[p, t-1] <- mod.chuk[reg.chuk[p]] * log.r.harv[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
+  #     
+  #     log.r.chuk[p,t-1] <- alpha.chuk[reg.chuk[p]] + 
+  #       chuk.eps[p,t-1] + #Unlinked change in abundance, log.harv.chuk[t=1] is 1990-1991
+  #       beta.drought.chuk * pdsi[t+12,reg.chuk[p]] + #previous breeding season drought index
+  #       beta.wintsev.chuk * awssi[reg.chuk[p],t+12] + #previous year's winter severity
+  #       beta.rabbit.chuk * rabbits[t+12,reg.chuk[p]] + #previous year's rabbit harvest
+  #       beta.raven.chuk * raven[t+13] + #previous year's spring BBS index
+  #       beta.nharrier.chuk * nharrier[t+13] #previous year's spring BBS index
+  #     
+  #     C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
+  #     
+  #     rate.chuk[p,t-1] <- theta.chuk[reg.chuk[p]]/(theta.chuk[reg.chuk[p]] + C.chuk[p,t]) #NB success parameter
+  #     n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[reg.chuk[p]]) #obs. # of chukars follow neg-bin
+  #   } #t
+  # } #p 
   
   for(r in 1:n.region){
-    alpha.chuk[r] ~ dnorm(0, sd = 100) #Intercept
+    # alpha.chuk[r] ~ dnorm(0, sd = 100) #Intercept
     theta.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     mod.chuk[r] ~ dlogis(0,1)
   }
@@ -307,15 +348,7 @@ code <- nimbleCode( {
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
     
     for(t in 2:n.year.chuk){
-      chuk.eps[p, t-1] <- mod.chuk[reg.chuk[p]] * log.r.harv[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
-      
-      log.r.chuk[p,t-1] <- alpha.chuk[reg.chuk[p]] + 
-        chuk.eps[p,t-1] + #Unlinked change in abundance, log.harv.chuk[t=1] is 1990-1991
-        beta.drought.chuk * pdsi[t+12,reg.chuk[p]] + #previous breeding season drought index
-        beta.wintsev.chuk * awssi[reg.chuk[p],t+12] + #previous year's winter severity
-        beta.rabbit.chuk * rabbits[t+12,reg.chuk[p]] + #previous year's rabbit harvest
-        beta.raven.chuk * raven[t+13] + #previous year's spring BBS index
-        beta.nharrier.chuk * nharrier[t+13] #previous year's spring BBS index
+      log.r.chuk[p,t-1] <-  mod.chuk[reg.chuk[p]] * log.r.harv[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
       
       C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
       

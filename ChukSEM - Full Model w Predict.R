@@ -1,5 +1,6 @@
 ### Run Initial Data Management
-cutoff.y <- 2014 #Only need to change this to adjust the number of years
+lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
+cutoff.y <- 2017 #Only need to change this to adjust the number of years
 
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 
@@ -8,8 +9,12 @@ source("./ChukarSEM - 1 Data Prep - Predict.R")
 
 
 ### Run Hunter Effort Solo Model to get estimates of H to create spline inputs
-source("./ChukSEM - Hunter Effort Model.R")
+# Sys.time()
+# source("./ChukSEM - Hunter Effort Model - Predict.R")
+# Sys.time()
 
+load("./model_output_HuntEff_pred.rdata")
+mcmcList2 <- files[[2]]
 
 ### Load Model Code
 source("./ChukSEM - Full Model Only - Predict.R")
@@ -151,8 +156,6 @@ Sigma <- as.matrix(Matrix::nearPD(Sigma, corr = FALSE,doSym = TRUE)$mat)
 
 n.hunt.i <- ifelse(is.na(hunters), floor(mean(hunters, na.rm = T)), NA)
 
-PDI.inits <- ifelse(is.na(PDI) == TRUE, mean(PDI, na.rm = TRUE), NA)
-GAS.inits <- ifelse(is.na(GAS) == TRUE, 0.9, NA)
 
 ##Total Harvest
 nu = n.species + 1 #degrees of freedom for rinvwishart
@@ -222,7 +225,8 @@ C.chuk.init[,2:ncol(C.chuk.init)] <- NA
 ### Predictors
 une.init <- ifelse(is.na(une), 0, NA)
 res.init <- ifelse(is.na(res), 0, NA)
-
+PDI.inits <- ifelse(is.na(PDI) == TRUE, mean(PDI, na.rm = TRUE), NA)
+GAS.inits <- ifelse(is.na(GAS) == TRUE, 0.9, NA)
 wpdsi.init <- wpdsi
 for(i in 1:2){wpdsi.init[,i] <- ifelse(is.na(wpdsi[,i]), 0, NA)}
 pdsi.init <- pdsi
@@ -342,25 +346,25 @@ initsFunction <- function() list(
   theta.sg = rep(1,2),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
   mod.sg = rep(1,2),
-  alpha.sg =  rep(0,2),
-  beta.drought.sg = 0,
-  beta.wintsev.sg = 0,
-  beta.rabbit.sg = 0,
-  beta.raven.sg = 0,
-  beta.nharrier.sg = 0,
+  # alpha.sg =  rep(0,2),
+  # beta.drought.sg = 0,
+  # beta.wintsev.sg = 0,
+  # beta.rabbit.sg = 0,
+  # beta.raven.sg = 0,
+  # beta.nharrier.sg = 0,
   AHY.sg = ahy.sg.init,
   HY.sg = hy.sg.init,
   
   ### Chukar Site Abundance
-  # theta.chuk = rep(1,13),
+  theta.chuk = rep(1,13),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.chuk-1),
-  # mod.chuk = rep(1,2),
-  alpha.chuk =  rep(0,2),
-  beta.drought.chuk = 0,
-  beta.wintsev.chuk = 0,
-  beta.rabbit.chuk = 0,
-  beta.raven.chuk = 0,
-  beta.nharrier.chuk = 0,
+  mod.chuk = rep(1,2),
+  # alpha.chuk =  rep(0,2),
+  # beta.drought.chuk = 0,
+  # beta.wintsev.chuk = 0,
+  # beta.rabbit.chuk = 0,
+  # beta.raven.chuk = 0,
+  # beta.nharrier.chuk = 0,
   n.chuk = as.matrix(chukar_na),
   log.r.chuk = r.chuk.init
 )
@@ -402,22 +406,24 @@ pars1 <- c(### Hunter Effort
   # "pred.spl.harv",
   
   ### Sage Grouse Wing-Bee
-  "alpha.sg",
-  "beta.wintsev.sg",
-  "beta.drought.sg",
-  "beta.rabbit.sg",
-  "beta.raven.sg",
-  "beta.nharrier.sg",
-  # "mod.sg",
-  # "theta.sg",
+  # "alpha.sg",
+  # "beta.wintsev.sg",
+  # "beta.drought.sg",
+  # "beta.rabbit.sg",
+  # "beta.raven.sg",
+  # "beta.nharrier.sg",
+  "mod.sg",
+  "theta.sg",
   
   ### Chukar Site Abundance
-  "alpha.chuk",
-  "beta.wintsev.chuk",
-  "beta.drought.chuk",
-  "beta.rabbit.chuk",
-  "beta.raven.chuk",
-  "beta.nharrier.chuk"
+  # "alpha.chuk",
+  # "beta.wintsev.chuk",
+  # "beta.drought.chuk",
+  # "beta.rabbit.chuk",
+  # "beta.raven.chuk",
+  # "beta.nharrier.chuk",
+  "mod.chuk",
+  "theta.chuk"
 )
 
 pars2 <- c(### Hunter Effort
@@ -441,7 +447,8 @@ pars2 <- c(### Hunter Effort
   "BPH")
 
 # Parallel Processing Setup
-lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
+rm(out)
+rm(out.full.predict)
 start_time <- Sys.time() # To track runtime
 start_time
 nc <- detectCores()/2    # number of chains

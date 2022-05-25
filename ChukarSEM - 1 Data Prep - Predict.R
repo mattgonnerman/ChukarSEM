@@ -295,6 +295,10 @@ rabbits <- as.matrix(read.csv('./Data/all_species_harvest_data.csv') %>%
                        select(Eastern, Western)) #row 1 = 1976
 rabbits <- rbind(rabbits, matrix(NA, ncol = 2, nrow = n.add.y))
 
+ggplot(data = as.data.frame(rabbits) %>% mutate(Year = 1976:2017), aes(x = Year)) +
+  geom_line(aes(y = Eastern), color = "red") +
+  geom_line(aes(y = Western), color = "blue")
+
 #Winter Severity (AWSSI)
 awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
   select(Station, Region, Start, End, AWSSI) %>%

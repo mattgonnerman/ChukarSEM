@@ -61,9 +61,10 @@ est.check.df <- merge(est.check.df, obs.HarvestData, by = c("Region", "Species",
 is.num <- sapply(est.check.df, is.numeric)
 est.check.df[is.num] <- lapply(est.check.df[is.num], round, 2)
 
+pred.only.df <- est.check.df %>% filter(Year > cutoff.y)
 
-ggplot(data = est.check.df, aes(x = Year)) +
-  geom_line(aes(y = Obs.N, color = Region)) +
-  geom_point(aes(y = Est.N, color = Region)) +
-  geom_errorbar(aes(ymin = Est.N.LCL, ymax = Est.N.UCL, color = Region)) +
+ggplot(data = pred.only.df, aes(x = Year)) +
+  geom_line(aes(y = Obs.H, color = Region)) +
+  geom_point(aes(y = Est.H, color = Region)) +
+  geom_errorbar(aes(ymin = Est.H.LCL, ymax = Est.H.UCL, color = Region)) +
   facet_wrap(vars(Species), scales = "free_y") 
