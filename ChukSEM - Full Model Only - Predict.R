@@ -3,8 +3,8 @@ code <- nimbleCode( {
   ################################################################################
   ### Predictors
   #Personal Disposable Income
-  alpha.pdi ~ dnorm(0, 0.001) #intercept
-  beta.t.pdi ~ dnorm(0, 0.01) #year
+  alpha.pdi ~ dnorm(0, sd = 100) #intercept
+  beta.t.pdi ~ dnorm(0, sd = 100) #year
   sig.pdi~ T(dt(0, pow(2.5,-2), 1),0,)
   
   ar1.pdi ~ dunif(-1,1) #Autoregressive parameter
@@ -17,15 +17,17 @@ code <- nimbleCode( {
   } #t
   
   #Gas Prices
-  alpha.gas ~ dnorm(1.5, 1)
+  for(i in 1:2){
+    alpha.gas[i] ~ dnorm(0, sd = 10)
+  }
   sig.gas~ T(dt(0, pow(2.5,-2), 1),0,)
-  beta.gas[1] ~ dnorm(0, 0.01)
-  beta.gas[2] ~ dnorm(0, 0.01)
+  # beta.gas[1] ~ dnorm(0, 0.01)
+  # beta.gas[2] ~ dnorm(0, 0.01)
   
   #Relative Cost of Gas
   for(t in 1:n.year){
     PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
-    GAS[t] ~ T(dnorm(alpha.gas + beta.gas[era.gas[t]]*t, sd = sig.gas),0,)
+    GAS[t] ~ T(dnorm(alpha.gas[era.gas[t]], sd = sig.gas),0.000000000001,)
     rel.cost[t] <- ((PDI[t]/GAS[t]) - 2.581635)/0.8894599
   } #t
   
@@ -52,23 +54,22 @@ code <- nimbleCode( {
   } #r
   
   #Winter Severity
-  sig.awssi~ T(dt(0, pow(2.5,-2), 1),0,)
-  beta.awssi[1] ~ dnorm(0, 0.01)
-  beta.awssi[2] ~ dnorm(0, 0.01)
+  beta.awssi ~ dnorm(0, sd = 100)
+  alpha.awssi ~ dnorm(0, sd = 100)
   for(r in 1:n.region){
-    alpha.awssi[r] ~ dnorm(1.5, 1)
+    sig.awssi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
     for(t in 1:n.year){
-      awssi[r,t] ~ dnorm(alpha.awssi[r] + beta.awssi[era.awssi[t]]*t, sd = sig.awssi)
+      awssi[r,t] ~ dnorm(alpha.awssi + beta.awssi*(era.awssi[t]-1), sd = sig.awssi[r])
     }
   }
   
   #Rabbits
   sig.rabbits~ T(dt(0, pow(2.5,-2), 1),0,)
-  beta.rabbits ~ dnorm(0, 0.01)
-  for(r in 1:n.region){
-    alpha.rabbits[r] ~ dnorm(1.5, 1)
-    for(t in 1:n.year){
-      rabbits[t,r] ~ dnorm(alpha.rabbits[r] + beta.rabbits*t, sd = sig.rabbits)
+  beta.rabbits ~ dnorm(0, sd = 2)
+  alpha.rabbits ~ dnorm(0, sd = 1)
+  for(t in 1:n.year){
+    for(r in 1:n.region){
+      rabbits[t,r] ~ dnorm(alpha.rabbits + beta.rabbits*t, sd = sig.rabbits)
     }
   }
   

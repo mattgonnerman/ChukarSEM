@@ -431,3 +431,66 @@ MCMCtrace(mcmcList2, filename = "Traceplots - Hunter Effort MCMC.pdf")
 
 MCMCtrace(mcmcList1, filename = "Traceplots - Hunter Effort MCMC Betas.pdf")
 
+# harvest correlation
+rho.hunt.est <- MCMCsummary(mcmcList1, 'rho.hunt') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.hunt'))) %>%
+  mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+         Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+         Region = sub('.*\\,', '', RowID)) %>%
+  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+  dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+
+blank.cor.df <- as.data.frame(matrix(NA, nrow = 7, ncol = 7))
+rho.hunt.list <- list(blank.cor.df, blank.cor.df)
+for(i in 1:nrow(rho.hunt.est)){
+  rho.hunt.list[[rho.hunt.est$Region[i]]][rho.hunt.est$Species1[i], rho.hunt.est$Species2[i]] <- rho.hunt.est$Estimate[i]
+}
+
+rho.hunt.e <- rho.hunt.list[[1]]
+rho.hunt.w <- rho.hunt.list[[2]]
+
+rho.hunt.e.plot <- ggcorrplot::ggcorrplot(rho.hunt.e, lab = T) +
+  labs(title = "Hunter Correlation - East")
+ggsave(rho.hunt.e.plot, filename = "CheckPlot - rho hunt East.jpg", dpi = 300)
+rho.hunt.w.plot <- ggcorrplot::ggcorrplot(rho.hunt.w, lab = T) +
+  labs(title = "Hunter Correlation - West")
+ggsave(rho.hunt.w.plot, filename = "CheckPlot - rho hunt West.jpg", dpi = 300)
+
+#Comparison of Betas
+require(stringr)
+if(drop.rabbit == "Y"){
+  check.species <- species[-c(4,7,8)]
+}else{
+  check.species <- species[-c(4,8)]
+}
+betas.vec <- c("beta.drought.hunt", "beta.income", "beta.jobs", "beta.license", "beta.wintsev.hunt")
+beta.names <- c("Drought", "Income", "Jobs", "License", "Winter")
+for(i in 1:length(betas.vec)){
+  test <- MCMCsummary(mcmcList1, betas.vec[i]) %>%
+    mutate(RowID = rownames(MCMCsummary(mcmcList1, betas.vec[i]))) %>%
+    mutate(Species = check.species[as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])"))]) %>%
+    mutate(Beta = beta.names[i]) %>%
+    dplyr::select(Species, Beta, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+  if(i == 1){
+    betas.df <- test
+  }else{
+    betas.df <- rbind(betas.df, test)
+  }
+}
+
+
+hunt.betas.plot <- ggplot(data = betas.df, aes(y = Beta, x = Estimate, color = Species)) +
+  geom_vline(xintercept = 0, color = "grey60", linetype = 2, size = 1.5) +
+  geom_point(size = 8,
+             position = position_dodge(width = .4)) +
+  geom_errorbar(aes(xmin = LCL, xmax = UCL),
+                width = 0, size = 2,
+                position = position_dodge(width = .4)) +
+  theme_classic(base_size = 50) + 
+  xlab("Coefficient Estimate") +
+  ylab("") +
+  ggtitle("Effect Size - Hunter Effort") +
+  labs(color = "Species") + 
+  theme(legend.title.align=0.5)
+
+ggsave(hunt.betas.plot, filename = "HuntEff - Betas - Solo.jpg", dpi = 300, width = 20, height = 20)

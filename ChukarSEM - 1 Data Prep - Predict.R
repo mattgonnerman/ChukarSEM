@@ -295,9 +295,9 @@ rabbits <- as.matrix(read.csv('./Data/all_species_harvest_data.csv') %>%
                        select(Eastern, Western)) #row 1 = 1976
 rabbits <- rbind(rabbits, matrix(NA, ncol = 2, nrow = n.add.y))
 
-ggplot(data = as.data.frame(rabbits) %>% mutate(Year = 1976:2017), aes(x = Year)) +
-  geom_line(aes(y = Eastern), color = "red") +
-  geom_line(aes(y = Western), color = "blue")
+# ggplot(data = as.data.frame(rabbits) %>% mutate(Year = 1976:2017), aes(x = Year)) +
+#   geom_line(aes(y = Eastern), color = "red") +
+#   geom_line(aes(y = Western), color = "blue")
 
 #Winter Severity (AWSSI)
 awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
@@ -321,6 +321,7 @@ bbs.df <- read.csv("./Data/bbs_indices.csv") %>%
          nharrier = scale(nharrier)[,1],
          pfalcon = scale(pfalcon)[,1]
          ) %>%
-  filter(Year <= cutoff.y)
+  filter(Year <= cutoff.y) %>%
+  as.matrix()
 
-bbs.df[(nrow(bbs.df)+1):(nrow(bbs.df)+n.add.y),] <- NA
+bbs.df <- as.data.frame(rbind(bbs.df, matrix(NA, ncol = 5, nrow = n.add.y)))

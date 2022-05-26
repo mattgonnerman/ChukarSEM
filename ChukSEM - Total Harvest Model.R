@@ -15,8 +15,8 @@ code <- nimbleCode( {
   sig.drought.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.wintsev.harv ~ dnorm(0, 0.01)
   sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.rabbit ~ dnorm(0, 0.01)
-  sig.rabbit ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # mu.rabbit ~ dnorm(0, 0.01)
+  # sig.rabbit ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.raven ~ dnorm(0, 0.01)
   sig.raven ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.nharrier ~ dnorm(0, 0.01)
@@ -25,9 +25,9 @@ code <- nimbleCode( {
   for(s in 1:n.species){
     beta.drought.harv[s] ~ dnorm(mu.drought.harv, sd = sig.drought.harv)
     beta.wintsev.harv[s] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
-    beta.rabbit[s] ~ dnorm(mu.rabbit, sd  = sig.rabbit)
-    beta.raven[s] ~ dnorm(mu.raven, sd  = sig.raven)
-    beta.nharrier[s] ~ dnorm(mu.nharrier, sd  = sig.nharrier)
+    # beta.rabbit.harv[s] ~ dnorm(mu.rabbit, sd  = sig.rabbit)
+    beta.raven.harv[s] ~ dnorm(mu.raven, sd  = sig.raven)
+    beta.nharrier.harv[s] ~ dnorm(mu.nharrier, sd  = sig.nharrier)
   } #s
   
   for(r in 1:n.region){
@@ -45,11 +45,11 @@ code <- nimbleCode( {
         mu.harv[s,t-1,r] <- alpha.harv[s,r] +#regression formula
           beta.drought.harv[s] * pdsi[t-1,r] + #previous breeding season drought index
           beta.wintsev.harv[s] * awssi[r,t-1] + #concurrent winter severity
-          beta.rabbit[s] * rabbits[t-1,r] + #concurrent rabbit harvest
-          beta.raven[s] * raven[t] + #prior BBS index 
-          beta.nharrier[s] * nharrier[t] + #prior BBS index 
+          # beta.rabbit.harv[s] * rabbits[t-1,r] + #concurrent rabbit harvest
+          beta.raven.harv[s] * raven[t] + #prior BBS index 
+          beta.nharrier.harv[s] * nharrier[t] + #prior BBS index 
           inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #spline smoothing
-
+        
         pred.spl.harv[s,r,t-1] <- inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #Derive spline smoothing for examination later
         
         lambda.harv[s,t-1,r] <- exp(log.r.harv[s,t-1,r]) #link function
@@ -110,32 +110,33 @@ bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg
   return(bs_matrix)
 }
 
-nseg <- 10
-BM1 <- array(NA, dim = c(cut,nseg+3,7,2))
-Z1  <- array(NA, dim = c(cut,nseg+2,7,2))
-D1 <- diff(diag(ncol(BM1[,,1,1])), diff = 1)
-Q1 <- t(D1) %*% solve(D1 %*% t(D1))
-time <- 1:(cut)
+hunter.prime   <- MCMCpstr(mcmcList1, 'H')$H #Extract hunter numbers from Model1
+
+nseg <- 10 #Number of spline segments
+BM <- array(NA, dim = c(cut,nseg+3,7,2))
+Z  <- array(NA, dim = c(cut,nseg+2,7,2))
+D <- diff(diag(ncol(BM[,,1,1])), diff = 1)
+Q <- t(D) %*% solve(D %*% t(D))
+
 for(i in 1:7){
   for(j in 1:2){
-    BM1[,,i,j] <- bs_bbase(time, nseg = 10)
-    Z1[,,i,j] <-  BM1[,,i,j]%*% Q1
-    
+    BM[,,i,j] <- bs_bbase(hunter.prime[i,,j], nseg = 10)
+    Z[,,i,j] <-  BM[,,i,j]%*% Q
   }
 }
 
-ZZ1 <- Z1
-ZZ1[is.na(ZZ1)] <- 0
+ZZ <- Z
+ZZ[is.na(ZZ)] <- 0
 
 data <- list(
   ### Total Harvest
   n.harv = upland,
   awssi = awssi, #winter severity index, scaled
   pdsi = pdsi, #Previous breeding season drought index
-  rabbits = rabbits, #Number of rabbits harvested 
+  # rabbits = rabbits, #Number of rabbits harvested 
   raven = as.vector(bbs.df$raven), #bbs bayes index for ravens, t = 1 is 1975
   nharrier = as.vector(bbs.df$nharrier), #bbs bayes index for northern harriers, t = 1 is 1975
-  Z.harv = ZZ1 #Spline
+  Z.harv = ZZ #Spline
 )
 
 
@@ -162,7 +163,7 @@ constants <- list(
 
 
 ### Specify Initial Values
-## Hunter Effort/Total Harvest
+##Total Harvest
 nu = n.species + 1 #degrees of freedom for rinvwishart
 Q = rinvwishart(nu, I)    # note output is an array
 Delta = matrix(0, n.species, n.species)
@@ -192,19 +193,6 @@ Ni[,1,] <- upland[,1,] + 50
 
 # Wrapper Function
 initsFunction <- function() list(   
-  ### Predictors
-  sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
-  mu.drought.harv = 0,
-  sig.drought.harv = 1,
-  mu.wintsev.harv = 0,
-  sig.wintsev.harv = 1,
-  mu.rabbit = 0,
-  sig.rabbit = 1,
-  mu.raven = 0,
-  sig.raven = 1,
-  mu.nharrier = 0,
-  sig.nharrier = 1,
-  
   ### Total Harvest
   n.harv = n.harv.i,
   Q.harv = abind(Q2,Q2,along = 3),
@@ -214,14 +202,25 @@ initsFunction <- function() list(
   rho.harv = abind(diag(n.species),diag(n.species),along = 3),
   alpha.harv = matrix(0, ncol = 2, nrow = 7),
   sig.harv = matrix(1, ncol = 2, nrow = 7),
-  log.r.harv = array(0, dim = c(7,cut-1,2) ),
-  N = Ni,
+  log.r.harv = array(0, dim = c(7,(cut)-1,2) ),
+  # N = Ni,
   beta.drought.harv = rep(0, 7),
   beta.wintsev.harv = rep(0, 7),
-  beta.rabbit = rep(0, 7),
-  beta.raven = rep(0, 7),
-  beta.nharrier = rep(0, 7),
-  beta.spl.harv = array(0, dim = c(7,2,12))
+  # beta.rabbit.harv = rep(0, 7),
+  beta.raven.harv = rep(0, 7),
+  beta.nharrier.harv = rep(0, 7),
+  beta.spl.harv = array(0, dim = c(7,2,12)),
+  sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
+  mu.drought.harv = 0,
+  sig.drought.harv = 1,
+  mu.wintsev.harv = 0,
+  sig.wintsev.harv = 1,
+  # mu.rabbit = 0,
+  # sig.rabbit = 1,
+  mu.raven = 0,
+  sig.raven = 1,
+  mu.nharrier = 0,
+  sig.nharrier = 1
 )
 
 inits <- initsFunction()
@@ -234,7 +233,7 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits )
 
-model_test$simulate(c("mu.harv"))
+model_test$simulate(c('mu.harv', 'N'))
 model_test$initializeInfo()
 model_test$calculate()
 
@@ -268,9 +267,9 @@ pars1 <- c(
   "beta.drought.harv",
   "beta.wintsev.harv",
   "beta.spl.harv",
-  "beta.rabbit",
-  "beta.raven",
-  "beta.nharrier",
+  # "beta.rabbit.harv",
+  "beta.raven.harv",
+  "beta.nharrier.harv",
   "pred.spl.harv",
   "log.r.harv",
   "rho.harv"
@@ -308,7 +307,7 @@ out <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 60000, thin = 10, thin2 = 10)
+  samplesList <- runMCMC(Cmcmc,nburnin = 100000, niter = 200000, thin = 100, thin2 = 100)
   
   return(samplesList)
 })
@@ -340,3 +339,69 @@ save(files, file = 'model_output_TotHarv.rdata')
 # MCMCtrace(mcmcList2, params = "alpha.hunt", plot = T, pdf = F)
 #Output full pdf with all trace plots
 MCMCtrace(mcmcList2, filename = "Traceplots - Total Harvest MCMC.pdf")
+
+
+# harvest correlation
+rho.harv.est <- MCMCsummary(mcmcList2, 'rho.harv') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList2, 'rho.harv'))) %>%
+  mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+         Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+         Region = sub('.*\\,', '', RowID)) %>%
+  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+  dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+
+blank.cor.df <- as.data.frame(matrix(NA, nrow = 7, ncol = 7))
+rho.harv.list <- list(blank.cor.df, blank.cor.df)
+for(i in 1:nrow(rho.harv.est)){
+  rho.harv.list[[rho.harv.est$Region[i]]][rho.harv.est$Species1[i], rho.harv.est$Species2[i]] <- rho.harv.est$Estimate[i]
+}
+
+rho.harv.e <- rho.harv.list[[1]]
+rho.harv.w <- rho.harv.list[[2]]
+
+rho.harv.e.plot <- ggcorrplot::ggcorrplot(rho.harv.e, lab = T) +
+  labs(title = "harver Correlation - East")
+ggsave(rho.harv.e.plot, filename = "CheckPlot - rho harv East.jpg", dpi = 300)
+rho.harv.w.plot <- ggcorrplot::ggcorrplot(rho.harv.w, lab = T) +
+  labs(title = "harver Correlation - West")
+ggsave(rho.harv.w.plot, filename = "CheckPlot - rho harv West.jpg", dpi = 300)
+
+#Comparison of Betas
+require(stringr)
+if(drop.rabbit == "Y"){
+  check.species <- species[-c(4,7,8)]
+}else{
+  check.species <- species[-c(4,8)]
+}
+betas.vec <- c("beta.drought.harv", "beta.nharrier.harv", "beta.raven.harv", "beta.wintsev.harv")
+beta.names <- c("Drought", "Harrier", "Raven", "Winter")
+for(i in 1:length(betas.vec)){
+  test <- MCMCsummary(mcmcList2, betas.vec[i]) %>%
+    mutate(RowID = rownames(MCMCsummary(mcmcList2, betas.vec[i]))) %>%
+    mutate(Species = check.species[as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])"))]) %>%
+    mutate(Beta = beta.names[i]) %>%
+    dplyr::select(Species, Beta, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+  if(i == 1){
+    betas.df <- test
+  }else{
+    betas.df <- rbind(betas.df, test)
+  }
+}
+
+
+hunt.betas.plot <- ggplot(data = betas.df, aes(y = Beta, x = Estimate, color = Species)) +
+  geom_vline(xintercept = 0, color = "grey60", linetype = 2, size = 1.5) +
+  geom_point(size = 8,
+             position = position_dodge(width = .4)) +
+  geom_errorbar(aes(xmin = LCL, xmax = UCL),
+                width = 0, size = 2,
+                position = position_dodge(width = .4)) +
+  theme_classic(base_size = 50) + 
+  xlab("Coefficient Estimate") +
+  ylab("") +
+  ggtitle("Effect Size - Total Harvest") +
+  labs(color = "Species") + 
+  theme(legend.title.align=0.5)
+
+ggsave(hunt.betas.plot, filename = "Total Harvest - Betas - Solo.jpg", dpi = 300, width = 20, height = 20)
+

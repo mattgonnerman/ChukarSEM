@@ -1,6 +1,6 @@
 ### Run Initial Data Management
 lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
-cutoff.y <- 2017 #Only need to change this to adjust the number of years
+cutoff.y <- 2014 #Only need to change this to adjust the number of years
 
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 
@@ -13,8 +13,8 @@ source("./ChukarSEM - 1 Data Prep - Predict.R")
 # source("./ChukSEM - Hunter Effort Model - Predict.R")
 # Sys.time()
 
-load("./model_output_HuntEff_pred.rdata")
-mcmcList2 <- files[[2]]
+load("./model_output_HuntEff.rdata")
+mcmcList2 <- files[[1]]
 
 ### Load Model Code
 source("./ChukSEM - Full Model Only - Predict.R")
@@ -121,7 +121,7 @@ constants <- list(
   K = 12,
   
   ### Predictors
-  era.gas = c(rep(1,length(1976:1994)),rep(2, length(1995:2017))), #Groupings for change in gas prices 
+  era.gas = c(rep(1,length(1976:2004)),rep(2, length(2005:2017))), #Groupings for change in gas prices 
   era.awssi = c(rep(1,length(1976:1994)),rep(2, length(1995:2001)), rep(1, length(2002:2017))), #Groupings for change in gas prices 
   
   ### Hunter Effort
@@ -249,8 +249,8 @@ initsFunction <- function() list(
   PDI = PDI.inits,
   #Gas Prices
   GAS = GAS.inits,
-  alpha.gas = .9,
-  beta.gas = rep(0,2),
+  alpha.gas = rep(.9,2),
+  # beta.gas = 0,
   sig.gas = 1,
   #Unemployment
   sig.une = 1,
@@ -264,14 +264,14 @@ initsFunction <- function() list(
   wpdsi = wpdsi.init,
   pdsi = pdsi.init,
   #Winter Severity
-  sig.awssi = 1,
-  beta.awssi = rep(0,2),
-  alpha.awssi = rep(0,2),
+  sig.awssi = rep(1,2),
+  beta.awssi = 0,
+  alpha.awssi = 0,
   awssi = awssi.init,
   #Rabbits
   sig.rabbits = 1,
-  beta.rabbits = 0,
-  alpha.rabbits = rep(0,2),
+  beta.rabbits = 1,
+  alpha.rabbits = 1,
   rabbits = rabbits.init,
   #Ravens
   alpha.rav = 0,
@@ -446,6 +446,34 @@ pars2 <- c(### Hunter Effort
   ### Birds per Hunter
   "BPH")
 
+pars.pred <- c(
+  "alpha.pdi",
+  "beta.t.pdi",
+  "sig.pdi",
+  "ar1.pdi",
+  "alpha.gas",
+  "sig.gas",
+  # "beta.gas",
+  "rel.cost",
+  "sig.une",
+  "une",
+  "sig.res",
+  "res",
+  "sig.wpdsi",
+  "sig.pdsi",
+  "sig.awssi",
+  "beta.awssi",
+  "alpha.awssi",
+  "sig.rabbits",
+  "beta.rabbits",
+  "alpha.rabbits",
+  "alpha.rav",
+  "beta.t.rav",
+  "sig.rav",
+  "ar1.rav",
+  "sig.nhar"
+)
+
 # Parallel Processing Setup
 rm(out)
 rm(out.full.predict)
@@ -454,7 +482,7 @@ start_time
 nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000) #Start 3 parallel processing clusters
 
-clusterExport(cl, c("code", "inits", "data", "constants", "pars1", "pars2")) #identify what is to be exported to each cluster
+clusterExport(cl, c("code", "inits", "data", "constants", "pars1", "pars2", "pars.pred")) #identify what is to be exported to each cluster
 
 for (j in seq_along(cl)) {
   set.seed(j)
@@ -477,7 +505,7 @@ out.full.predict <- clusterEvalQ(cl, {
                         'BPH'))
   model_test$initializeInfo()
   model_test$calculate()
-  mcmcConf <-  configureMCMC( model_test,   monitors =  pars1, monitors2 = pars2) 
+  mcmcConf <-  configureMCMC( model_test,   monitors =  c(pars1, pars2), monitors2 = pars.pred) 
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
