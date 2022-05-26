@@ -272,6 +272,14 @@ general_nv <- subset(general, ST == 'NV' & Year > 1975 & Year <= cutoff.y)
 res <- c(scale(general_nv$Resident.Licenses)[,1], rep(NA, n.add.y))
 
 #Gas Prices
+#https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=EMA_EPM0_PWG_SNV_DPG&f=M
+# gas.gov <- read.csv('./Data/NV_Gas.csv') %>%
+#   mutate(Date = as.Date(M.Y, format = '%m/%d/%Y')) %>%
+#   mutate(Year = lubridate::year(Date),
+#          Month = lubridate::month(Date)) %>%
+#   filter(Month == 9) %>%
+#   arrange(Year)
+
 econ_data <- read.csv('./Data/economic_data.csv')
 econ_data_sub <- subset(econ_data, Year > 1975 & Year <= cutoff.y)
 PDI <- c((econ_data_sub$Per.Capita.Personal.Disposable.Income/10000), rep(NA, n.add.y))

@@ -332,6 +332,8 @@ mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 #Save Outputs as file
 files <- list(mcmcList1,mcmcList2,code)
 save(files, file = 'model_output_TotHarv.rdata')
+load('model_output_TotHarv.rdata')
+mcmcList2 <- files[[1]]
 
 ### Traceplots
 # colnames(mcmcList2$chain1)
@@ -404,4 +406,27 @@ hunt.betas.plot <- ggplot(data = betas.df, aes(y = Beta, x = Estimate, color = S
   theme(legend.title.align=0.5)
 
 ggsave(hunt.betas.plot, filename = "Total Harvest - Betas - Solo.jpg", dpi = 300, width = 20, height = 20)
+
+
+
+
+test.N   <- MCMCsummary(mcmcList2, 'N') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList2, 'N'))) %>%
+  mutate(Species = check.species[as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)"))],
+         Year = 1975+as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+         Region = ifelse(" 1]" == sub('.*\\,', '', RowID), "East", "West")) %>%
+  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%') %>%
+  mutate(Region = factor(Region, levels = c("West", "East")))
+
+
+
+checkplotN <- ggplot(data = test.N, aes(x = Year, y = Estimate, group = Species)) +
+  geom_line(aes(color = Species), size = 1.2) +
+  facet_wrap(vars(Region)) +
+  scale_y_continuous(trans = "log10",
+                     labels = c("10", "100", "1,000", "10,000", "100,000"),
+                     breaks = c(10, 100, 1000, 10000, 100000)) +
+  labs(y = "Total Harvest (log transformed)") +
+  theme_classic(base_size = 25) 
+ggsave(checkplotN, filename = "CheckPlot - N.jpg", dpi = 300, width = 20, height = 10)
 

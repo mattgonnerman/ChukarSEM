@@ -28,15 +28,14 @@ code <- nimbleCode( {
   #Gas Prices
   for(i in 1:2){
     alpha.gas[i] ~ dnorm(0, sd = 10)
+    beta.gas[i] ~ dnorm(0, sd = 100)
   }
   sig.gas~ T(dt(0, pow(2.5,-2), 1),0,)
-  # beta.gas[1] ~ dnorm(0, 0.01)
-  # beta.gas[2] ~ dnorm(0, 0.01)
   
   #Relative Cost of Gas
   for(t in 1:n.year){
     PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
-    GAS[t] ~ T(dnorm(alpha.gas[era.gas[t]], sd = sig.gas),0.000000000001,)
+    GAS[t] ~ T(dnorm(alpha.gas[era.gas[t]] + beta.gas[era.gas[t]]*t, sd = sig.gas),0,)
     rel.cost[t] <- ((PDI[t]/GAS[t]) - 2.581635)/0.8894599
   } #t
   
@@ -72,15 +71,15 @@ code <- nimbleCode( {
     }
   }
   
-  #Rabbits
-  sig.rabbits~ T(dt(0, pow(2.5,-2), 1),0,)
-  beta.rabbits ~ dnorm(0, sd = 2)
-  alpha.rabbits ~ dnorm(0, sd = 1)
-  for(t in 1:n.year){
-    for(r in 1:n.region){
-      rabbits[t,r] ~ dnorm(alpha.rabbits + beta.rabbits*t, sd = sig.rabbits)
-    }
-  }
+  # #Rabbits
+  # sig.rabbits~ T(dt(0, pow(2.5,-2), 1),0,)
+  # beta.rabbits ~ dnorm(0, sd = 2)
+  # alpha.rabbits ~ dnorm(0, sd = 1)
+  # for(t in 1:n.year){
+  #   for(r in 1:n.region){
+  #     rabbits[t,r] ~ dnorm(alpha.rabbits + beta.rabbits*t, sd = sig.rabbits)
+  #   }
+  # }
   
   #Ravens (Highly correlated with Prairie Falcon and RTHawk)
   alpha.rav ~ dnorm(0, 0.001) #intercept
@@ -171,7 +170,7 @@ initsFunction <- function() list(
   #Gas Prices
   GAS = GAS.inits,
   alpha.gas = rep(.9,2),
-  # beta.gas = 0,
+  beta.gas = rep(0,2),
   sig.gas = 1,
   #Unemployment
   sig.une = 1,
@@ -225,7 +224,7 @@ pars.pred <- c(
     "ar1.pdi",
     "alpha.gas",
     "sig.gas",
-    # "beta.gas",
+    "beta.gas",
     "rel.cost",
     "sig.une",
     "une",
