@@ -1,11 +1,11 @@
 ### Run Initial Data Management
 lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
-cutoff.y <- 2014 #Only need to change this to adjust the number of years
+cutoff.y <- 2016 #Only need to change this to adjust the number of years
 
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 
 n.add.y <- 2017-cutoff.y
-source("./ChukarSEM - 1 Data Prep - Predict.R")
+source("./ChukSEM - Data Prep - Predict.R")
 
 
 ### Run Hunter Effort Solo Model to get estimates of H to create spline inputs
@@ -13,7 +13,7 @@ source("./ChukarSEM - 1 Data Prep - Predict.R")
 # source("./ChukSEM - Hunter Effort Model - Predict.R")
 # Sys.time()
 
-load("./model_output_HuntEff.rdata")
+load("./model_output_HuntEff_pred.rdata")
 mcmcList2 <- files[[1]]
 
 ### Load Model Code
@@ -83,7 +83,7 @@ data <- list(
   awssi = awssi, #winter severity index, scaled
   pdsi = pdsi, #Previous breeding season drought index
   wpdsi = wpdsi, #winter drought index, scaled
-  rabbits = rabbits, #Number of rabbits harvested 
+  # rabbits = rabbits, #Number of rabbits harvested 
   raven = as.vector(bbs.df$raven), #bbs bayes index for ravens, t = 1 is 1975
   nharrier = as.vector(bbs.df$nharrier), #bbs bayes index for northern harriers, t = 1 is 1975
   
@@ -248,10 +248,11 @@ initsFunction <- function() list(
   ar1.pdi = 0,
   PDI = PDI.inits,
   #Gas Prices
-  GAS = GAS.inits,
-  alpha.gas = rep(.9,2),
-  # beta.gas = 0,
+  alpha.gas = .9,
+  beta.t.gas = 0,
   sig.gas = 1,
+  ar1.gas = 0,
+  GAS = GAS.inits,
   #Unemployment
   sig.une = 1,
   une = une.init,
@@ -268,11 +269,11 @@ initsFunction <- function() list(
   beta.awssi = 0,
   alpha.awssi = 0,
   awssi = awssi.init,
-  #Rabbits
-  sig.rabbits = 1,
-  beta.rabbits = 1,
-  alpha.rabbits = 1,
-  rabbits = rabbits.init,
+  # #Rabbits
+  # sig.rabbits = 1,
+  # beta.rabbits = 1,
+  # alpha.rabbits = 1,
+  # rabbits = rabbits.init,
   #Ravens
   alpha.rav = 0,
   beta.t.rav = 0,
@@ -301,8 +302,8 @@ initsFunction <- function() list(
   sig.drought.harv = 1,
   mu.wintsev.harv = 0,
   sig.wintsev.harv = 1,
-  mu.rabbit = 0,
-  sig.rabbit = 1,
+  # mu.rabbit = 0,
+  # sig.rabbit = 1,
   mu.raven = 0,
   sig.raven = 1,
   mu.nharrier = 0,
@@ -325,6 +326,7 @@ initsFunction <- function() list(
   beta.license = rep(0, 7),
   
   ### Total Harvest
+  ### Total Harvest
   n.harv = n.harv.i,
   Q.harv = abind(Q2,Q2,along = 3),
   P.harv = abind(P2,P2,along = 3),
@@ -337,10 +339,15 @@ initsFunction <- function() list(
   # N = Ni,
   beta.drought.harv = rep(0, 7),
   beta.wintsev.harv = rep(0, 7),
-  beta.rabbit.harv = rep(0, 7),
+  # beta.rabbit.harv = rep(0, 7),
   beta.raven.harv = rep(0, 7),
   beta.nharrier.harv = rep(0, 7),
   beta.spl.harv = array(0, dim = c(7,2,12)),
+  sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
+  mu.drought.harv = 0,
+  sig.drought.harv = 1,
+  mu.wintsev.harv = 0,
+  sig.wintsev.harv = 1,
   
   ### Sage Grouse Wing-Bee
   theta.sg = rep(1,2),
@@ -378,7 +385,7 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits)
 
-model_test$simulate(c('mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt',
+model_test$simulate(c('mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
                       'mu.harv', 'N',
                       'theta.sg', 'rate.sg', 'log.r.sg',
                       'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
@@ -400,7 +407,7 @@ pars1 <- c(### Hunter Effort
   "alpha.harv",
   "beta.drought.harv",
   "beta.wintsev.harv",
-  "beta.rabbit.harv",
+  # "beta.rabbit.harv",
   "beta.raven.harv",
   "beta.nharrier.harv",
   # "pred.spl.harv",
@@ -446,14 +453,15 @@ pars2 <- c(### Hunter Effort
   ### Birds per Hunter
   "BPH")
 
-pars.pred <- c(
+pars.predpars.pred <- c(
   "alpha.pdi",
   "beta.t.pdi",
   "sig.pdi",
   "ar1.pdi",
   "alpha.gas",
+  "beta.t.gas",
   "sig.gas",
-  # "beta.gas",
+  "ar1.gas",
   "rel.cost",
   "sig.une",
   "une",
@@ -464,9 +472,9 @@ pars.pred <- c(
   "sig.awssi",
   "beta.awssi",
   "alpha.awssi",
-  "sig.rabbits",
-  "beta.rabbits",
-  "alpha.rabbits",
+  # "sig.rabbits",
+  # "beta.rabbits",
+  # "alpha.rabbits",
   "alpha.rav",
   "beta.t.rav",
   "sig.rav",
@@ -498,7 +506,7 @@ out.full.predict <- clusterEvalQ(cl, {
                              data =  data,
                              inits = inits )
   
-  model_test$simulate(c('mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt',
+  model_test$simulate(c('mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
                         'mu.harv', 'N',
                         'theta.sg', 'rate.sg', 'log.r.sg',
                         'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
@@ -510,7 +518,7 @@ out.full.predict <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 400000, niter = 500000, thin = 100, thin2 = 100)
+  samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 50000, thin = 10, thin2 = 10)
   
   return(samplesList)
 })

@@ -1,11 +1,11 @@
 ### Run Initial Data Management
 lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
-cutoff.y <- 2017 #Only need to change this to adjust the number of years
+cutoff.y <- 2011:2017 #Only need to change this to adjust the number of years
 
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 
 n.add.y <- 2017-cutoff.y
-source("./ChukarSEM - 1 Data Prep - Predict.R")
+source("./ChukSEM - Data Prep - Predict.R")
 
 ### Model Code
 code <- nimbleCode( {

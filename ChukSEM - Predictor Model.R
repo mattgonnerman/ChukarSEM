@@ -5,7 +5,7 @@ cutoff.y <- 2016 #Only need to change this to adjust the number of years
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 
 n.add.y <- 2017-cutoff.y
-source("./ChukarSEM - 1 Data Prep - Predict.R")
+source("./ChukSEM - Data Prep - Predict.R")
 
 ### Model Code
 code <- nimbleCode( {
@@ -26,16 +26,26 @@ code <- nimbleCode( {
   } #t
   
   #Gas Prices
-  for(i in 1:2){
-    alpha.gas[i] ~ dnorm(0, sd = 10)
-    beta.gas[i] ~ dnorm(0, sd = 100)
-  }
+  alpha.gas ~ dnorm(0, sd = 5) #intercept
+  beta.t.gas ~ dnorm(0, sd = 5) #year
   sig.gas~ T(dt(0, pow(2.5,-2), 1),0,)
   
+  ar1.gas ~ dunif(-1,1) #Autoregressive parameter
+  
+  gas.trend[1] <- alpha.gas + beta.t.gas * 1
+  mu.gas[1] <- gas.trend[1]
+  for(t in 2:n.year){
+    gas.trend[t] <- alpha.gas + beta.t.gas * t
+    log(mu.gas[t]) <- gas.trend[t] + ar1.gas * (GAS[t-1] - gas.trend[t-1])
+  } #t
+  # alpha.gas ~ dnorm(1, sd = 5)
+  # beta.gas ~ dnorm(1, sd = 5)
+  # sig.gas~ T(dt(0, pow(2.5,-2), 1),0,)
+  # 
   #Relative Cost of Gas
   for(t in 1:n.year){
     PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
-    GAS[t] ~ T(dnorm(alpha.gas[era.gas[t]] + beta.gas[era.gas[t]]*t, sd = sig.gas),0,)
+    GAS[t] ~ dnorm(mu.gas[t], sd = sig.gas)
     rel.cost[t] <- ((PDI[t]/GAS[t]) - 2.581635)/0.8894599
   } #t
   
@@ -115,7 +125,7 @@ data <- list(
   awssi = awssi, #winter severity index, scaled
   pdsi = pdsi, #Previous breeding season drought index
   wpdsi = wpdsi, #winter drought index, scaled
-  rabbits = rabbits, #Number of rabbits harvested 
+  # rabbits = rabbits, #Number of rabbits harvested 
   raven = as.vector(bbs.df$raven), #bbs bayes index for ravens, t = 1 is 1975
   nharrier = as.vector(bbs.df$nharrier) #bbs bayes index for northern harriers, t = 1 is 1975
 )
@@ -168,10 +178,11 @@ initsFunction <- function() list(
   ar1.pdi = 0,
   PDI = PDI.inits,
   #Gas Prices
-  GAS = GAS.inits,
-  alpha.gas = rep(.9,2),
-  beta.gas = rep(0,2),
+  alpha.gas = .9,
+  beta.t.gas = 0,
   sig.gas = 1,
+  ar1.gas = 0,
+  GAS = GAS.inits,
   #Unemployment
   sig.une = 1,
   une = une.init,
@@ -188,11 +199,11 @@ initsFunction <- function() list(
   beta.awssi = 0,
   alpha.awssi = 0,
   awssi = awssi.init,
-  #Rabbits
-  sig.rabbits = 1,
-  beta.rabbits = 1,
-  alpha.rabbits = 1,
-  rabbits = rabbits.init,
+  # #Rabbits
+  # sig.rabbits = 1,
+  # beta.rabbits = 1,
+  # alpha.rabbits = 1,
+  # rabbits = rabbits.init,
   #Ravens
   alpha.rav = 0,
   beta.t.rav = 0,
@@ -223,8 +234,9 @@ pars.pred <- c(
     "sig.pdi",
     "ar1.pdi",
     "alpha.gas",
+    "beta.t.gas",
     "sig.gas",
-    "beta.gas",
+    "ar1.gas",
     "rel.cost",
     "sig.une",
     "une",
@@ -235,9 +247,9 @@ pars.pred <- c(
     "sig.awssi",
     "beta.awssi",
     "alpha.awssi",
-    "sig.rabbits",
-    "beta.rabbits",
-    "alpha.rabbits",
+    # "sig.rabbits",
+    # "beta.rabbits",
+    # "alpha.rabbits",
     "alpha.rav",
     "beta.t.rav",
     "sig.rav",
