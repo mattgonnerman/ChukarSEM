@@ -1,10 +1,11 @@
 ### Run Initial Data Management
 lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
 cutoff.y <- 2016 #Only need to change this to adjust the number of years
+final.y <- 2017
 
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 
-n.add.y <- 2017-cutoff.y
+n.add.y <- final.y - cutoff.y
 source("./ChukSEM - Data Prep - Predict.R")
 
 
@@ -78,8 +79,8 @@ data <- list(
   ### Covariates
   une = une, #BL Unemployment information for Nevada, scaled
   res = res, #Residential license sales
-  PDI = PDI, #personal disposable income
-  GAS = GAS, #gas prices
+  PDI = log(PDI), #personal disposable income
+  GAS = log(GAS), #gas prices
   awssi = awssi, #winter severity index, scaled
   pdsi = pdsi, #Previous breeding season drought index
   wpdsi = wpdsi, #winter drought index, scaled
@@ -121,7 +122,7 @@ constants <- list(
   K = 12,
   
   ### Predictors
-  era.gas = c(rep(1,length(1976:2004)),rep(2, length(2005:2017))), #Groupings for change in gas prices 
+  era.gas = c(rep(1,length(1976:2005)),rep(2, length(2006:2017))), #Groupings for change in gas prices 
   era.awssi = c(rep(1,length(1976:1994)),rep(2, length(1995:2001)), rep(1, length(2002:2017))), #Groupings for change in gas prices 
   
   ### Hunter Effort
@@ -246,12 +247,12 @@ initsFunction <- function() list(
   beta.t.pdi = 0,
   sig.pdi = 1,
   ar1.pdi = 0,
-  PDI = PDI.inits,
+  # PDI = PDI.inits,
   #Gas Prices
-  alpha.gas = .9,
-  beta.t.gas = 0,
-  sig.gas = 1,
-  ar1.gas = 0,
+  alpha.gas = rep(.9,2),
+  beta.t.gas = rep(0,2),
+  sig.gas = rep(1,2),
+  ar1.gas = rep(0,2),
   GAS = GAS.inits,
   #Unemployment
   sig.une = 1,
@@ -363,7 +364,7 @@ initsFunction <- function() list(
   HY.sg = hy.sg.init,
   
   ### Chukar Site Abundance
-  theta.chuk = rep(1,13),
+  theta.chuk = rep(1,2),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.chuk-1),
   mod.chuk = rep(1,2),
   # alpha.chuk =  rep(0,2),
@@ -385,7 +386,8 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits)
 
-model_test$simulate(c('mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
+model_test$simulate(c('GAS', 'PDI',
+                      'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
                       'mu.harv', 'N',
                       'theta.sg', 'rate.sg', 'log.r.sg',
                       'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
@@ -453,13 +455,14 @@ pars2 <- c(### Hunter Effort
   ### Birds per Hunter
   "BPH")
 
-pars.predpars.pred <- c(
+pars.pred <- c(
   "alpha.pdi",
   "beta.t.pdi",
   "sig.pdi",
   "ar1.pdi",
   "alpha.gas",
   "beta.t.gas",
+  # "mu.gas",
   "sig.gas",
   "ar1.gas",
   "rel.cost",
@@ -513,12 +516,13 @@ out.full.predict <- clusterEvalQ(cl, {
                         'BPH'))
   model_test$initializeInfo()
   model_test$calculate()
-  mcmcConf <-  configureMCMC( model_test,   monitors =  c(pars1, pars2), monitors2 = pars.pred) 
+  mcmcConf <-  configureMCMC( model_test,   monitors =  c(pars1, pars2), monitors2 = pars.pred)
+  # mcmcConf <-  configureMCMC( model_test,   monitors =  pars1, monitors2 = pars2)
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 40000, niter = 50000, thin = 10, thin2 = 10)
+  samplesList <- runMCMC(Cmcmc,nburnin = 175000, niter = 200000, thin = 25, thin2 = 25)
   
   return(samplesList)
 })
@@ -529,9 +533,9 @@ stopCluster(cl)
 end_time <- Sys.time()
 end_time - start_time
 
-samples1 <- list(chain1 =  out.full.predict[[1]]$samples, 
-                 chain2 =  out.full.predict[[2]]$samples, 
-                 chain3 =  out.full.predict[[3]]$samples)
+samples1 <- list(chain1 =  out.full.predict[[1]]$samples[,-c(1:(3*588+1+94+98+98))], 
+                 chain2 =  out.full.predict[[2]]$samples[,-c(1:(3*588+1+94+98+98))], 
+                 chain3 =  out.full.predict[[3]]$samples[,-c(1:(3*588+1+94+98+98))])
 
 mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
 
@@ -555,9 +559,9 @@ mcmcList2 <- files[[2]]
 #Individual parameters
 # MCMCtrace(mcmcList2, params = "alpha.hunt", plot = T, pdf = F)
 #Output full pdf with all trace plots
-MCMCtrace(mcmcList1, filename = "./Traceplots - Full Model Predict MCMC Betas.pdf")
+MCMCtrace(mcmcList1, filename = "./Traceplots - Full Model Predict MCMC - Betas and PopMetrics.pdf")
 
-MCMCtrace(mcmcList2, filename = "./Traceplots - Full Model Predict MCMC - PopMetrics.pdf")
+MCMCtrace(mcmcList2, filename = "./Traceplots - Full Model Predict MCMC - Predictors.pdf")
 
 
 ### Check outputs compared to known values

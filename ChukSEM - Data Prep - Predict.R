@@ -279,13 +279,13 @@ gas.march <- read.csv('./Data/NV_Gas.csv') %>%
          Month = lubridate::month(Date)) %>%
   filter(Month == 5) %>%
   arrange(Year) %>%
-  filter(Year < 2018) %>%
+  filter(Year < (final.y + 1)) %>%
   dplyr::select(Year, Gas.May = Dollars.per.Gallon)
 
 econ_data <- read.csv('./Data/economic_data.csv') %>%
   dplyr::rename(PDI = Per.Capita.Personal.Disposable.Income, Gas.Unk = Gas.Price..July.Oct.) %>%
   merge(., gas.march, by = "Year", all = T) %>%
-  filter(Year >1975 & Year < 2018) %>%
+  filter(Year >1975 & Year < (final.y + 1)) %>%
   mutate(PDI = PDI/10000)
 
 PDI <- econ_data$PDI
@@ -309,7 +309,7 @@ rabbits <- as.matrix(read.csv('./Data/all_species_harvest_data.csv') %>%
                        select(Eastern, Western)) #row 1 = 1976
 rabbits <- rbind(rabbits, matrix(NA, ncol = 2, nrow = n.add.y))
 
-# ggplot(data = as.data.frame(rabbits) %>% mutate(Year = 1976:2017), aes(x = Year)) +
+# ggplot(data = as.data.frame(rabbits) %>% mutate(Year = 1976:final.y), aes(x = Year)) +
 #   geom_line(aes(y = Eastern), color = "red") +
 #   geom_line(aes(y = Western), color = "blue")
 

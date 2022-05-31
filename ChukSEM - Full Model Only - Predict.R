@@ -2,42 +2,37 @@
 code <- nimbleCode( {
   ################################################################################
   ### Predictors
-  #Personal Disposable Income
+  #Relative Cost of Gas
   alpha.pdi ~ dnorm(0, sd = 100) #intercept
   beta.t.pdi ~ dnorm(0, sd = 100) #year
   sig.pdi~ T(dt(0, pow(2.5,-2), 1),0,)
-  
   ar1.pdi ~ dunif(-1,1) #Autoregressive parameter
   
   pdi.trend[1] <- alpha.pdi + beta.t.pdi * 1
   mu.pdi[1] <- pdi.trend[1]
+  
   for(t in 2:n.year){
     pdi.trend[t] <- alpha.pdi + beta.t.pdi * t
     mu.pdi[t] <- pdi.trend[t] + ar1.pdi * (PDI[t-1] - pdi.trend[t-1])
   } #t
   
-  #Gas Prices
-  alpha.gas ~ dnorm(0, sd = 5) #intercept
-  beta.t.gas ~ dnorm(0, sd = 5) #year
-  sig.gas~ T(dt(0, pow(2.5,-2), 1),0,)
-  
-  ar1.gas ~ dunif(-1,1) #Autoregressive parameter
-  
-  gas.trend[1] <- alpha.gas + beta.t.gas * 1
+  for(i in 1:2){
+    alpha.gas[i] ~ dnorm(0, sd = 100)
+    beta.t.gas[i] ~ dnorm(0, sd = 100) #year
+    sig.gas[i] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    ar1.gas[i] ~ dunif(-1,1) #Autoregressive parameter
+  }
+  gas.trend[1] <- alpha.gas[1] + beta.t.gas[1] * 1
   mu.gas[1] <- gas.trend[1]
   for(t in 2:n.year){
-    gas.trend[t] <- alpha.gas + beta.t.gas * t
-    log(mu.gas[t]) <- gas.trend[t] + ar1.gas * (GAS[t-1] - gas.trend[t-1])
-  } #t
-  # alpha.gas ~ dnorm(1, sd = 5)
-  # beta.gas ~ dnorm(1, sd = 5)
-  # sig.gas~ T(dt(0, pow(2.5,-2), 1),0,)
-  # 
-  #Relative Cost of Gas
+    gas.trend[t] <- alpha.gas[era.gas[t]] + beta.t.gas[era.gas[t]] * t
+    mu.gas[t] <- gas.trend[t] + ar1.gas[era.gas[t]] * (GAS[t-1] - gas.trend[t-1])
+  }
+  
   for(t in 1:n.year){
+    GAS[t] ~ dnorm(mu.gas[t], sd = sig.gas[era.gas[t]])
     PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
-    GAS[t] ~ dnorm(mu.gas[t], sd = sig.gas)
-    rel.cost[t] <- ((PDI[t]/GAS[t]) - 2.581635)/0.8894599
+    rel.cost[t] <- ((exp(PDI[t]))/(exp(GAS[t])) - 2.581635)/0.8894599
   } #t
   
   #Unemployment Rate
