@@ -1,3 +1,39 @@
+lapply(c("dplyr", "coda", "MCMCvis", "stringr"), require, character.only = T)
+
+#Load desired objects and format them
+cutoff.y <- 2016 #Last year from which data was used
+final.y <- 2017 #Last year predicted
+year.hold <- cutoff.y +1
+drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
+n.add.y <- final.y - cutoff.y
+drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
+source("./ChukSEM - Data Prep - Predict.R")
+load(file = paste("./Holdout ", year.hold, '/model_output_FullModel_predict.rdata', sep = ""))
+mcmcList1 <- files[[1]]
+mcmcList2 <- files[[2]]
+
+test.bph <- MCMCsummary(mcmcList1, 'BPH') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'BPH'))) %>%
+  mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+         Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+         Region = sub('.*\\,', '', RowID)) %>%
+  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+test.H   <- MCMCsummary(mcmcList1, 'H') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'H'))) %>%
+  mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+         Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+         Region = sub('.*\\,', '', RowID)) %>%
+  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+test.N   <- MCMCsummary(mcmcList1, 'N') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'N'))) %>%
+  mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+         Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+         Region = sub('.*\\,', '', RowID)) %>%
+  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+
 ### Check Model Outputs against observed values
 
 if(drop.rabbit == "Y"){
@@ -5,7 +41,6 @@ if(drop.rabbit == "Y"){
 }else{
   check.species <- species[-c(4,8)]
 }
-
 
 #Load all species harvest data
 obs.HarvestData <- read.csv('./Data/all_species_harvest_data.csv') %>%
@@ -61,10 +96,60 @@ est.check.df <- merge(est.check.df, obs.HarvestData, by = c("Region", "Species",
 is.num <- sapply(est.check.df, is.numeric)
 est.check.df[is.num] <- lapply(est.check.df[is.num], round, 2)
 
-pred.only.df <- est.check.df %>% filter(Year > cutoff.y)
+pred.only.df <- est.check.df %>% filter(Year >= year.hold) %>%
+  mutate(Year = as.factor(Year))
+write.csv(as.data.frame(pred.only.df), paste("./Holdout ", year.hold, '/EstCheck - Estimates_N_H_BPH.csv', sep = ""), row.names = F)
 
-ggplot(data = pred.only.df, aes(x = Year)) +
-  geom_line(aes(y = Obs.H, color = Region)) +
-  geom_point(aes(y = Est.H, color = Region)) +
-  geom_errorbar(aes(ymin = Est.H.LCL, ymax = Est.H.UCL, color = Region)) +
-  facet_wrap(vars(Species), scales = "free_y") 
+est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
+  geom_errorbar(aes(ymin = Est.N.LCL, ymax = Est.N.UCL, color = Region),
+                width = .3, size = 1,
+                position = position_dodge(width = .5), show.legend = F) +
+  geom_point(aes(y = Est.N, color = Region), shape = 19, size = 4,
+             position = position_dodge(width = .5)) +
+  geom_point(aes(y = Obs.N, group = Region), color = "black", shape = 17, size = 3,
+             position = position_dodge(width = .5), show.legend = F) +
+  facet_wrap(vars(Species), scales = "free_y", nrow = 2) +
+  theme_classic(base_size = 18) +
+  labs(title = "Total Harvest" ) +
+  scale_color_manual(name = "Region", values = c("#0033a0", "#ffa300"), labels = c("Eastern", "Western")) +
+  theme(axis.title = element_blank(), legend.position = c(.9,.25))
+
+ggsave(est.check.N, filename = paste("./Holdout ", year.hold, '/EstCheck - N.jpeg', sep = ""),
+       dpi = 300, width = 10 + (2016 - year.hold), height = 8)
+
+
+est.check.H <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
+  geom_errorbar(aes(ymin = Est.H.LCL, ymax = Est.H.UCL, color = Region),
+                width = .3, size = 1,
+                position = position_dodge(width = .5), show.legend = F) +
+  geom_point(aes(y = Est.H, color = Region), shape = 19, size = 4,
+             position = position_dodge(width = .5)) +
+  geom_point(aes(y = Obs.H, group = Region), color = "black", shape = 17, size = 3,
+             position = position_dodge(width = .5), show.legend = F) +
+  facet_wrap(vars(Species), scales = "free_y", nrow = 2) +
+  theme_classic(base_size = 18) +
+  labs(title = "Hunter Participation" ) +
+  scale_color_manual(name = "Region", values = c("#0033a0", "#ffa300"), labels = c("Eastern", "Western")) +
+  theme(axis.title = element_blank(), legend.position = c(.9,.25))
+
+ggsave(est.check.H, filename = paste("./Holdout ", year.hold, '/EstCheck - H.jpeg', sep = ""),
+       dpi = 300, width = 10 + (2016 - year.hold), height = 8)
+
+
+est.check.BPH <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
+  geom_errorbar(aes(ymin = Est.BPH.LCL, ymax = Est.BPH.UCL, color = Region),
+                width = .3, size = 1,
+                position = position_dodge(width = .5), show.legend = F) +
+  geom_point(aes(y = Est.BPH, color = Region), shape = 19, size = 4,
+             position = position_dodge(width = .5)) +
+  geom_point(aes(y = Obs.BPH, group = Region), color = "black", shape = 17, size = 3,
+             position = position_dodge(width = .5), show.legend = F) +
+  facet_wrap(vars(Species), scales = "free_y", nrow = 2) +
+  theme_classic(base_size = 18) +
+  labs(title = "Birds per Hunters" ) +
+  scale_color_manual(name = "Region", values = c("#0033a0", "#ffa300"), labels = c("Eastern", "Western")) +
+  theme(axis.title = element_blank(), legend.position = c(.9,.25))
+
+ggsave(est.check.BPH, filename = paste("./Holdout ", year.hold, '/EstCheck - BPH.jpeg', sep = ""),
+       dpi = 300, width = 10 + (2016 - year.hold), height = 8)
+

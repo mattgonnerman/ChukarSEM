@@ -1,7 +1,7 @@
 ### Run Initial Data Management
 lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
-cutoff.y <- 2016 #Only need to change this to adjust the number of years
-final.y <- 2017
+cutoff.y <- 2016 #Last year from which data will be used
+final.y <- 2017 #Last year to predict
 
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 
@@ -522,7 +522,7 @@ out.full.predict <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 175000, niter = 200000, thin = 25, thin2 = 25)
+  samplesList <- runMCMC(Cmcmc,nburnin = 250000, niter = 300000, thin = 50, thin2 = 50)
   
   return(samplesList)
 })
@@ -533,9 +533,9 @@ stopCluster(cl)
 end_time <- Sys.time()
 end_time - start_time
 
-samples1 <- list(chain1 =  out.full.predict[[1]]$samples[,-c(1:(3*588+1+94+98+98))], 
-                 chain2 =  out.full.predict[[2]]$samples[,-c(1:(3*588+1+94+98+98))], 
-                 chain3 =  out.full.predict[[3]]$samples[,-c(1:(3*588+1+94+98+98))])
+samples1 <- list(chain1 =  out.full.predict[[1]]$samples, 
+                 chain2 =  out.full.predict[[2]]$samples, 
+                 chain3 =  out.full.predict[[3]]$samples)
 
 mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
 
@@ -559,43 +559,43 @@ mcmcList2 <- files[[2]]
 #Individual parameters
 # MCMCtrace(mcmcList2, params = "alpha.hunt", plot = T, pdf = F)
 #Output full pdf with all trace plots
-MCMCtrace(mcmcList1, filename = "./Traceplots - Full Model Predict MCMC - Betas and PopMetrics.pdf")
+MCMCtrace(mcmcList1, filename = "./TraceOut - Full.pdf")
 
-MCMCtrace(mcmcList2, filename = "./Traceplots - Full Model Predict MCMC - Predictors.pdf")
+MCMCtrace(mcmcList2, filename = "./TraceOut - Full - Predictors.pdf")
 
 
 ### Check outputs compared to known values
 
 
 require(stringr)
-test.bph <- MCMCsummary(mcmcList2, 'BPH') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList2, 'BPH'))) %>%
+test.bph <- MCMCsummary(mcmcList1, 'BPH') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'BPH'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
   dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-test.H   <- MCMCsummary(mcmcList2, 'H') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList2, 'H'))) %>%
+test.H   <- MCMCsummary(mcmcList1, 'H') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'H'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
   dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-test.N   <- MCMCsummary(mcmcList2, 'N') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList2, 'N'))) %>%
+test.N   <- MCMCsummary(mcmcList1, 'N') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'N'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
   dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-write.csv(test.bph, "./www/out_BPH_all.csv", row.names = F)
-write.csv(test.H, "./www/out_H_all.csv", row.names = F)
-write.csv(test.N, "./www/out_N_all.csv", row.names = F)
+write.csv(test.bph, "./out_BPH_all.csv", row.names = F)
+write.csv(test.H, "./out_H_all.csv", row.names = F)
+write.csv(test.N, "./out_N_all.csv", row.names = F)
 
 # harvest correlation
-rho.harv.est <- MCMCsummary(mcmcList2, 'rho.harv') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList2, 'rho.harv'))) %>%
+rho.harv.est <- MCMCsummary(mcmcList1, 'rho.harv') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.harv'))) %>%
   mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%
@@ -619,8 +619,8 @@ rho.harv.w.plot <- ggcorrplot::ggcorrplot(rho.harv.w, lab = T) +
 ggsave(rho.harv.w.plot, filename = "CheckPlot - rho harv West.jpg", dpi = 300)
 
 # harvest correlation
-rho.hunt.est <- MCMCsummary(mcmcList2, 'rho.hunt') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList2, 'rho.hunt'))) %>%
+rho.hunt.est <- MCMCsummary(mcmcList1, 'rho.hunt') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.hunt'))) %>%
   mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%

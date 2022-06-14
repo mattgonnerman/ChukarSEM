@@ -4,74 +4,95 @@
 
 
 # Load packages
-lapply(c("shiny"), require, character.only = T)
+lapply(c("shiny","ggplot2", "dplyr"), require, character.only = T)
+
+#Fix for unaligned checkboxes
+tweaks <- tags$head(tags$style(HTML(
+  ".checkbox-inline { 
+                    margin-left: 0px;
+                    margin-right: 10px;
+          }
+         .checkbox-inline+.checkbox-inline {
+                    margin-left: 0px;
+                    margin-right: 10px;
+          }
+        "
+)))
+  
 
 ##################################################################################
 ### Setup page with a navigation bar
 ui <- navbarPage( title = "NDOW Upland Harvest",
+                  tweaks,
                   
                   ###INSTRUCTIONS
                   tabPanel(
                     title = "Instructions",
                     
-                    p("This is where instructions will go!"),
+                    p("This is where instructions will go!\n
+                      \n
+                      [Forestcasting Summary] \n
+                      \n
+                      [Species Specific Summary]"),
                     
                     downloadButton("downloadallData", "Download Model Estimates")
                   ),
                   
                   ### Harvest Forecast
                   tabPanel(
-                    title = "Harvest Forecast",
+                    title = "Forecast",
                     
-                    selectInput("alltoplot", "Which dataset would you like to see forcast?",
-                                choices = c("Hunter Effort", "Total Harvest")),
+                    selectInput("forecastset", "Which dataset would you like to see forcast?",
+                                choices = c("Birds per Hunter" = "BPH", 
+                                            "Total Harvest" = "N", 
+                                            "Hunter Participation" = "H")),
                     
-                    conditionalPanel(
-                      condition = "input$alltoplot == 'Hunter Effort'",
-                      
-                      plotOutput("allHfc.plot"),
-                      
-                      plotOutput("allHcor.plot")
-                      
-                    ),
-                    
-                    conditionalPanel(
-                      condition = "input$alltoplot == 'Total Harvest'",
-                      
-                      plotOutput("allNfc.plot"),
-                      
-                      plotOutput("allNcor.plot")
-                      
-                    ),
-                    
+                    selectInput("spphighlight", "Species:",
+                                choices = c("All",
+                                            "BLGR",
+                                            "CAQU",
+                                            "CHUK",
+                                            "HUPA",
+                                            "PHEA",
+                                            "RABB",
+                                            "SAGR"))
                   ),
                   
-                  ### Species - Specific Information
+                  ### Past Years
                   tabPanel(
-                    title = "Species-Specific",
+                    title = "Past Years",
                     
-                    
-                    selectInput("speciestoplot", "Which species would you like to see data for?",
-                                choices = c("Hunter Effort", "Total Harvest", "Chukar Site Abundance", "Sage Grouse Wing-Bee")),
-                    
-                    plotOutput("oneNfc.plot"),
-                    
-                    plotOutput("oneHfc.plot"),
-                    
-                    plotOutput("oneNcor.plot"),
-                    
-                    conditionalPanel(
-                      condition = "input$speciestoplot == 'Sage Grouse'",
-                      plotOutput("sg.plot")
-                      
-                      ),
-                    
-                    conditionalPanel(
-                      condition = "input$speciestoplot == 'Chukar'",
-                      plotOutput("chuk.plot")
-                      
-                    ),
-                    
+                    sidebarLayout(
+                      sidebarPanel(#Specify Plot Settings
+                        selectInput("pastset", "Which dataset would you like to see past estimates for?",
+                                    choices = c("Birds per Hunter" = "BPH", 
+                                                "Total Harvest" = "N", 
+                                                "Hunter Participation" = "H")),
+                        
+                        checkboxGroupInput("pastspp", "Species:",
+                                           choices = c("BLGR","CAQU","CHUK","HUPA","PHEA","RABB","SAGR"),
+                                           selected = c("CHUK", "SAGR"), inline = TRUE, width = "350px"),
+                        
+                        sliderInput("pastyears", "Years", min=1976, max=2017, 
+                                    value=c(1976, 2017), sep=""),),
+                      mainPanel(#Outplut Plot
+                        plotOutput("pastplot"),
+                        
+                        
+                        #Survey specific graphs for Grouse and Chukar
+                        conditionalPanel(
+                          condition = "input$speciestoplot == 'SAGR'",
+                          plotOutput("sg.plot")
+                          
+                        ),
+                        
+                        conditionalPanel(
+                          condition = "input$speciestoplot == 'CHUK'",
+                          plotOutput("chuk.plot")
+                          
+                        )
+                      )
+                    )
                   )
 )
 
@@ -80,16 +101,29 @@ ui <- navbarPage( title = "NDOW Upland Harvest",
 ### Server Instructions
 server <-  function(input,output){
   
-  output$allNfc.plot <- renderPlot(
-    ggplot(data = read.csv("./www/out_N_all.csv"), aes(x = Year, y = Estimate, group = Species)) +
-      geom_line(aes(color = Species)) +
-      facet_wrap(vars(Region))
-  )
+  species.constant <- c("BLGR","CAQU","CHUK","HUPA","PHEA","RABB","SAGR")
+  colors.constant <- c("#0033a0","#015b6e","#016f55","#01833b","#80931e","#c09b0f","#ffa300")
   
-  output$allHfc.plot <- renderPlot(
-    ggplot(data = read.csv("./www/out_H_all.csv"), aes(x = Year, y = Estimate, group = Species)) +
-      geom_line(aes(color = Species)) +
-      facet_wrap(vars(Region))
+  
+  past.data <- reactive(read.csv(paste("./www/out_", input$pastset, "_all.csv", sep = "")) %>%
+                          mutate(Region = ifelse(as.numeric(Region) == 1 ,"Eastern", "Western"),
+                                 Year = Year + 1975,
+                                 Species = species.constant[as.numeric(Species)]) %>%
+                          filter(Year >= input$pastyears[1], Year <= input$pastyears[2],
+                                 Species %in% input$pastspp))
+  
+  colors <- reactive(setNames(colors.constant[seq(1,7, length.out = floor(length(unique(past.data()$Species))))],
+                              species.constant[which(species.constant %in% unique(past.data()$Species))]))
+  
+
+  
+  output$pastplot <- renderPlot(
+    ggplot(data = past.data(), aes(x = Year, y = Estimate, group = Species)) +
+      geom_line(aes(color = Species), size = 1.3) +
+      facet_wrap(vars(Region)) +
+      theme_classic(base_size = 18) +
+      scale_color_manual(values = colors()) +
+      theme(axis.title = element_blank(), legend.position = "bottom")
   )
   
   ### "Download/Input Data"
