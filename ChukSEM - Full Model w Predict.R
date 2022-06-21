@@ -549,8 +549,7 @@ mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 files <- list(mcmcList1, mcmcList2, code)
 save(files, file = 'model_output_FullModel_predict.rdata')
 
-### Load back
-load(file = 'model_output_FullModel_predict.rdata')
+
 mcmcList1 <- files[[1]]
 mcmcList2 <- files[[2]]
 
@@ -564,115 +563,7 @@ MCMCtrace(mcmcList1, filename = "./TraceOut - Full.pdf")
 MCMCtrace(mcmcList2, filename = "./TraceOut - Full - Predictors.pdf")
 
 
-### Check outputs compared to known values
-
-
-require(stringr)
-test.bph <- MCMCsummary(mcmcList1, 'BPH') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'BPH'))) %>%
-  mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-test.H   <- MCMCsummary(mcmcList1, 'H') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'H'))) %>%
-  mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-test.N   <- MCMCsummary(mcmcList1, 'N') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'N'))) %>%
-  mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-write.csv(test.bph, "./out_BPH_all.csv", row.names = F)
-write.csv(test.H, "./out_H_all.csv", row.names = F)
-write.csv(test.N, "./out_N_all.csv", row.names = F)
-
-# harvest correlation
-rho.harv.est <- MCMCsummary(mcmcList1, 'rho.harv') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.harv'))) %>%
-  mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-
-blank.cor.df <- as.data.frame(matrix(NA, nrow = 7, ncol = 7))
-rho.harv.list <- list(blank.cor.df, blank.cor.df)
-for(i in 1:nrow(rho.harv.est)){
-  rho.harv.list[[rho.harv.est$Region[i]]][rho.harv.est$Species1[i], rho.harv.est$Species2[i]] <- rho.harv.est$Estimate[i]
-}
-
-rho.harv.e <- rho.harv.list[[1]]
-rho.harv.w <- rho.harv.list[[2]]
-write.csv(rho.harv.e, file = "rho_harv_east.csv")
-write.csv(rho.harv.w, file = "rho_harv_west.csv")
-
-rho.harv.e.plot <- ggcorrplot::ggcorrplot(rho.harv.e, lab = T) +
-  labs(title = "Harvest Correlation - East")
-ggsave(rho.harv.e.plot, filename = "CheckPlot - rho harv East.jpg", dpi = 300)
-rho.harv.w.plot <- ggcorrplot::ggcorrplot(rho.harv.w, lab = T) +
-  labs(title = "Harvest Correlation - West")
-ggsave(rho.harv.w.plot, filename = "CheckPlot - rho harv West.jpg", dpi = 300)
-
-# harvest correlation
-rho.hunt.est <- MCMCsummary(mcmcList1, 'rho.hunt') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.hunt'))) %>%
-  mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-
-blank.cor.df <- as.data.frame(matrix(NA, nrow = 7, ncol = 7))
-rho.hunt.list <- list(blank.cor.df, blank.cor.df)
-for(i in 1:nrow(rho.hunt.est)){
-  rho.hunt.list[[rho.hunt.est$Region[i]]][rho.hunt.est$Species1[i], rho.hunt.est$Species2[i]] <- rho.hunt.est$Estimate[i]
-}
-
-rho.hunt.e <- rho.hunt.list[[1]]
-rho.hunt.w <- rho.hunt.list[[2]]
-write.csv(rho.hunt.e, file = "rho_hunt_east.csv")
-write.csv(rho.hunt.w, file = "rho_hunt_west.csv")
-
-rho.hunt.e.plot <- ggcorrplot::ggcorrplot(rho.hunt.e, lab = T) +
-  labs(title = "Hunter Correlation - East")
-ggsave(rho.hunt.e.plot, filename = "CheckPlot - rho hunt East.jpg", dpi = 300)
-rho.hunt.w.plot <- ggcorrplot::ggcorrplot(rho.hunt.w, lab = T) +
-  labs(title = "Hunter Correlation - West")
-ggsave(rho.hunt.w.plot, filename = "CheckPlot - rho hunt West.jpg", dpi = 300)
-
-
-require(ggplot2)
-require(dplyr)
-
-checkplotN <- ggplot(data = read.csv("./www/out_N_all.csv"), aes(x = Year, y = Estimate, group = as.factor(Species))) +
-  geom_line(aes(color = as.factor(Species))) +
-  facet_wrap(vars(Region)) +
-  scale_y_continuous(trans = "log10") +
-  labs(title = "Total Harvest")
-ggsave(checkplotN, filename = "CheckPlot - N.jpg", dpi = 300)
-
-checkplotH <- ggplot(data = read.csv("./www/out_H_all.csv"), aes(x = Year, y = Estimate, as.factor(Species))) +
-  geom_line(aes(color = as.factor(Species))) +
-  facet_wrap(vars(Region)) +
-  scale_y_continuous(trans = "log10") +
-  labs(title = "Hunter Effort")
-ggsave(checkplotH, filename = "CheckPlot - H.jpg", dpi = 300)
-
-checkplotBPH <- ggplot(data = read.csv("./www/out_BPH_all.csv"), aes(x = Year, y = Estimate, as.factor(Species))) +
-  geom_line(aes(color = as.factor(Species))) +
-  facet_wrap(vars(Region)) +
-  scale_y_continuous(trans = "log10") +
-  labs(title = "Birds Per Hunter")
-ggsave(checkplotBPH, filename = "CheckPlot - BPH.jpg", dpi = 300)
-
-
+source("./ChukSEM - Estimate Check.R")
 
 
 
