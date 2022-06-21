@@ -17,24 +17,17 @@ code <- nimbleCode( {
   } #t
   
   #Gas Prices in May
-  for(i in 1:2){
-    alpha.gas[i] ~ dnorm(0, sd = 100)
-    beta.t.gas[i] ~ dnorm(0, sd = 100) #year
-    sig.gas[i] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    ar1.gas[i] ~ dunif(-1,1) #Autoregressive parameter
-  }
-  gas.trend[1] <- alpha.gas[1] + beta.t.gas[1] * 1
-  mu.gas[1] <- gas.trend[1]
-  for(t in 2:n.year){
-    gas.trend[t] <- alpha.gas[era.gas[t]] + beta.t.gas[era.gas[t]] * t
-    mu.gas[t] <- gas.trend[t] + ar1.gas[era.gas[t]] * (GAS[t-1] - gas.trend[t-1])
+  mu.gas ~ dunif(0.1, 2)
+  sig.gas ~ T(dt(0, pow(2.5,-2), 1),0,)
+
+  for(t in 1:years.gas){
+    GAS[t] ~ T(dnorm(mu.gas, sd = sig.gas),0,)
   }
   
   #Relative Cost of Gas
   for(t in 1:n.year){
-    GAS[t] ~ T(dnorm(mu.gas[t], sd = sig.gas[era.gas[t]]),0,)
-    PDI[t] ~ T(dnorm(mu.pdi[t], sd = sig.pdi),0,)
-    rel.cost[t] <- ((exp(PDI[t]))/(exp(GAS[t])) - 2.581635)/0.8894599
+    PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
+    rel.cost[t] <- ((PDI[t])/(GAS[t]) - 2.581635)/0.8894599
   } #t
   
   #Unemployment Rate

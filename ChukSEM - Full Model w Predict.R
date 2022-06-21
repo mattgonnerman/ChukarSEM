@@ -122,7 +122,7 @@ constants <- list(
   K = 12,
   
   ### Predictors
-  era.gas = c(rep(1,length(1976:2005)),rep(2, length(2006:2017))), #Groupings for change in gas prices 
+  years.gas = length(1976:2005), #Change point in gas 
   era.awssi = c(rep(1,length(1976:1994)),rep(2, length(1995:2001)), rep(1, length(2002:2017))), #Groupings for change in gas prices 
   
   ### Hunter Effort
@@ -249,10 +249,11 @@ initsFunction <- function() list(
   ar1.pdi = 0,
   # PDI = PDI.inits,
   #Gas Prices
-  alpha.gas = rep(.9,2),
-  beta.t.gas = rep(0,2),
-  sig.gas = rep(1,2),
-  ar1.gas = rep(0,2),
+  # alpha.gas = rep(.9,2),
+  # beta.t.gas = rep(0,2),
+  sig.gas = 1,
+  mu.gas = .78,
+  # ar1.gas = rep(0,2),
   GAS = GAS.inits,
   #Unemployment
   sig.une = 1,
@@ -385,7 +386,6 @@ model_test <- nimbleModel( code = code,
                            constants = constants,
                            data =  data,
                            inits = inits)
-
 model_test$simulate(c('GAS', 'PDI',
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
                       'mu.harv', 'N',
@@ -460,11 +460,11 @@ pars.pred <- c(
   "beta.t.pdi",
   "sig.pdi",
   "ar1.pdi",
-  "alpha.gas",
-  "beta.t.gas",
-  # "mu.gas",
+  # "alpha.gas",
+  # "beta.t.gas",
+  "mu.gas",
   "sig.gas",
-  "ar1.gas",
+  # "ar1.gas",
   "rel.cost",
   "sig.une",
   "une",
@@ -522,7 +522,7 @@ out.full.predict <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 250000, niter = 300000, thin = 50, thin2 = 50)
+  samplesList <- runMCMC(Cmcmc,nburnin = 95000, niter = 100000, thin = 5, thin2 = 5)
   
   return(samplesList)
 })
@@ -673,66 +673,76 @@ checkplotBPH <- ggplot(data = read.csv("./www/out_BPH_all.csv"), aes(x = Year, y
 ggsave(checkplotBPH, filename = "CheckPlot - BPH.jpg", dpi = 300)
 
 
-### Save beta coefficients and distribution values
-coefficents.track <- c("alpha.hunt",
-                     "beta.drought.hunt",
-                     "beta.wintsev.hunt",
-                     "beta.jobs",
-                     "beta.income",
-                     "beta.license",
-                     # "pred.spl.hunt",
-                     
-                     ### Total Harvest
-                     "alpha.harv",
-                     "beta.drought.harv",
-                     "beta.wintsev.harv",
-                     # "beta.rabbit.harv",
-                     "beta.raven.harv",
-                     "beta.nharrier.harv")
 
-test.beta <- MCMCsummary(mcmcList1, coefficents.track) %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList1, coefficents.track))) %>%
-  mutate(Species = str_extract(RowID, "(?<=\\[).*?(?=\\,)"),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Species = ifelse(is.na(Species), str_extract(RowID, "(?<=\\[).*?(?=\\])"),Species)) %>%
-  tibble::remove_rownames() %>%
-  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(RowID, Species,Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%') %>%
-  mutate(Region = ifelse(as.numeric(Region) %in% 1:2, as.numeric(Region), NA))
 
-write.csv(test.beta, file = "out_HNbetas.csv", row.names = F)
 
-forecast.track <- c(
-  "alpha.pdi",
-  "beta.t.pdi",
-  "sig.pdi",
-  "ar1.pdi",
-  "alpha.gas",
-  "beta.t.gas",
-  # "mu.gas",
-  "sig.gas",
-  "ar1.gas",
-  # "rel.cost",
-  "sig.une",
-  # "une",
-  "sig.res",
-  # "res",
-  "sig.wpdsi",
-  "sig.pdsi",
-  "sig.awssi",
-  "beta.awssi",
-  "alpha.awssi",
-  # "sig.rabbits",
-  # "beta.rabbits",
-  # "alpha.rabbits",
-  "alpha.rav",
-  "beta.t.rav",
-  "sig.rav",
-  "ar1.rav",
-  "sig.nhar"
-)
 
-test.forecast <- MCMCsummary(mcmcList2, forecast.track) %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList2, forecast.track))) %>%
-  tibble::remove_rownames() %>%
-  mutate()
+
+
+
+# 
+# 
+# ### FOR FORECASTING
+# ### Save beta coefficients and distribution values
+# coefficents.track <- c("alpha.hunt",
+#                      "beta.drought.hunt",
+#                      "beta.wintsev.hunt",
+#                      "beta.jobs",
+#                      "beta.income",
+#                      "beta.license",
+#                      # "pred.spl.hunt",
+#                      
+#                      ### Total Harvest
+#                      "alpha.harv",
+#                      "beta.drought.harv",
+#                      "beta.wintsev.harv",
+#                      # "beta.rabbit.harv",
+#                      "beta.raven.harv",
+#                      "beta.nharrier.harv")
+# 
+# test.beta <- MCMCsummary(mcmcList1, coefficents.track) %>%
+#   mutate(RowID = rownames(MCMCsummary(mcmcList1, coefficents.track))) %>%
+#   mutate(Species = str_extract(RowID, "(?<=\\[).*?(?=\\,)"),
+#          Region = sub('.*\\,', '', RowID)) %>%
+#   mutate(Species = ifelse(is.na(Species), str_extract(RowID, "(?<=\\[).*?(?=\\])"),Species)) %>%
+#   tibble::remove_rownames() %>%
+#   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+#   dplyr::select(RowID, Species,Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%') %>%
+#   mutate(Region = ifelse(as.numeric(Region) %in% 1:2, as.numeric(Region), NA))
+# 
+# write.csv(test.beta, file = "out_HNbetas.csv", row.names = F)
+# 
+# forecast.track <- c(
+#   "alpha.pdi",
+#   "beta.t.pdi",
+#   "sig.pdi",
+#   "ar1.pdi",
+#   "alpha.gas",
+#   "beta.t.gas",
+#   # "mu.gas",
+#   "sig.gas",
+#   "ar1.gas",
+#   # "rel.cost",
+#   "sig.une",
+#   # "une",
+#   "sig.res",
+#   # "res",
+#   "sig.wpdsi",
+#   "sig.pdsi",
+#   "sig.awssi",
+#   "beta.awssi",
+#   "alpha.awssi",
+#   # "sig.rabbits",
+#   # "beta.rabbits",
+#   # "alpha.rabbits",
+#   "alpha.rav",
+#   "beta.t.rav",
+#   "sig.rav",
+#   "ar1.rav",
+#   "sig.nhar"
+# )
+# 
+# test.forecast <- MCMCsummary(mcmcList2, forecast.track) %>%
+#   mutate(RowID = rownames(MCMCsummary(mcmcList2, forecast.track))) %>%
+#   tibble::remove_rownames() %>%
+#   mutate()
