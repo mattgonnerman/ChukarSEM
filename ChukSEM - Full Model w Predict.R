@@ -79,8 +79,8 @@ data <- list(
   ### Covariates
   une = une, #BL Unemployment information for Nevada, scaled
   res = res, #Residential license sales
-  PDI = log(PDI), #personal disposable income
-  GAS = log(GAS), #gas prices
+  PDI = PDI, #personal disposable income
+  GAS = GAS, #gas prices
   awssi = awssi, #winter severity index, scaled
   pdsi = pdsi, #Previous breeding season drought index
   wpdsi = wpdsi, #winter drought index, scaled
@@ -610,6 +610,8 @@ for(i in 1:nrow(rho.harv.est)){
 
 rho.harv.e <- rho.harv.list[[1]]
 rho.harv.w <- rho.harv.list[[2]]
+write.csv(rho.harv.e, file = "rho_harv_east.csv")
+write.csv(rho.harv.w, file = "rho_harv_west.csv")
 
 rho.harv.e.plot <- ggcorrplot::ggcorrplot(rho.harv.e, lab = T) +
   labs(title = "Harvest Correlation - East")
@@ -635,6 +637,8 @@ for(i in 1:nrow(rho.hunt.est)){
 
 rho.hunt.e <- rho.hunt.list[[1]]
 rho.hunt.w <- rho.hunt.list[[2]]
+write.csv(rho.hunt.e, file = "rho_hunt_east.csv")
+write.csv(rho.hunt.w, file = "rho_hunt_west.csv")
 
 rho.hunt.e.plot <- ggcorrplot::ggcorrplot(rho.hunt.e, lab = T) +
   labs(title = "Hunter Correlation - East")
@@ -667,3 +671,68 @@ checkplotBPH <- ggplot(data = read.csv("./www/out_BPH_all.csv"), aes(x = Year, y
   scale_y_continuous(trans = "log10") +
   labs(title = "Birds Per Hunter")
 ggsave(checkplotBPH, filename = "CheckPlot - BPH.jpg", dpi = 300)
+
+
+### Save beta coefficients and distribution values
+coefficents.track <- c("alpha.hunt",
+                     "beta.drought.hunt",
+                     "beta.wintsev.hunt",
+                     "beta.jobs",
+                     "beta.income",
+                     "beta.license",
+                     # "pred.spl.hunt",
+                     
+                     ### Total Harvest
+                     "alpha.harv",
+                     "beta.drought.harv",
+                     "beta.wintsev.harv",
+                     # "beta.rabbit.harv",
+                     "beta.raven.harv",
+                     "beta.nharrier.harv")
+
+test.beta <- MCMCsummary(mcmcList1, coefficents.track) %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, coefficents.track))) %>%
+  mutate(Species = str_extract(RowID, "(?<=\\[).*?(?=\\,)"),
+         Region = sub('.*\\,', '', RowID)) %>%
+  mutate(Species = ifelse(is.na(Species), str_extract(RowID, "(?<=\\[).*?(?=\\])"),Species)) %>%
+  tibble::remove_rownames() %>%
+  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+  dplyr::select(RowID, Species,Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%') %>%
+  mutate(Region = ifelse(as.numeric(Region) %in% 1:2, as.numeric(Region), NA))
+
+write.csv(test.beta, file = "out_HNbetas.csv", row.names = F)
+
+forecast.track <- c(
+  "alpha.pdi",
+  "beta.t.pdi",
+  "sig.pdi",
+  "ar1.pdi",
+  "alpha.gas",
+  "beta.t.gas",
+  # "mu.gas",
+  "sig.gas",
+  "ar1.gas",
+  # "rel.cost",
+  "sig.une",
+  # "une",
+  "sig.res",
+  # "res",
+  "sig.wpdsi",
+  "sig.pdsi",
+  "sig.awssi",
+  "beta.awssi",
+  "alpha.awssi",
+  # "sig.rabbits",
+  # "beta.rabbits",
+  # "alpha.rabbits",
+  "alpha.rav",
+  "beta.t.rav",
+  "sig.rav",
+  "ar1.rav",
+  "sig.nhar"
+)
+
+test.forecast <- MCMCsummary(mcmcList2, forecast.track) %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList2, forecast.track))) %>%
+  tibble::remove_rownames() %>%
+  mutate()

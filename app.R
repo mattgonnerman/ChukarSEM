@@ -22,20 +22,16 @@ tweaks <- tags$head(tags$style(HTML(
 
 ##################################################################################
 ### Setup page with a navigation bar
-ui <- navbarPage( title = "NDOW Upland Harvest",
-                  tweaks,
+ui <- navbarPage( tweaks,
                   
+                  title = "NDOW Upland Harvest", selected = "Instructions",
                   ###INSTRUCTIONS
                   tabPanel(
                     title = "Instructions",
                     
-                    p("This is where instructions will go!\n
-                      \n
-                      [Forestcasting Summary] \n
-                      \n
-                      [Species Specific Summary]"),
+                    # p("This is where instructions will go!", <br>,"[Forestcasting Summary]", <br>,
+                    #   "[Species Specific Summary]"),
                     
-                    downloadButton("downloadallData", "Download Model Estimates")
                   ),
                   
                   ### Harvest Forecast
@@ -74,27 +70,27 @@ ui <- navbarPage( title = "NDOW Upland Harvest",
                                            selected = c("CHUK", "SAGR"), inline = TRUE, width = "350px"),
                         
                         sliderInput("pastyears", "Years", min=1976, max=2017, 
-                                    value=c(1976, 2017), sep=""),),
-                      mainPanel(#Outplut Plot
+                                    value=c(1976, 2017), sep=""),
+                        
+                        #Do we want a switch to show correlation among species? May need to calculate rho for BPH
+                        # checkboxInput("rhoswitch", "Plot Species Correlations", F),
+                        
+                        downloadButton("downloadallData", "Download Model Estimates")
+                      ),
+                      
+                      mainPanel(#Output Plot
                         plotOutput("pastplot"),
-                        
-                        
-                        #Survey specific graphs for Grouse and Chukar
-                        conditionalPanel(
-                          condition = "input$speciestoplot == 'SAGR'",
-                          plotOutput("sg.plot")
-                          
-                        ),
-                        
-                        conditionalPanel(
-                          condition = "input$speciestoplot == 'CHUK'",
-                          plotOutput("chuk.plot")
-                          
                         )
-                      )
+                      
+                      # conditionalPanel(
+                      #   condition = "input.rhoswitch == T",
+                      #   plotOutput("pastplot")
+                      # )
+                      
                     )
                   )
 )
+
 
 
 ##################################################################################
@@ -105,17 +101,20 @@ server <-  function(input,output){
   colors.constant <- c("#0033a0","#015b6e","#016f55","#01833b","#80931e","#c09b0f","#ffa300")
   
   
-  past.data <- reactive(read.csv(paste("./www/out_", input$pastset, "_all.csv", sep = "")) %>%
-                          mutate(Region = ifelse(as.numeric(Region) == 1 ,"Eastern", "Western"),
-                                 Year = Year + 1975,
-                                 Species = species.constant[as.numeric(Species)]) %>%
-                          filter(Year >= input$pastyears[1], Year <= input$pastyears[2],
-                                 Species %in% input$pastspp))
+  past.data <- reactive(
+    read.csv(paste("./www/out_", input$pastset, "_all.csv", sep = "")) %>%
+      mutate(Region = ifelse(as.numeric(Region) == 1 ,"Eastern", "Western"),
+             Year = Year + 1975,
+             Species = species.constant[as.numeric(Species)]) %>%
+      filter(Year >= input$pastyears[1], Year <= input$pastyears[2],
+             Species %in% input$pastspp))
   
   colors <- reactive(setNames(colors.constant[seq(1,7, length.out = floor(length(unique(past.data()$Species))))],
                               species.constant[which(species.constant %in% unique(past.data()$Species))]))
   
-
+  
+  
+  
   
   output$pastplot <- renderPlot(
     ggplot(data = past.data(), aes(x = Year, y = Estimate, group = Species)) +
@@ -124,20 +123,22 @@ server <-  function(input,output){
       theme_classic(base_size = 18) +
       scale_color_manual(values = colors()) +
       theme(axis.title = element_blank(), legend.position = "bottom")
+    )
+  
+  output$corplot <- renderPlot(
+    ggplot(data = past.data(), aes(x = Year, y = Estimate, group = Species)) +
+      geom_line(aes(color = Species), size = 1.3) +
+      facet_wrap(vars(Region)) +
+      theme_classic(base_size = 18) +
+      scale_color_manual(values = colors()) +
+      theme(axis.title = element_blank(), legend.position = "bottom")
   )
   
-  ### "Download/Input Data"
-  # Reactive value for selected dataset ----
-  species.plot <- reactive({
-    
-    switch(input$speciestoplot,
-           "Blue Grouse" = "blgr",
-           "California Quail" = "caqu",
-           "Chukar" = "chuk",
-           
-           )
-  })
   
+  
+  
+  
+  ### "Download/Input Data"
   # Downloadable csv of selected dataset ----
   output$downloadData <- downloadHandler(
     filename = function() {

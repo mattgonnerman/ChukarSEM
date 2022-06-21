@@ -2,7 +2,8 @@
 code <- nimbleCode( {
   ################################################################################
   ### Predictors
-  #Relative Cost of Gas
+  
+  #Personal Disposable Income
   alpha.pdi ~ dnorm(0, sd = 100) #intercept
   beta.t.pdi ~ dnorm(0, sd = 100) #year
   sig.pdi~ T(dt(0, pow(2.5,-2), 1),0,)
@@ -10,12 +11,12 @@ code <- nimbleCode( {
   
   pdi.trend[1] <- alpha.pdi + beta.t.pdi * 1
   mu.pdi[1] <- pdi.trend[1]
-  
   for(t in 2:n.year){
     pdi.trend[t] <- alpha.pdi + beta.t.pdi * t
     mu.pdi[t] <- pdi.trend[t] + ar1.pdi * (PDI[t-1] - pdi.trend[t-1])
   } #t
   
+  #Gas Prices in May
   for(i in 1:2){
     alpha.gas[i] ~ dnorm(0, sd = 100)
     beta.t.gas[i] ~ dnorm(0, sd = 100) #year
@@ -29,9 +30,10 @@ code <- nimbleCode( {
     mu.gas[t] <- gas.trend[t] + ar1.gas[era.gas[t]] * (GAS[t-1] - gas.trend[t-1])
   }
   
+  #Relative Cost of Gas
   for(t in 1:n.year){
-    GAS[t] ~ dnorm(mu.gas[t], sd = sig.gas[era.gas[t]])
-    PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
+    GAS[t] ~ T(dnorm(mu.gas[t], sd = sig.gas[era.gas[t]]),0,)
+    PDI[t] ~ T(dnorm(mu.pdi[t], sd = sig.pdi),0,)
     rel.cost[t] <- ((exp(PDI[t]))/(exp(GAS[t])) - 2.581635)/0.8894599
   } #t
   
