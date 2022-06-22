@@ -391,9 +391,9 @@ model_test <- nimbleModel( code = code,
                            inits = inits)
 model_test$simulate(c('GAS', 'PDI',
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-                      'mu.harv', 'N',
-                      # 'theta.sg', 'rate.sg', 'log.r.sg',
-                      # 'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
+                      'mu.harv', 'beta.spl.harv', 'pred.spl.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+                      'theta.sg', 'rate.sg', 'log.r.sg',
+                      'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                       'BPH'))
 model_test$initializeInfo()
 model_test$calculate()
@@ -414,7 +414,7 @@ pars1 <- c(### Hunter Effort
   "beta.wintsev.harv",
   "beta.hunters.harv",
   "beta.raven.harv",
-  "beta.nharrier.harv"
+  "beta.nharrier.harv",
   # "pred.spl.harv",
   
   ### Sage Grouse Wing-Bee
@@ -424,8 +424,8 @@ pars1 <- c(### Hunter Effort
   # "beta.rabbit.sg",
   # "beta.raven.sg",
   # "beta.nharrier.sg",
-  # "mod.sg",
-  # "theta.sg",
+  "mod.sg",
+  "theta.sg",
   
   ### Chukar Site Abundance
   # "alpha.chuk",
@@ -434,8 +434,8 @@ pars1 <- c(### Hunter Effort
   # "beta.rabbit.chuk",
   # "beta.raven.chuk",
   # "beta.nharrier.chuk",
-  # "mod.chuk",
-  # "theta.chuk"
+  "mod.chuk",
+  "theta.chuk"
 )
 
 pars2 <- c(### Hunter Effort

@@ -60,61 +60,61 @@ checkplotBPH <- ggplot(data = test.bph, aes(x = Year, y = Estimate, as.factor(Sp
   labs(title = "Birds Per Hunter")
 ggsave(checkplotBPH, filename = paste("./Holdout ", year.hold, '/CheckPlot - BPH.jpg', sep = ""), dpi = 300)
 
-
-
-# harvest correlation
-rho.harv.est <- MCMCsummary(mcmcList1, 'rho.harv') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.harv'))) %>%
-  mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-
-blank.cor.df <- as.data.frame(matrix(NA, nrow = 7, ncol = 7))
-rho.harv.list <- list(blank.cor.df, blank.cor.df)
-for(i in 1:nrow(rho.harv.est)){
-  rho.harv.list[[rho.harv.est$Region[i]]][rho.harv.est$Species1[i], rho.harv.est$Species2[i]] <- rho.harv.est$Estimate[i]
-}
-
-rho.harv.e <- rho.harv.list[[1]]
-rho.harv.w <- rho.harv.list[[2]]
-write.csv(rho.harv.e, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_harv_east.csv", sep = ""))
-write.csv(rho.harv.w, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_harv_west.csv", sep = ""))
-
-rho.harv.e.plot <- ggcorrplot::ggcorrplot(rho.harv.e, lab = T) +
-  labs(title = "Harvest Correlation - East")
-ggsave(rho.harv.e.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Row Harv East.jpg', sep = ""), dpi = 300)
-rho.harv.w.plot <- ggcorrplot::ggcorrplot(rho.harv.w, lab = T) +
-  labs(title = "Harvest Correlation - West")
-ggsave(rho.harv.w.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Harv West.jpg', sep = ""), dpi = 300)
-
-# hunter correlation
-rho.hunt.est <- MCMCsummary(mcmcList1, 'rho.hunt') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.hunt'))) %>%
-  mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-
-blank.cor.df <- as.data.frame(matrix(NA, nrow = 7, ncol = 7))
-rho.hunt.list <- list(blank.cor.df, blank.cor.df)
-for(i in 1:nrow(rho.hunt.est)){
-  rho.hunt.list[[rho.hunt.est$Region[i]]][rho.hunt.est$Species1[i], rho.hunt.est$Species2[i]] <- rho.hunt.est$Estimate[i]
-}
-
-rho.hunt.e <- rho.hunt.list[[1]]
-rho.hunt.w <- rho.hunt.list[[2]]
-write.csv(rho.hunt.e, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_hunt_east.csv", sep = ""))
-write.csv(rho.hunt.w, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_hunt_west.csv", sep = ""))
-
-rho.hunt.e.plot <- ggcorrplot::ggcorrplot(rho.hunt.e, lab = T) +
-  labs(title = "Hunter Correlation - East")
-ggsave(rho.hunt.e.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Hunt East.jpg', sep = ""), dpi = 300)
-rho.hunt.w.plot <- ggcorrplot::ggcorrplot(rho.hunt.w, lab = T) +
-  labs(title = "Hunter Correlation - West")
-ggsave(rho.hunt.w.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Hunt West.jpg', sep = ""), dpi = 300)
+# 
+# 
+# # harvest correlation
+# rho.harv.est <- MCMCsummary(mcmcList1, 'rho.harv') %>%
+#   mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.harv'))) %>%
+#   mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+#          Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+#          Region = sub('.*\\,', '', RowID)) %>%
+#   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+#   dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+# 
+# blank.cor.df <- as.data.frame(matrix(NA, nrow = 7, ncol = 7))
+# rho.harv.list <- list(blank.cor.df, blank.cor.df)
+# for(i in 1:nrow(rho.harv.est)){
+#   rho.harv.list[[rho.harv.est$Region[i]]][rho.harv.est$Species1[i], rho.harv.est$Species2[i]] <- rho.harv.est$Estimate[i]
+# }
+# 
+# rho.harv.e <- rho.harv.list[[1]]
+# rho.harv.w <- rho.harv.list[[2]]
+# write.csv(rho.harv.e, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_harv_east.csv", sep = ""))
+# write.csv(rho.harv.w, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_harv_west.csv", sep = ""))
+# 
+# rho.harv.e.plot <- ggcorrplot::ggcorrplot(rho.harv.e, lab = T) +
+#   labs(title = "Harvest Correlation - East")
+# ggsave(rho.harv.e.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Row Harv East.jpg', sep = ""), dpi = 300)
+# rho.harv.w.plot <- ggcorrplot::ggcorrplot(rho.harv.w, lab = T) +
+#   labs(title = "Harvest Correlation - West")
+# ggsave(rho.harv.w.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Harv West.jpg', sep = ""), dpi = 300)
+# 
+# # hunter correlation
+# rho.hunt.est <- MCMCsummary(mcmcList1, 'rho.hunt') %>%
+#   mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.hunt'))) %>%
+#   mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+#          Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+#          Region = sub('.*\\,', '', RowID)) %>%
+#   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+#   dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+# 
+# blank.cor.df <- as.data.frame(matrix(NA, nrow = 7, ncol = 7))
+# rho.hunt.list <- list(blank.cor.df, blank.cor.df)
+# for(i in 1:nrow(rho.hunt.est)){
+#   rho.hunt.list[[rho.hunt.est$Region[i]]][rho.hunt.est$Species1[i], rho.hunt.est$Species2[i]] <- rho.hunt.est$Estimate[i]
+# }
+# 
+# rho.hunt.e <- rho.hunt.list[[1]]
+# rho.hunt.w <- rho.hunt.list[[2]]
+# write.csv(rho.hunt.e, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_hunt_east.csv", sep = ""))
+# write.csv(rho.hunt.w, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_hunt_west.csv", sep = ""))
+# 
+# rho.hunt.e.plot <- ggcorrplot::ggcorrplot(rho.hunt.e, lab = T) +
+#   labs(title = "Hunter Correlation - East")
+# ggsave(rho.hunt.e.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Hunt East.jpg', sep = ""), dpi = 300)
+# rho.hunt.w.plot <- ggcorrplot::ggcorrplot(rho.hunt.w, lab = T) +
+#   labs(title = "Hunter Correlation - West")
+# ggsave(rho.hunt.w.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Hunt West.jpg', sep = ""), dpi = 300)
 
 
 ### Check Model Outputs against observed values

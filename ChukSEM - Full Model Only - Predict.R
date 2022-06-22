@@ -212,17 +212,17 @@ code <- nimbleCode( {
         #Unlinked estimate of Hunter Numbers
         mu.harv[s,t,r] <- alpha.harv[s,r] +#regression formula
                 beta.hunters.harv[s] * H[s,t,r] + #same season/region/species hunter numbers
-                beta.drought.harv[s] * pdsi[t-1,r] + #previous breeding season drought index
-                beta.wintsev.harv[s] * awssi[r,t-1] + #concurrent winter severity
+                beta.drought.harv[s] * pdsi[t,r] + #previous breeding season drought index
+                beta.wintsev.harv[s] * awssi[r,t] + #Previous winter severity
                 beta.raven.harv[s] * raven[t] + #prior BBS index
                 beta.nharrier.harv[s] * nharrier[t] + #prior BBS index
                 inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #spline smoothing
         
-        pred.spl.harv[s,r,t-1] <- inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #Derive spline smoothing for examination later
+        pred.spl.harv[s,r,t] <- inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #Derive spline smoothing for examination later
         
         N[s,t,r] <- exp(harv.eps[s,t,r]) #Log Link
         
-        n.hunt[s,t,r] ~ dpois(N[s,t,r]) #Number of hunters follows Poisson
+        n.harv[s,t,r] ~ dpois(N[s,t,r]) #Number of hunters follows Poisson
       } #t
       
       for(t in 1:(n.year-1)){
@@ -232,7 +232,7 @@ code <- nimbleCode( {
     } #s
     
     for(t in 1:n.year){
-      hunt.eps[1:n.species,t,r] ~ dmnorm(mu.hunt[1:n.species,t,r], cov =  Sigma.hunt[1:n.species,1:n.species,r] )
+      harv.eps[1:n.species,t,r] ~ dmnorm(mu.harv[1:n.species,t,r], cov =  Sigma.harv[1:n.species,1:n.species,r] )
     }
       
     #   N[s,1,r] ~ dpois(n.harv[s,1,r]) #Total harvest, Year 1
