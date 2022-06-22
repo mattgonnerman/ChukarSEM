@@ -344,12 +344,15 @@ initsFunction <- function() list(
   # beta.rabbit.harv = rep(0, 7),
   beta.raven.harv = rep(0, 7),
   beta.nharrier.harv = rep(0, 7),
+  beta.hunters.harv = rep(0, 7),
   beta.spl.harv = array(0, dim = c(7,2,12)),
   sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
   mu.drought.harv = 0,
   sig.drought.harv = 1,
   mu.wintsev.harv = 0,
   sig.wintsev.harv = 1,
+  mu.hunters.harv = 0,
+  sig.hunters.harv = 1,
   
   ### Sage Grouse Wing-Bee
   theta.sg = rep(1,2),
@@ -389,8 +392,8 @@ model_test <- nimbleModel( code = code,
 model_test$simulate(c('GAS', 'PDI',
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
                       'mu.harv', 'N',
-                      'theta.sg', 'rate.sg', 'log.r.sg',
-                      'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
+                      # 'theta.sg', 'rate.sg', 'log.r.sg',
+                      # 'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                       'BPH'))
 model_test$initializeInfo()
 model_test$calculate()
@@ -409,9 +412,9 @@ pars1 <- c(### Hunter Effort
   "alpha.harv",
   "beta.drought.harv",
   "beta.wintsev.harv",
-  # "beta.rabbit.harv",
+  "beta.hunters.harv",
   "beta.raven.harv",
-  "beta.nharrier.harv",
+  "beta.nharrier.harv"
   # "pred.spl.harv",
   
   ### Sage Grouse Wing-Bee
@@ -421,8 +424,8 @@ pars1 <- c(### Hunter Effort
   # "beta.rabbit.sg",
   # "beta.raven.sg",
   # "beta.nharrier.sg",
-  "mod.sg",
-  "theta.sg",
+  # "mod.sg",
+  # "theta.sg",
   
   ### Chukar Site Abundance
   # "alpha.chuk",
@@ -431,19 +434,19 @@ pars1 <- c(### Hunter Effort
   # "beta.rabbit.chuk",
   # "beta.raven.chuk",
   # "beta.nharrier.chuk",
-  "mod.chuk",
-  "theta.chuk"
+  # "mod.chuk",
+  # "theta.chuk"
 )
 
 pars2 <- c(### Hunter Effort
   "H",
-  "rho.hunt",
-  # "log.r.hunt",
+  # "rho.hunt",
+  "log.r.hunt",
   
   ### Total Harvest
   "N",
-  "rho.harv",
-  # "log.r.harv",
+  # "rho.harv",
+  "log.r.harv",
   
   # ### Sage Grouse Wing-Bee
   # "log.r.sg",
@@ -547,7 +550,7 @@ mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
 #Save Outputs as file
 files <- list(mcmcList1, mcmcList2, code)
-save(files, file = 'model_output_FullModel_predict.rdata')
+save(files, file = paste("./Holdout ", year.hold, '/model_output_FullModel_predict.rdata', sep = ""))
 
 
 mcmcList1 <- files[[1]]
@@ -558,9 +561,9 @@ mcmcList2 <- files[[2]]
 #Individual parameters
 # MCMCtrace(mcmcList2, params = "alpha.hunt", plot = T, pdf = F)
 #Output full pdf with all trace plots
-MCMCtrace(mcmcList1, filename = "./TraceOut - Full.pdf")
+MCMCtrace(mcmcList1, filename = paste("./Holdout ", year.hold, '/TraceOut - Full.pdf', sep = ""))
 
-MCMCtrace(mcmcList2, filename = "./TraceOut - Full - Predictors.pdf")
+MCMCtrace(mcmcList2, filename = paste("./Holdout ", year.hold, '/TraceOut - Full - Predictors.pdf', sep = ""))
 
 
 source("./ChukSEM - Estimate Check.R")

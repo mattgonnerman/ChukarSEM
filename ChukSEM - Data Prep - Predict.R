@@ -206,7 +206,7 @@ eastern_pdsi <- read.csv('./Data/Eastern_PDSIZ.csv') %>%
   mutate(Summer = (Apr + May + Jun + Jul + Aug)/5,
          Winter = (Nov + Dec + lead(Jan) + lead(Feb) + lead(Mar))/5) %>%
   select(Year, Summer, Winter) %>%
-  filter(Year %in% 1976:cutoff.y) %>%
+  filter(Year %in% 1975:cutoff.y) %>%
   mutate(Region = "Eastern")
 
 western_pdsi <- read.csv('./Data/Western_PDSIZ.csv') %>%
@@ -214,7 +214,7 @@ western_pdsi <- read.csv('./Data/Western_PDSIZ.csv') %>%
   mutate(Summer = (Apr + May + Jun + Jul + Aug)/5,
          Winter = (Nov + Dec + lead(Jan) + lead(Feb) + lead(Mar))/5) %>%
   select(Year, Summer, Winter) %>%
-  filter(Year %in% 1976:cutoff.y) %>%
+  filter(Year %in% 1975:cutoff.y) %>%
   mutate(Region = "Western")
 
 pdsi_df <- rbind(eastern_pdsi, western_pdsi) %>%
@@ -223,8 +223,8 @@ pdsi_df <- rbind(eastern_pdsi, western_pdsi) %>%
 #Average breeding and winter DPSI values for each section
 pdsi <- as.matrix(pdsi_df %>% select(Summer_Eastern, Summer_Western)) 
 pdsi <- rbind(pdsi, matrix(NA, ncol = 2, nrow = n.add.y))
-wpdsi <- as.matrix(pdsi_df %>% select(Winter_Eastern, Winter_Western))
-wpdsi <- rbind(pdsi, matrix(NA, ncol = 2, nrow = n.add.y))
+wpdsi <- as.matrix(pdsi_df[-1,] %>% select(Winter_Eastern, Winter_Western))
+wpdsi <- rbind(wpdsi, matrix(NA, ncol = 2, nrow = n.add.y))
 
 # #Load year/month specific Eastern PDSI values (Z standardized?)
 # eastern_pdsi <- read.csv('./Data/Eastern_PDSIZ.csv')
@@ -321,7 +321,7 @@ awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
   group_by(Region, Year) %>%
   filter(!is.na(AWSSI)) %>%
   summarise(AWSSI = mean(AWSSI)) %>%
-  filter(Year > 1975 & Year <= cutoff.y & Region != "Southern") %>%
+  filter(Year > 1974 & Year <= cutoff.y & Region != "Southern") %>%
   mutate(AWSSI = scale(AWSSI)[,1]) %>%
   pivot_wider(names_from = Region, values_from = AWSSI) 
 
@@ -339,3 +339,28 @@ bbs.df <- read.csv("./Data/bbs_indices.csv") %>%
   as.matrix()
 
 bbs.df <- as.data.frame(rbind(bbs.df, matrix(NA, ncol = 5, nrow = n.add.y)))
+
+
+# Hunter days (a covariate for total harvest model)
+# harvest_data <- read.csv('./Data/all_species_harvest_data.csv') %>%
+#   mutate(Year = as.numeric(as.character(Year)),
+#          Animals = as.numeric(as.character(Animals)),
+#          Hunters = as.numeric(as.character(Hunters)),
+#          H.Days = as.numeric(as.character(H.Days))) %>%
+#   filter(Year <= cutoff.y) %>% 
+#   filter(Section == "Western") %>%
+#   mutate(Species = recode(Species, 
+#                           `SAGE_GROUSE` = "SAGR",
+#                           `SOOTY_GROUSE` = "BLGR",
+#                           `RUFFED_GROUSE` = "RUGR",
+#                           `CHUKAR` = "CHUK",
+#                           `HUNGARIAN_PART` = 'HUPA',
+#                           `CALIFORNIA_QUAIL` = 'CAQU',
+#                           `MOUNTAIN_QUAIL` = 'MOQU',
+#                           `PHEASANTS` = 'PHEA',
+#                           `RABBIT` = 'RABB',
+#                           `DOVE` = 'DOVE',
+#                           `DUSKY_GROUSE` = 'BLGR',
+#                           `GAMBEL'S_QUAIL` = 'GAQU')) %>%
+#   filter(Species %in% if(drop.rabbit == "Y"){species[-c(4,7,8)]}else{species[-c(4,8)]}) %>%
+#   pivot_wider(id_cols = Species, names_from = Year, values_from = H.Days)
