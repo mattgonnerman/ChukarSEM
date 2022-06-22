@@ -94,7 +94,7 @@ data <- list(
   
   ### Total Harvest
   n.harv = upland,
-  Z.harv = ZZ, #Spline
+  # Z.harv = ZZ, #Spline
   
   ### Sage Grouse WingBee
   AHY.sg =  wing.b.ahy,
@@ -353,6 +353,7 @@ initsFunction <- function() list(
   sig.wintsev.harv = 1,
   mu.hunters.harv = 0,
   sig.hunters.harv = 1,
+  ar1.harv = matrix(0, nrow = 7, ncol = 2),
   
   ### Sage Grouse Wing-Bee
   theta.sg = rep(1,2),
@@ -391,7 +392,7 @@ model_test <- nimbleModel( code = code,
                            inits = inits)
 model_test$simulate(c('GAS', 'PDI',
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-                      'mu.harv', 'beta.spl.harv', 'pred.spl.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+                      'mu.harv.trend', 'mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',#'pred.spl.harv', 
                       'theta.sg', 'rate.sg', 'log.r.sg',
                       'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                       'BPH'))
@@ -415,6 +416,7 @@ pars1 <- c(### Hunter Effort
   "beta.hunters.harv",
   "beta.raven.harv",
   "beta.nharrier.harv",
+  "ar1.harv",
   # "pred.spl.harv",
   
   ### Sage Grouse Wing-Bee
@@ -512,8 +514,9 @@ out.full.predict <- clusterEvalQ(cl, {
                              data =  data,
                              inits = inits )
   
-  model_test$simulate(c('mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-                        'mu.harv', 'N',
+  model_test$simulate(c('GAS', 'PDI',
+                        'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
+                        'mu.harv.trend', 'mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',#'pred.spl.harv', 
                         'theta.sg', 'rate.sg', 'log.r.sg',
                         'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                         'BPH'))

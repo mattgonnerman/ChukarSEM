@@ -6,7 +6,6 @@ code <- nimbleCode( {
   alpha.pdi ~ dnorm(0, sd = 100) #intercept
   beta.t.pdi ~ dnorm(0, sd = 100) #year
   sig.pdi~ T(dt(0, pow(2.5,-2), 1),0,)
-  
   ar1.pdi ~ dunif(-1,1) #Autoregressive parameter
   
   pdi.trend[1] <- alpha.pdi + beta.t.pdi * 1
@@ -16,19 +15,18 @@ code <- nimbleCode( {
     mu.pdi[t] <- pdi.trend[t] + ar1.pdi * (PDI[t-1] - pdi.trend[t-1])
   } #t
   
-  #Gas Prices
-  for(i in 1:2){
-    alpha.gas[i] ~ dnorm(0, sd = 10)
+  #Gas Prices in May
+  mu.gas ~ dunif(0.1, 2)
+  sig.gas ~ T(dt(0, pow(2.5,-2), 1),0,)
+  
+  for(t in 1:years.gas){
+    GAS[t] ~ T(dnorm(mu.gas, sd = sig.gas),0,)
   }
-  sig.gas~ T(dt(0, pow(2.5,-2), 1),0,)
-  # beta.gas[1] ~ dnorm(0, 0.01)
-  # beta.gas[2] ~ dnorm(0, 0.01)
   
   #Relative Cost of Gas
   for(t in 1:n.year){
     PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
-    GAS[t] ~ T(dnorm(alpha.gas[era.gas[t]], sd = sig.gas),0.000000000001,)
-    rel.cost[t] <- ((PDI[t]/GAS[t]) - 2.581635)/0.8894599
+    rel.cost[t] <- ((PDI[t])/(GAS[t]) - 2.581635)/0.8894599
   } #t
   
   #Unemployment Rate
@@ -48,7 +46,7 @@ code <- nimbleCode( {
     sig.wpdsi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
     for(t in 1:n.year){
       wpdsi[t,r] ~ dnorm(0, sd = sig.wpdsi[r])
-    } #t
+      } #t
   } #r
   
   #Winter Severity
@@ -61,17 +59,18 @@ code <- nimbleCode( {
     }
   }
   
+  
   ################################################################################
   ### Hunter Effort ###
-  mu.drought.hunt ~ dnorm(0, 0.01)
+  mu.drought.hunt ~ dnorm(0, sd = 100)
   sig.drought.hunt ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.wintsev.hunt ~ dnorm(0, 0.01)
+  mu.wintsev.hunt ~ dnorm(0, sd = 100)
   sig.wintsev.hunt ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.jobs ~ dnorm(0, 0.01)
+  mu.jobs ~ dnorm(0, sd = 100)
   sig.jobs ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.income ~ dnorm(0, 0.01)
+  mu.income ~ dnorm(0, sd = 100)
   sig.income ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.license ~ dnorm(0, 0.01)
+  mu.license ~ dnorm(0, sd = 100)
   sig.license ~ T(dt(0, pow(2.5,-2), 1),0,)
   
   for(s in 1:n.species){
@@ -94,7 +93,7 @@ code <- nimbleCode( {
         #Unlinked estimate of Hunter Numbers
         mu.hunt[s,t,r] <- alpha.hunt[s,r] + #intercept
           beta.drought.hunt[s] * wpdsi[t,r] + #concurrent winter drought index
-          beta.wintsev.hunt[s] * awssi[r,t] + #concurrent winter severity
+          beta.wintsev.hunt[s] * awssi[r,t+1] + #concurrent winter severity (starts at 75 so need +1)
           beta.jobs[s] * une[t] + #concurrent years unemployment
           beta.income[s] * rel.cost[t] + #PDI/Gas Price
           beta.license[s] * res[t] + #Hunting licences sold that season
@@ -185,7 +184,7 @@ data <- list(
   awssi = awssi, #winter severity index, scaled
   une = une, #BL Unemployment information for Nevada, scaled
   Z.hunt = ZZ1, #Spline 
-  res = scale(res)[,1], #Residential license sales
+  res = res, #Residential license sales
   wpdsi = wpdsi, #winter drought index, scaled
   PDI = PDI, #personal disposable income
   GAS = GAS #gas prices
@@ -210,7 +209,7 @@ constants <- list(
   K = 12,
   
   ###Predictors
-  era.gas = c(rep(1,length(1976:1994)),rep(2, length(1995:2017))), #Groupings for change in gas prices 
+  years.gas = length(1976:2005), #Change point in gas 
   era.awssi = c(rep(1,length(1976:1994)),rep(2, length(1995:2001)), rep(1, length(2002:2017))), #Groupings for change in gas prices 
   
   ### Hunter Effort
@@ -251,18 +250,19 @@ nharrier.init <- as.vector(ifelse(is.na(bbs.df$nharrier), 0, NA))
 
 # Wrapper Function
 initsFunction <- function() list(
-  ### Predictors
   #Personal Disposable Income
   alpha.pdi = 2.9,
   beta.t.pdi = 0,
   sig.pdi = 1,
   ar1.pdi = 0,
-  PDI = PDI.inits,
+  # PDI = PDI.inits,
   #Gas Prices
-  GAS = GAS.inits,
-  alpha.gas = rep(.9,2),
-  # beta.gas = 0,
+  # alpha.gas = rep(.9,2),
+  # beta.t.gas = rep(0,2),
   sig.gas = 1,
+  mu.gas = .78,
+  # ar1.gas = rep(0,2),
+  GAS = GAS.inits,
   #Unemployment
   sig.une = 1,
   une = une.init,
@@ -273,13 +273,28 @@ initsFunction <- function() list(
   sig.wpdsi = rep(1,2),
   sig.pdsi = rep(1,2),
   wpdsi = wpdsi.init,
-  # pdsi = pdsi.init,
+  pdsi = pdsi.init,
   #Winter Severity
   sig.awssi = rep(1,2),
   beta.awssi = 0,
   alpha.awssi = 0,
   awssi = awssi.init,
+  # #Rabbits
+  # sig.rabbits = 1,
+  # beta.rabbits = 1,
+  # alpha.rabbits = 1,
+  # rabbits = rabbits.init,
+  #Ravens
+  alpha.rav = 0,
+  beta.t.rav = 0,
+  sig.rav = 1,
+  ar1.rav = 0,
+  raven = raven.init,
+  #Northern Harrier
+  sig.nhar = 1,
+  nharrier = nharrier.init,
   
+  ###Hunter Effort
   sig.spl.hunt = matrix(1, ncol = 2, nrow = 7),
   mu.drought.hunt = 0,
   sig.drought.hunt = 1,
@@ -291,6 +306,18 @@ initsFunction <- function() list(
   sig.income = 1,
   mu.license = 0,
   sig.license = 1,
+  
+  sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
+  mu.drought.harv = 0,
+  sig.drought.harv = 1,
+  mu.wintsev.harv = 0,
+  sig.wintsev.harv = 1,
+  # mu.rabbit = 0,
+  # sig.rabbit = 1,
+  mu.raven = 0,
+  sig.raven = 1,
+  mu.nharrier = 0,
+  sig.nharrier = 1,
   
   ### Hunter Effort
   n.hunt = n.hunt.i,
@@ -318,20 +345,18 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits )
 
-model_test$simulate(c('mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt'))
+model_test$simulate(c('GAS', 'PDI',
+                      'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt'))
 model_test$initializeInfo()
 model_test$calculate()
 
 #Set Monitors
-pars1 <- c("ar1.pdi",
-           "alpha.hunt",
+pars1 <- c("alpha.hunt",
            "beta.drought.hunt",
            "beta.wintsev.hunt",
            "beta.jobs",
            "beta.income",
            "beta.license",
-           "beta.spl.hunt",
-           "rho.hunt",
            "H")
 
 pars2 <- c(
@@ -339,16 +364,17 @@ pars2 <- c(
   "beta.t.pdi",
   "sig.pdi",
   "ar1.pdi",
-  "alpha.gas",
+  # "alpha.gas",
+  # "beta.t.gas",
+  "mu.gas",
   "sig.gas",
-  # "beta.gas",
+  # "ar1.gas",
   "rel.cost",
   "sig.une",
   "une",
   "sig.res",
   "res",
   "sig.wpdsi",
-  # "sig.pdsi",
   "sig.awssi",
   "beta.awssi",
   "alpha.awssi"
@@ -378,7 +404,8 @@ out <- clusterEvalQ(cl, {
                              data =  data,
                              inits = inits )
   
-  model_test$simulate(c("beta.spl.hunt", "mu.hunt", "pred.spl.hunt", "hunt.eps", "H", "Sigma.hunt"))
+  model_test$simulate(c('GAS', 'PDI',
+                        'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt'))
   model_test$initializeInfo()
   model_test$calculate()
   mcmcConf <-  configureMCMC( model_test,   monitors = pars1, monitors2 =  pars2) 
