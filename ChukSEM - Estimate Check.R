@@ -1,17 +1,17 @@
 lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr"), require, character.only = T)
 
 #Load desired objects and format them
-cutoff.y <- 2016 #Last year from which data was used
-final.y <- 2017 #Last year predicted
-year.hold <- cutoff.y +1
+# cutoff.y <- 2015 #Last year from which data was used
+# final.y <- 2017 #Last year predicted
+# year.hold <- cutoff.y +1
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 n.add.y <- final.y - cutoff.y
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
-source("./ChukSEM - Data Prep - Predict.R")
-load(file = paste("./Holdout ", year.hold, '/model_output_FullModel_predict.rdata', sep = ""))
-mcmcList1 <- files[[1]]
-mcmcList2 <- files[[2]]
 
+# source("./ChukSEM - Data Prep - Predict.R")
+# load(file = paste("./Holdout ", year.hold, '/model_output_FullModel_predict.rdata', sep = ""))
+# mcmcList1 <- files[[1]]
+# mcmcList2 <- files[[2]]
 
 # Extract important values and plot
 test.bph <- MCMCsummary(mcmcList1, 'BPH') %>%
@@ -20,21 +20,21 @@ test.bph <- MCMCsummary(mcmcList1, 'BPH') %>%
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+  dplyr::select(Species, Year, Region, Estimate = '50%', LCL = '2.5%', UCL = '97.5%')
 test.H   <- MCMCsummary(mcmcList1, 'H') %>%
   mutate(RowID = rownames(MCMCsummary(mcmcList1, 'H'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+  dplyr::select(Species, Year, Region, Estimate = '50%', LCL = '2.5%', UCL = '97.5%')
 test.N   <- MCMCsummary(mcmcList1, 'N') %>%
   mutate(RowID = rownames(MCMCsummary(mcmcList1, 'N'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species, Year, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+  dplyr::select(Species, Year, Region, Estimate = '50%', LCL = '2.5%', UCL = '97.5%')
 write.csv(test.bph, file = paste("./Holdout ", year.hold, "/CheckPlot - out_BPH_all.csv", sep = ""), row.names = F)
 write.csv(test.H, file = paste("./Holdout ", year.hold, "/CheckPlot - out_H_all.csv", sep = ""), row.names = F)
 write.csv(test.N, file =  paste("./Holdout ", year.hold, "/CheckPlot - out_N_all.csv", sep = ""), row.names = F)

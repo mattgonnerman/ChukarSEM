@@ -2,6 +2,7 @@
 lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
 cutoff.y <- 2016 #Last year from which data will be used
 final.y <- 2017 #Last year to predict
+year.hold <- cutoff.y +1
 
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 
@@ -94,7 +95,7 @@ data <- list(
   
   ### Total Harvest
   n.harv = upland,
-  # Z.harv = ZZ, #Spline
+  Z.harv = ZZ, #Spline
   
   ### Sage Grouse WingBee
   AHY.sg =  wing.b.ahy,
@@ -353,7 +354,7 @@ initsFunction <- function() list(
   sig.wintsev.harv = 1,
   mu.hunters.harv = 0,
   sig.hunters.harv = 1,
-  ar1.harv = matrix(0, nrow = 7, ncol = 2),
+  # ar1.harv = matrix(0, nrow = 7, ncol = 2),
   
   ### Sage Grouse Wing-Bee
   theta.sg = rep(1,2),
@@ -392,7 +393,9 @@ model_test <- nimbleModel( code = code,
                            inits = inits)
 model_test$simulate(c('GAS', 'PDI',
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-                      'mu.harv.trend', 'mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',#'pred.spl.harv', 
+                      # 'mu.harv.trend', 
+                      'pred.spl.harv',
+                      'mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',  
                       'theta.sg', 'rate.sg', 'log.r.sg',
                       'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                       'BPH'))
@@ -411,12 +414,12 @@ pars1 <- c(### Hunter Effort
   
   ### Total Harvest
   "alpha.harv",
-  "beta.drought.harv",
+  # "beta.drought.harv",
   "beta.wintsev.harv",
   "beta.hunters.harv",
   "beta.raven.harv",
-  "beta.nharrier.harv",
-  "ar1.harv",
+  # "beta.nharrier.harv",
+  # "ar1.harv",
   # "pred.spl.harv",
   
   ### Sage Grouse Wing-Bee
@@ -426,8 +429,8 @@ pars1 <- c(### Hunter Effort
   # "beta.rabbit.sg",
   # "beta.raven.sg",
   # "beta.nharrier.sg",
-  "mod.sg",
-  "theta.sg",
+  # "mod.sg",
+  # "theta.sg",
   
   ### Chukar Site Abundance
   # "alpha.chuk",
@@ -516,7 +519,9 @@ out.full.predict <- clusterEvalQ(cl, {
   
   model_test$simulate(c('GAS', 'PDI',
                         'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-                        'mu.harv.trend', 'mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',#'pred.spl.harv', 
+                        # 'mu.harv.trend', 
+                        'pred.spl.harv',
+                        'mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',  
                         'theta.sg', 'rate.sg', 'log.r.sg',
                         'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                         'BPH'))
@@ -559,6 +564,11 @@ save(files, file = paste("./Holdout ", year.hold, '/model_output_FullModel_predi
 mcmcList1 <- files[[1]]
 mcmcList2 <- files[[2]]
 
+
+
+source("./ChukSEM - Estimate Check.R")
+
+
 ### Traceplots
 # colnames(mcmcList2$chain1)
 #Individual parameters
@@ -567,11 +577,6 @@ mcmcList2 <- files[[2]]
 MCMCtrace(mcmcList1, filename = paste("./Holdout ", year.hold, '/TraceOut - Full.pdf', sep = ""))
 
 MCMCtrace(mcmcList2, filename = paste("./Holdout ", year.hold, '/TraceOut - Full - Predictors.pdf', sep = ""))
-
-
-source("./ChukSEM - Estimate Check.R")
-
-
 
 
 

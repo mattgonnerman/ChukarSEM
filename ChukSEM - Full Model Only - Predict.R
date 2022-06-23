@@ -3,8 +3,8 @@ code <- nimbleCode( {
   ################################################################################
   ### Predictors
   #Personal Disposable Income
-  alpha.pdi ~ dnorm(0, sd = 100) #intercept
-  beta.t.pdi ~ dnorm(0, sd = 100) #year
+  alpha.pdi ~ dnorm(0, sd = 10) #intercept
+  beta.t.pdi ~ dnorm(0, sd = 10) #year
   sig.pdi~ T(dt(0, pow(2.5,-2), 1),0,)
   ar1.pdi ~ dunif(-1,1) #Autoregressive parameter
   
@@ -25,8 +25,8 @@ code <- nimbleCode( {
   
   #Relative Cost of Gas
   for(t in 1:n.year){
-    PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
-    rel.cost[t] <- ((PDI[t])/(GAS[t]) - 2.581635)/0.8894599
+    PDI[t] ~ T(dnorm(mu.pdi[t], sd = sig.pdi),0,)
+    rel.cost[t] <- ((PDI[t])/(GAS[t]) - mean(PDI[]/GAS[]))/sd(PDI[]/GAS[])
   } #t
   
   #Unemployment Rate
@@ -60,16 +60,6 @@ code <- nimbleCode( {
       awssi[r,t] ~ dnorm(alpha.awssi + beta.awssi*(era.awssi[t]-1), sd = sig.awssi[r])
     }
   }
-  
-  # #Rabbits
-  # sig.rabbits~ T(dt(0, pow(2.5,-2), 1),0,)
-  # beta.rabbits ~ dnorm(0, sd = 2)
-  # alpha.rabbits ~ dnorm(0, sd = 1)
-  # for(t in 1:n.year){
-  #   for(r in 1:n.region){
-  #     rabbits[t,r] ~ dnorm(alpha.rabbits + beta.rabbits*t, sd = sig.rabbits)
-  #   }
-  # }
   
   #Ravens (Highly correlated with Prairie Falcon and RTHawk)
   alpha.rav ~ dnorm(0, 0.001) #intercept
@@ -199,57 +189,87 @@ code <- nimbleCode( {
     beta.nharrier.harv[s] ~ dnorm(mu.nharrier, sd  = sig.nharrier)
   } #s
   
+  
+  ## AR1 Version
   for(r in 1:n.region){
     for(s in 1:n.species){
-      alpha.harv[s,r] ~ dnorm(0, sd = 1)
-      for(k in 1:K){
-        beta.spl.harv[s,r,k] ~ dnorm(0, sd = sig.spl.harv[s,r])
-      } #k
-      sig.spl.harv[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-      
-      # Process Model
+      alpha.harv[s,r] ~ dnorm(0, sd = 12)
       ar1.harv[s,r] ~ dunif(-1,1) #Autoregressive parameter
-      
       mu.harv.trend[s,1,r] <- alpha.harv[s,r] +#regression formula
         # inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) + #spline smoothing
         beta.hunters.harv[s] * H[s,1,r] + #same season/region/species hunter numbers
-        beta.drought.harv[s] * pdsi[1,r] + #previous breeding season drought index
+        # beta.drought.harv[s] * pdsi[1,r] + #previous breeding season drought index
         beta.wintsev.harv[s] * awssi[r,1] + #Previous winter severity
         beta.raven.harv[s] * raven[1] + #prior BBS index
-        beta.nharrier.harv[s] * nharrier[1] #prior BBS index
-      
+        # beta.nharrier.harv[s] * nharrier[1] #prior BBS index
       mu.harv[s,1,r] <- mu.harv.trend[s,1,r]
-      
-      for(t in 2:n.year){ 
+      for(t in 2:n.year){
         #Unlinked estimate of Hunter Numbers
         mu.harv.trend[s,t,r] <- alpha.harv[s,r] +#regression formula
                 # inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) + #spline smoothing
                 beta.hunters.harv[s] * H[s,t,r] + #same season/region/species hunter numbers
-                beta.drought.harv[s] * pdsi[t,r] + #previous breeding season drought index
+                # beta.drought.harv[s] * pdsi[t,r] + #previous breeding season drought index
                 beta.wintsev.harv[s] * awssi[r,t] + #Previous winter severity
                 beta.raven.harv[s] * raven[t] + #prior BBS index
-                beta.nharrier.harv[s] * nharrier[t] #prior BBS index
-        
+                # beta.nharrier.harv[s] * nharrier[t] #prior BBS index
+
         mu.harv[s,t,r] <- mu.harv.trend[s,t,r] + ar1.harv[s,r]*(harv.eps[s,t-1,r]-mu.harv[s,t-1,r])
       }
 
       for(t in 1:n.year){
         # pred.spl.harv[s,r,t] <- inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #Derive spline smoothing for examination later
-        
+
         N[s,t,r] <- exp(harv.eps[s,t,r]) #Log Link
         n.harv[s,t,r] ~ dpois(N[s,t,r]) #Number of hunters follows Poisson
       } #t
-      
+
       for(t in 1:(n.year-1)){
         lambda.harv[s,t,r] <- N[s,t+1,r]/N[s,t,r]
         log.r.harv[s,t,r] <- log(lambda.harv[s,t,r])
       }
     } #s
-    
+
     for(t in 1:n.year){
       harv.eps[1:n.species,t,r] ~ dmnorm(mu.harv[1:n.species,t,r], cov =  Sigma.harv[1:n.species,1:n.species,r] )
     }
-      
+    
+  # for(r in 1:n.region){
+  #   for(s in 1:n.species){
+  #     alpha.harv[s,r] ~ dnorm(0, sd = 12)
+  #     for(k in 1:K){
+  #       beta.spl.harv[s,r,k] ~ dnorm(0, sd = sig.spl.harv[s,r])
+  #     } #k
+  #     sig.spl.harv[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+  #     
+  #     # Process Model
+  #     for(t in 1:n.year){ 
+  #       #Unlinked estimate of Hunter Numbers
+  #       mu.harv[s,t,r] <- alpha.harv[s,r] +#regression formula
+  #         inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) + #spline smoothing
+  #         beta.hunters.harv[s] * H[s,t,r] + #same season/region/species hunter numbers
+  #         beta.drought.harv[s] * pdsi[t,r] + #previous breeding season drought index
+  #         beta.wintsev.harv[s] * awssi[r,t] + #Previous winter severity
+  #         beta.raven.harv[s] * raven[t] + #prior BBS index
+  #         beta.nharrier.harv[s] * nharrier[t] #prior BBS index
+  #       
+  #       pred.spl.harv[s,r,t] <- inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #Derive spline smoothing for examination later
+  #       
+  #       N[s,t,r] <- exp(harv.eps[s,t,r]) #Log Link
+  #       
+  #       n.harv[s,t,r] ~ dpois(N[s,t,r]) #Number of hunters follows Poisson
+  #     } #t
+  #     
+  #     for(t in 1:(n.year-1)){
+  #       lambda.harv[s,t,r] <- N[s,t+1,r]/N[s,t,r]
+  #       log.r.harv[s,t,r] <- log(lambda.harv[s,t,r])
+  #     }
+  #   } #s
+  #   
+  #   for(t in 1:n.year){
+  #     harv.eps[1:n.species,t,r] ~ dmnorm(mu.harv[1:n.species,t,r], cov =  Sigma.harv[1:n.species,1:n.species,r] )
+  #   }
+  
+    # ### Spline Version (model variation in log.r)
     #   N[s,1,r] ~ dpois(n.harv[s,1,r]) #Total harvest, Year 1
     #   
     #   for(t in 2:(n.year)){
@@ -302,19 +322,19 @@ code <- nimbleCode( {
   } #r
   
   ################################################################################
-  ### Sage Grouse Wing-Bee ###
-  for(r in 1:n.region){
-    # alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
-    mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
-    theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
-
-    for(t in 1:n.years.sg){
-      log.r.sg[r,t] <- mod.sg[r] * log.r.harv[ifelse(rab.use == 1, 7, 6), t+27, r] #log.r.harv[t=25] is 2004
-
-      rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
-      HY.sg[r,t] ~ dnegbin(prob = rate.sg[r,t], size = theta.sg[r])
-    } #t
-  } #r
+  # ### Sage Grouse Wing-Bee ###
+  # for(r in 1:n.region){
+  #   # alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
+  #   mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
+  #   theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+  # 
+  #   for(t in 1:n.years.sg){
+  #     log.r.sg[r,t] <- mod.sg[r] * log.r.harv[ifelse(rab.use == 1, 7, 6), t+27, r] #log.r.harv[t=25] is 2004
+  # 
+  #     rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
+  #     HY.sg[r,t] ~ dnegbin(prob = rate.sg[r,t], size = theta.sg[r])
+  #   } #t
+  # } #r
 
   ################################################################################
   ### Chukar Site Abundance ###
