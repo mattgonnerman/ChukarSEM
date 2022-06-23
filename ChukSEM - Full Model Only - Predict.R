@@ -26,7 +26,7 @@ code <- nimbleCode( {
   #Relative Cost of Gas
   for(t in 1:n.year){
     PDI[t] ~ T(dnorm(mu.pdi[t], sd = sig.pdi),0,)
-    rel.cost[t] <- ((PDI[t])/(GAS[t]) - mean(PDI[]/GAS[]))/sd(PDI[]/GAS[])
+    rel.cost[t] <- ((PDI[t])/(GAS[t]) - 2.581635)/0.8894599
   } #t
   
   #Unemployment Rate
@@ -195,13 +195,13 @@ code <- nimbleCode( {
     for(s in 1:n.species){
       alpha.harv[s,r] ~ dnorm(0, sd = 12)
       ar1.harv[s,r] ~ dunif(-1,1) #Autoregressive parameter
-      mu.harv.trend[s,1,r] <- alpha.harv[s,r] +#regression formula
+      mu.harv.trend[s,1,r] <- alpha.harv[s,r] + #regression formula
         # inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) + #spline smoothing
         beta.hunters.harv[s] * H[s,1,r] + #same season/region/species hunter numbers
         # beta.drought.harv[s] * pdsi[1,r] + #previous breeding season drought index
         beta.wintsev.harv[s] * awssi[r,1] + #Previous winter severity
-        beta.raven.harv[s] * raven[1] + #prior BBS index
-        # beta.nharrier.harv[s] * nharrier[1] #prior BBS index
+        # beta.nharrier.harv[s] * nharrier[1]  + #prior BBS index
+        beta.raven.harv[s] * raven[1] #prior BBS index
       mu.harv[s,1,r] <- mu.harv.trend[s,1,r]
       for(t in 2:n.year){
         #Unlinked estimate of Hunter Numbers
@@ -210,8 +210,8 @@ code <- nimbleCode( {
                 beta.hunters.harv[s] * H[s,t,r] + #same season/region/species hunter numbers
                 # beta.drought.harv[s] * pdsi[t,r] + #previous breeding season drought index
                 beta.wintsev.harv[s] * awssi[r,t] + #Previous winter severity
-                beta.raven.harv[s] * raven[t] + #prior BBS index
-                # beta.nharrier.harv[s] * nharrier[t] #prior BBS index
+                # beta.nharrier.harv[s] * nharrier[t] + #prior BBS index
+                beta.raven.harv[s] * raven[t] #prior BBS index
 
         mu.harv[s,t,r] <- mu.harv.trend[s,t,r] + ar1.harv[s,r]*(harv.eps[s,t-1,r]-mu.harv[s,t-1,r])
       }

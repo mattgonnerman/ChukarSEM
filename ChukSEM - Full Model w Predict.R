@@ -95,11 +95,11 @@ data <- list(
   
   ### Total Harvest
   n.harv = upland,
-  Z.harv = ZZ, #Spline
-  
-  ### Sage Grouse WingBee
-  AHY.sg =  wing.b.ahy,
-  HY.sg =  wing.b.hy,
+  # Z.harv = ZZ, #Spline
+  # 
+  # ### Sage Grouse WingBee
+  # AHY.sg =  wing.b.ahy,
+  # HY.sg =  wing.b.hy,
   
   ### Chukar Site Abundance
   n.chuk = data.matrix(chukar)
@@ -133,8 +133,8 @@ constants <- list(
   I.harv = abind(I2,I2,along = 3),
   
   ### Sage Grouse Wing-Bee
-  n.years.sg = n.years.sg,
-  rab.use = ifelse(drop.rabbit == "Y", 0, 1),
+  # n.years.sg = n.years.sg,
+  # rab.use = ifelse(drop.rabbit == "Y", 0, 1),
   
   ### Chukar Site Abundance
   n.site = nrow(chukar),
@@ -286,8 +286,8 @@ initsFunction <- function() list(
   #Northern Harrier
   sig.nhar = 1,
   nharrier = nharrier.init,
-  
-  ###Hunter Effort
+
+  ###Beta Coefficient Means/SDs
   sig.spl.hunt = matrix(1, ncol = 2, nrow = 7),
   mu.drought.hunt = 0,
   sig.drought.hunt = 1,
@@ -300,7 +300,6 @@ initsFunction <- function() list(
   mu.license = 0,
   sig.license = 1,
   
-  sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
   mu.drought.harv = 0,
   sig.drought.harv = 1,
   mu.wintsev.harv = 0,
@@ -346,28 +345,28 @@ initsFunction <- function() list(
   beta.raven.harv = rep(0, 7),
   beta.nharrier.harv = rep(0, 7),
   beta.hunters.harv = rep(0, 7),
-  beta.spl.harv = array(0, dim = c(7,2,12)),
-  sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
+  # beta.spl.harv = array(0, dim = c(7,2,12)),
+  # sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
   mu.drought.harv = 0,
   sig.drought.harv = 1,
   mu.wintsev.harv = 0,
   sig.wintsev.harv = 1,
   mu.hunters.harv = 0,
   sig.hunters.harv = 1,
-  # ar1.harv = matrix(0, nrow = 7, ncol = 2),
+  ar1.harv = matrix(0, nrow = 7, ncol = 2),
   
   ### Sage Grouse Wing-Bee
-  theta.sg = rep(1,2),
+  # theta.sg = rep(1,2),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
-  mod.sg = rep(1,2),
+  # mod.sg = rep(1,2),
   # alpha.sg =  rep(0,2),
   # beta.drought.sg = 0,
   # beta.wintsev.sg = 0,
   # beta.rabbit.sg = 0,
   # beta.raven.sg = 0,
   # beta.nharrier.sg = 0,
-  AHY.sg = ahy.sg.init,
-  HY.sg = hy.sg.init,
+  # AHY.sg = ahy.sg.init,
+  # HY.sg = hy.sg.init,
   
   ### Chukar Site Abundance
   theta.chuk = rep(1,2),
@@ -393,8 +392,8 @@ model_test <- nimbleModel( code = code,
                            inits = inits)
 model_test$simulate(c('GAS', 'PDI',
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-                      # 'mu.harv.trend', 
-                      'pred.spl.harv',
+                      'mu.harv.trend',
+                      # 'pred.spl.harv',
                       'mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',  
                       'theta.sg', 'rate.sg', 'log.r.sg',
                       'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
@@ -490,7 +489,10 @@ pars.pred <- c(
   "beta.t.rav",
   "sig.rav",
   "ar1.rav",
-  "sig.nhar"
+  "sig.nhar",
+  "raven",
+  "awssi"
+  
 )
 
 # Parallel Processing Setup
@@ -519,8 +521,8 @@ out.full.predict <- clusterEvalQ(cl, {
   
   model_test$simulate(c('GAS', 'PDI',
                         'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-                        # 'mu.harv.trend', 
-                        'pred.spl.harv',
+                        'mu.harv.trend',
+                        # 'pred.spl.harv',
                         'mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',  
                         'theta.sg', 'rate.sg', 'log.r.sg',
                         'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
