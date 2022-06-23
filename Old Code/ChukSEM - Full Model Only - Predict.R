@@ -25,7 +25,7 @@ code <- nimbleCode( {
   
   #Relative Cost of Gas
   for(t in 1:n.year){
-    PDI[t] ~ T(dnorm(mu.pdi[t], sd = sig.pdi),0,)
+    PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
     rel.cost[t] <- ((PDI[t])/(GAS[t]) - 2.581635)/0.8894599
   } #t
   
