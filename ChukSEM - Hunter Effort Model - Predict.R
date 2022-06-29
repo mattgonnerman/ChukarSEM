@@ -1,85 +1,85 @@
 ### Model Code
 code <- nimbleCode( {
   ################################################################################
-  ### Predictors
-  #Personal Disposable Income
-  alpha.pdi ~ dnorm(0, sd = 100) #intercept
-  beta.t.pdi ~ dnorm(0, sd = 100) #year
-  sig.pdi~ T(dt(0, pow(2.5,-2), 1),0,)
-  ar1.pdi ~ dunif(-1,1) #Autoregressive parameter
-  
-  pdi.trend[1] <- alpha.pdi + beta.t.pdi * 1
-  mu.pdi[1] <- pdi.trend[1]
-  for(t in 2:n.year){
-    pdi.trend[t] <- alpha.pdi + beta.t.pdi * t
-    mu.pdi[t] <- pdi.trend[t] + ar1.pdi * (PDI[t-1] - pdi.trend[t-1])
-  } #t
-  
-  #Gas Prices in May
-  mu.gas ~ dunif(0.1, 2)
-  sig.gas ~ T(dt(0, pow(2.5,-2), 1),0,)
-  
-  for(t in 1:years.gas){
-    GAS[t] ~ T(dnorm(mu.gas, sd = sig.gas),0,)
-  }
-  
-  #Relative Cost of Gas
-  for(t in 1:n.year){
-    PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
-    rel.cost[t] <- ((PDI[t])/(GAS[t]) - 2.581635)/0.8894599
-  } #t
-  
-  #Unemployment Rate
-  sig.une ~ T(dt(0, pow(2.5,-2), 1),0,)
-  for(t in 1:(n.year)){
-    une[t] ~ dnorm(0, sd = sig.une)
-  } #t
-  
-  #Resident License sales
-  sig.res ~ T(dt(0, pow(2.5,-2), 1),0,)
-  for(t in 1:n.year){
-    res[t] ~ dnorm(0, sd = sig.res)
-  }
-  
-  #Drought Index
-  for(r in 1:n.region){
-    sig.wpdsi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    for(t in 1:n.year){
-      wpdsi[t,r] ~ dnorm(0, sd = sig.wpdsi[r])
-      } #t
-  } #r
-  
-  #Winter Severity
-  beta.awssi ~ dnorm(0, sd = 100)
-  alpha.awssi ~ dnorm(0, sd = 100)
-  for(r in 1:n.region){
-    sig.awssi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    for(t in 1:n.year){
-      awssi[r,t] ~ dnorm(alpha.awssi + beta.awssi*(era.awssi[t]-1), sd = sig.awssi[r])
-    }
-  }
+  # ### Predictors
+  # #Personal Disposable Income
+  # alpha.pdi ~ dnorm(0, sd = 100) #intercept
+  # beta.t.pdi ~ dnorm(0, sd = 100) #year
+  # sig.pdi~ T(dt(0, pow(2.5,-2), 1),0,)
+  # ar1.pdi ~ dunif(-1,1) #Autoregressive parameter
+  # 
+  # pdi.trend[1] <- alpha.pdi + beta.t.pdi * 1
+  # mu.pdi[1] <- pdi.trend[1]
+  # for(t in 2:n.year){
+  #   pdi.trend[t] <- alpha.pdi + beta.t.pdi * t
+  #   mu.pdi[t] <- pdi.trend[t] + ar1.pdi * (PDI[t-1] - pdi.trend[t-1])
+  # } #t
+  # 
+  # #Gas Prices in May
+  # mu.gas ~ dunif(0.1, 2)
+  # sig.gas ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # 
+  # for(t in 1:years.gas){
+  #   GAS[t] ~ T(dnorm(mu.gas, sd = sig.gas),0,)
+  # }
+  # 
+  # #Relative Cost of Gas
+  # for(t in 1:n.year){
+  #   PDI[t] ~ dnorm(mu.pdi[t], sd = sig.pdi)
+  #   rel.cost[t] <- ((PDI[t])/(GAS[t]) - 2.581635)/0.8894599
+  # } #t
+  # 
+  # #Unemployment Rate
+  # sig.une ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # for(t in 1:(n.year)){
+  #   une[t] ~ dnorm(0, sd = sig.une)
+  # } #t
+  # 
+  # #Resident License sales
+  # sig.res ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # for(t in 1:n.year){
+  #   res[t] ~ dnorm(0, sd = sig.res)
+  # }
+  # 
+  # #Drought Index
+  # for(r in 1:n.region){
+  #   sig.wpdsi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+  #   for(t in 1:n.year){
+  #     wpdsi[t,r] ~ dnorm(0, sd = sig.wpdsi[r])
+  #     } #t
+  # } #r
+  # 
+  # #Winter Severity
+  # beta.awssi ~ dnorm(0, sd = 100)
+  # alpha.awssi ~ dnorm(0, sd = 100)
+  # for(r in 1:n.region){
+  #   sig.awssi[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+  #   for(t in 1:n.year){
+  #     awssi[r,t] ~ dnorm(alpha.awssi + beta.awssi*(era.awssi[t]-1), sd = sig.awssi[r])
+  #   }
+  # }
   
   
   ################################################################################
   ### Hunter Effort ###
-  mu.drought.hunt ~ dnorm(0, sd = 100)
-  sig.drought.hunt ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.wintsev.hunt ~ dnorm(0, sd = 100)
-  sig.wintsev.hunt ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.jobs ~ dnorm(0, sd = 100)
-  sig.jobs ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.income ~ dnorm(0, sd = 100)
-  sig.income ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.license ~ dnorm(0, sd = 100)
-  sig.license ~ T(dt(0, pow(2.5,-2), 1),0,)
-  
-  for(s in 1:n.species){
-    beta.drought.hunt[s] ~ dnorm(mu.drought.hunt, sd = sig.drought.hunt)
-    beta.wintsev.hunt[s] ~ dnorm(mu.wintsev.hunt, sd  = sig.wintsev.hunt)
-    beta.jobs[s] ~ dnorm(mu.jobs, sd = sig.jobs)
-    beta.income[s] ~ dnorm(mu.income, sd  = sig.income)
-    beta.license[s] ~ dnorm(mu.license, sd  = sig.license)
-  }
+  # mu.drought.hunt ~ dnorm(0, sd = 100)
+  # sig.drought.hunt ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # mu.wintsev.hunt ~ dnorm(0, sd = 100)
+  # sig.wintsev.hunt ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # mu.jobs ~ dnorm(0, sd = 100)
+  # sig.jobs ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # mu.income ~ dnorm(0, sd = 100)
+  # sig.income ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # mu.license ~ dnorm(0, sd = 100)
+  # sig.license ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # 
+  # for(s in 1:n.species){
+  #   beta.drought.hunt[s] ~ dnorm(mu.drought.hunt, sd = sig.drought.hunt)
+  #   beta.wintsev.hunt[s] ~ dnorm(mu.wintsev.hunt, sd  = sig.wintsev.hunt)
+  #   beta.jobs[s] ~ dnorm(mu.jobs, sd = sig.jobs)
+  #   beta.income[s] ~ dnorm(mu.income, sd  = sig.income)
+  #   beta.license[s] ~ dnorm(mu.license, sd  = sig.license)
+  # }
   
   for(r in 1:n.region){
     for(s in 1:n.species){
@@ -92,11 +92,11 @@ code <- nimbleCode( {
       for(t in 1:n.year){ 
         #Unlinked estimate of Hunter Numbers
         mu.hunt[s,t,r] <- alpha.hunt[s,r] + #intercept
-          beta.drought.hunt[s] * wpdsi[t,r] + #concurrent winter drought index
-          beta.wintsev.hunt[s] * awssi[r,t+1] + #concurrent winter severity (starts at 75 so need +1)
-          beta.jobs[s] * une[t] + #concurrent years unemployment
-          beta.income[s] * rel.cost[t] + #PDI/Gas Price
-          beta.license[s] * res[t] + #Hunting licences sold that season
+          # beta.drought.hunt[s] * wpdsi[t,r] + #concurrent winter drought index
+          # beta.wintsev.hunt[s] * awssi[r,t+1] + #concurrent winter severity (starts at 75 so need +1)
+          # beta.jobs[s] * une[t] + #concurrent years unemployment
+          # beta.income[s] * rel.cost[t] + #PDI/Gas Price
+          # beta.license[s] * res[t] + #Hunting licences sold that season
           inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #spline smoothing
         
         pred.spl.hunt[s,r,t] <- inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #Derive spline smoothing for examination later
@@ -148,6 +148,7 @@ code <- nimbleCode( {
 require(splines)
 # Function that Constructs B-Spline Base
 # from https://github.com/andrewcparnell/jags_examples/blob/master/R%20Code/jags_spline.R
+# Another good pub: "A review of spline function procedures in R"
 bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg = 5, deg = 3) {
   # Compute the length of the partitions
   dx <- (xr - xl) / nseg
@@ -413,7 +414,7 @@ out <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 50000, niter = 100000, thin = 5, thin2 = 5)
+  samplesList <- runMCMC(Cmcmc,nburnin = 45000, niter = 50000, thin = 5, thin2 = 5)
   
   return(samplesList)
 })

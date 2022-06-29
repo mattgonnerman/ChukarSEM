@@ -1,25 +1,25 @@
 ### Run Initial Data Management
 lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
-cutoff.y <- 2014 #Last year from which data will be used
+cutoff.y <- 2016 #Last year from which data will be used
 final.y <- 2017 #Last year to predict
 year.hold <- cutoff.y +1
 
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 
 n.add.y <- final.y - cutoff.y
-source("./ChukSEM - Data Prep.R")
+source("./ChukSEM - Data Prep - Predict.R")
 
 
 ### Run Hunter Effort Solo Model to get estimates of H to create spline inputs
-Sys.time()
-source("./ChukSEM - Hunter Effort Model - Predict.R")
-Sys.time()
+# Sys.time()
+# source("./ChukSEM - Hunter Effort Model - Predict.R")
+# Sys.time()
 
 load("./model_output_HuntEff_pred.rdata")
 mcmcList2 <- files[[1]]
 
 ### Load Model Code
-source("./ChukSEM - Model Only - Base.R")
+source("./ChukSEM - Model Only - HNC No Cov.R")
 
 
 ### Specify Data Inputs
@@ -95,14 +95,14 @@ data <- list(
   
   ### Total Harvest
   n.harv = upland,
-  Z.harv = ZZ #Spline
+  Z.harv = ZZ, #Spline
   # 
   # ### Sage Grouse WingBee
   # AHY.sg =  wing.b.ahy,
   # HY.sg =  wing.b.hy,
   
   ### Chukar Site Abundance
-  # n.chuk = data.matrix(chukar)
+  n.chuk = data.matrix(chukar)
 )
 
 
@@ -130,16 +130,16 @@ constants <- list(
   I.hunt = abind(I,I,along = 3),
   
   ### Total Harvest
-  I.harv = abind(I2,I2,along = 3)
+  I.harv = abind(I2,I2,along = 3),
   
   ### Sage Grouse Wing-Bee
   # n.years.sg = n.years.sg,
   # rab.use = ifelse(drop.rabbit == "Y", 0, 1),
   
   ### Chukar Site Abundance
-  # n.site = nrow(chukar),
-  # n.year.chuk = ncol(chukar),
-  # reg.chuk = chuk.reg
+  n.site = nrow(chukar),
+  n.year.chuk = ncol(chukar),
+  reg.chuk = chuk.reg
 )
 
 
@@ -340,7 +340,7 @@ initsFunction <- function() list(
   log.r.harv = array(0, dim = c(7,(cut)-1,2) ),
   # beta.spl.harv = array(0, dim = c(7,2,12)),
   sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
-  N = Ni
+  N = Ni,
   # beta.drought.harv = rep(0, 7),
   # beta.wintsev.harv = rep(0, 7),
   # beta.rabbit.harv = rep(0, 7),
@@ -369,17 +369,17 @@ initsFunction <- function() list(
   # HY.sg = hy.sg.init,
   
   ### Chukar Site Abundance
-  # theta.chuk = rep(1,2),
+  theta.chuk = rep(1,2),
   # sg.eps = matrix(0, nrow = 2, ncol = n.years.chuk-1),
-  # mod.chuk = rep(1,2),
+  mod.chuk = rep(1,2),
   # alpha.chuk =  rep(0,2),
   # beta.drought.chuk = 0,
   # beta.wintsev.chuk = 0,
   # beta.rabbit.chuk = 0,
   # beta.raven.chuk = 0,
   # beta.nharrier.chuk = 0,
-  # n.chuk = as.matrix(chukar_na),
-  # log.r.chuk = r.chuk.init
+  n.chuk = as.matrix(chukar_na),
+  log.r.chuk = r.chuk.init
 )
 
 inits <- initsFunction()
@@ -395,7 +395,7 @@ model_test$simulate(c(#'GAS', 'PDI',
                       # 'mu.harv.trend',
                       'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',  
                       # 'theta.sg', 'rate.sg', 'log.r.sg',
-                      # 'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
+                      'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                       'BPH'))
 model_test$initializeInfo()
 model_test$calculate()
@@ -411,7 +411,7 @@ pars1 <- c(### Hunter Effort
   # "pred.spl.hunt",
   
   ### Total Harvest
-  "alpha.harv"
+  "alpha.harv",
   # "beta.drought.harv",
   # "beta.wintsev.harv",
   # "beta.hunters.harv",
@@ -437,8 +437,8 @@ pars1 <- c(### Hunter Effort
   # "beta.rabbit.chuk",
   # "beta.raven.chuk",
   # # "beta.nharrier.chuk",
-  # "mod.chuk",
-  # "theta.chuk"
+  "mod.chuk",
+  "theta.chuk"
 )
 
 pars2 <- c(### Hunter Effort
@@ -456,7 +456,7 @@ pars2 <- c(### Hunter Effort
   # 
   # ### Chukar Site Abundance
   # 
-  # "log.r.chuk",
+  "log.r.chuk",
   
   ### Birds per Hunter
   "BPH")

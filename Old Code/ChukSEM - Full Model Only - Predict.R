@@ -321,20 +321,20 @@ code <- nimbleCode( {
     } #s1
   } #r
   
-  ################################################################################
-  # ### Sage Grouse Wing-Bee ###
-  # for(r in 1:n.region){
-  #   # alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
-  #   mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
-  #   theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
-  # 
-  #   for(t in 1:n.years.sg){
-  #     log.r.sg[r,t] <- mod.sg[r] * log.r.harv[ifelse(rab.use == 1, 7, 6), t+27, r] #log.r.harv[t=25] is 2004
-  # 
-  #     rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
-  #     HY.sg[r,t] ~ dnegbin(prob = rate.sg[r,t], size = theta.sg[r])
-  #   } #t
-  # } #r
+  ###############################################################################
+  ### Sage Grouse Wing-Bee ###
+  for(r in 1:n.region){
+    # alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
+    mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
+    theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+
+    for(t in 1:n.years.sg){
+      log.r.sg[r,t] <- mod.sg[r] * log.r.harv[ifelse(rab.use == 1, 7, 6), t+27, r] #log.r.harv[t=25] is 2004
+
+      rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
+      HY.sg[r,t] ~ dnegbin(prob = rate.sg[r,t], size = theta.sg[r])
+    } #t
+  } #r
 
   ################################################################################
   ### Chukar Site Abundance ###

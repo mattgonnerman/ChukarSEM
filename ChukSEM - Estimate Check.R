@@ -60,7 +60,7 @@ checkplotBPH <- ggplot(data = test.bph, aes(x = Year, y = Estimate, as.factor(Sp
   labs(title = "Birds Per Hunter")
 ggsave(checkplotBPH, filename = paste("./Holdout ", year.hold, '/CheckPlot - BPH.jpg', sep = ""), dpi = 300)
 
-# 
+
 # 
 # # harvest correlation
 # rho.harv.est <- MCMCsummary(mcmcList1, 'rho.harv') %>%
@@ -115,7 +115,7 @@ ggsave(checkplotBPH, filename = paste("./Holdout ", year.hold, '/CheckPlot - BPH
 # rho.hunt.w.plot <- ggcorrplot::ggcorrplot(rho.hunt.w, lab = T) +
 #   labs(title = "Hunter Correlation - West")
 # ggsave(rho.hunt.w.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Hunt West.jpg', sep = ""), dpi = 300)
-
+# 
 
 ### Check Model Outputs against observed values
 

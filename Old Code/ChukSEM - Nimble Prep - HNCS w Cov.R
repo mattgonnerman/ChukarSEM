@@ -1,25 +1,25 @@
 ### Run Initial Data Management
 lapply(c("parallel", "coda", "MCMCvis"), require, character.only = T)
-cutoff.y <- 2014 #Last year from which data will be used
+cutoff.y <- 2016 #Last year from which data will be used
 final.y <- 2017 #Last year to predict
 year.hold <- cutoff.y +1
 
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 
 n.add.y <- final.y - cutoff.y
-source("./ChukSEM - Data Prep.R")
+source("./ChukSEM - Data Prep - Predict.R")
 
 
 ### Run Hunter Effort Solo Model to get estimates of H to create spline inputs
-Sys.time()
-source("./ChukSEM - Hunter Effort Model - Predict.R")
-Sys.time()
+# Sys.time()
+# source("./ChukSEM - Hunter Effort Model - Predict.R")
+# Sys.time()
 
 load("./model_output_HuntEff_pred.rdata")
 mcmcList2 <- files[[1]]
 
 ### Load Model Code
-source("./ChukSEM - Model Only - Base.R")
+source("./ChukSEM - Model Only - HNCS w Cov.R")
 
 
 ### Specify Data Inputs
@@ -82,11 +82,11 @@ data <- list(
   # res = res, #Residential license sales
   # PDI = PDI, #personal disposable income
   # GAS = GAS, #gas prices
-  # awssi = awssi, #winter severity index, scaled
+  awssi = awssi, #winter severity index, scaled
   # pdsi = pdsi, #Previous breeding season drought index
   # wpdsi = wpdsi, #winter drought index, scaled
   # rabbits = rabbits, #Number of rabbits harvested 
-  # raven = as.vector(bbs.df$raven), #bbs bayes index for ravens, t = 1 is 1975
+  raven = as.vector(bbs.df$raven), #bbs bayes index for ravens, t = 1 is 1975
   # nharrier = as.vector(bbs.df$nharrier), #bbs bayes index for northern harriers, t = 1 is 1975
   
   ### Hunter Effort
@@ -95,14 +95,14 @@ data <- list(
   
   ### Total Harvest
   n.harv = upland,
-  Z.harv = ZZ #Spline
+  Z.harv = ZZ, #Spline
   # 
   # ### Sage Grouse WingBee
-  # AHY.sg =  wing.b.ahy,
-  # HY.sg =  wing.b.hy,
+  AHY.sg =  wing.b.ahy,
+  HY.sg =  wing.b.hy,
   
   ### Chukar Site Abundance
-  # n.chuk = data.matrix(chukar)
+  n.chuk = data.matrix(chukar)
 )
 
 
@@ -124,22 +124,22 @@ constants <- list(
   
   ### Predictors
   # years.gas = length(1976:2005), #Change point in gas 
-  # era.awssi = c(rep(1,length(1976:1994)),rep(2, length(1995:2001)), rep(1, length(2002:2017))), #Groupings for change in gas prices 
+  era.awssi = c(rep(1,length(1976:1994)),rep(2, length(1995:2001)), rep(1, length(2002:2017))), #Groupings for change in gas prices
   
   ### Hunter Effort
   I.hunt = abind(I,I,along = 3),
   
   ### Total Harvest
-  I.harv = abind(I2,I2,along = 3)
+  I.harv = abind(I2,I2,along = 3),
   
   ### Sage Grouse Wing-Bee
-  # n.years.sg = n.years.sg,
-  # rab.use = ifelse(drop.rabbit == "Y", 0, 1),
+  n.years.sg = n.years.sg,
+  rab.use = ifelse(drop.rabbit == "Y", 0, 1),
   
   ### Chukar Site Abundance
-  # n.site = nrow(chukar),
-  # n.year.chuk = ncol(chukar),
-  # reg.chuk = chuk.reg
+  n.site = nrow(chukar),
+  n.year.chuk = ncol(chukar),
+  reg.chuk = chuk.reg
 )
 
 
@@ -267,27 +267,27 @@ initsFunction <- function() list(
   # sig.pdsi = rep(1,2),
   # wpdsi = wpdsi.init,
   # pdsi = pdsi.init,
-  # #Winter Severity
-  # sig.awssi = rep(1,2),
-  # beta.awssi = 0,
-  # alpha.awssi = 0,
-  # awssi = awssi.init,
+  #Winter Severity
+  sig.awssi = rep(1,2),
+  beta.awssi = 0,
+  alpha.awssi = 0,
+  awssi = awssi.init,
   # # #Rabbits
   # # sig.rabbits = 1,
   # # beta.rabbits = 1,
   # # alpha.rabbits = 1,
   # # rabbits = rabbits.init,
-  # #Ravens
-  # alpha.rav = 0,
-  # beta.t.rav = 0,
-  # sig.rav = 1,
-  # ar1.rav = 0,
-  # raven = raven.init,
+  #Ravens
+  alpha.rav = 0,
+  beta.t.rav = 0,
+  sig.rav = 1,
+  ar1.rav = 0,
+  raven = raven.init,
   # #Northern Harrier
   # sig.nhar = 1,
   # nharrier = nharrier.init,
 
-  ###Beta Coefficient Means/SDs
+  ###Beta Coefficients
   # mu.drought.hunt = 0,
   # sig.drought.hunt = 1,
   # mu.wintsev.hunt = 0,
@@ -299,16 +299,26 @@ initsFunction <- function() list(
   # mu.license = 0,
   # sig.license = 1,
   # 
+  mu.hunters.harv = 0,
+  sig.hunters.harv = 1,
+  mu.wintsev.harv = 0,
+  sig.wintsev.harv = 1,
+  mu.raven = 0,
+  sig.raven = 1,
+  beta.wintsev.harv = rep(0, 7),
+  beta.raven.harv = rep(0, 7),
+  beta.hunters.harv = rep(0, 7),
+  beta.spl.harv = array(0, dim = c(7,2,12)),
   # mu.drought.harv = 0,
   # sig.drought.harv = 1,
-  # mu.wintsev.harv = 0,
-  # sig.wintsev.harv = 1,
   # # mu.rabbit = 0,
   # # sig.rabbit = 1,
-  # mu.raven = 0,
-  # sig.raven = 1,
   # mu.nharrier = 0,
   # sig.nharrier = 1,
+  # beta.drought.harv = rep(0, 7),
+  # beta.rabbit.harv = rep(0, 7),
+  # beta.nharrier.harv = rep(0, 7),
+  # ar1.harv = matrix(0, nrow = 7, ncol = 2),
   
   ### Hunter Effort
   n.hunt = n.hunt.i,
@@ -338,48 +348,20 @@ initsFunction <- function() list(
   alpha.harv = matrix(0, ncol = 2, nrow = 7),
   sig.harv = matrix(1, ncol = 2, nrow = 7),
   log.r.harv = array(0, dim = c(7,(cut)-1,2) ),
-  # beta.spl.harv = array(0, dim = c(7,2,12)),
   sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
-  N = Ni
-  # beta.drought.harv = rep(0, 7),
-  # beta.wintsev.harv = rep(0, 7),
-  # beta.rabbit.harv = rep(0, 7),
-  # beta.raven.harv = rep(0, 7),
-  # beta.nharrier.harv = rep(0, 7),
-  # beta.hunters.harv = rep(0, 7),
-  # mu.drought.harv = 0,
-  # sig.drought.harv = 1,
-  # mu.wintsev.harv = 0,
-  # sig.wintsev.harv = 1,
-  # mu.hunters.harv = 0,
-  # sig.hunters.harv = 1,
-  # ar1.harv = matrix(0, nrow = 7, ncol = 2),
+  N = Ni,
   
   ### Sage Grouse Wing-Bee
-  # theta.sg = rep(1,2),
-  # sg.eps = matrix(0, nrow = 2, ncol = n.years.sg-1),
-  # mod.sg = rep(1,2),
-  # alpha.sg =  rep(0,2),
-  # beta.drought.sg = 0,
-  # beta.wintsev.sg = 0,
-  # beta.rabbit.sg = 0,
-  # beta.raven.sg = 0,
-  # beta.nharrier.sg = 0,
-  # AHY.sg = ahy.sg.init,
-  # HY.sg = hy.sg.init,
+  theta.sg = rep(1,2),
+  mod.sg = rep(1,2),
+  AHY.sg = ahy.sg.init,
+  HY.sg = hy.sg.init,
   
   ### Chukar Site Abundance
-  # theta.chuk = rep(1,2),
-  # sg.eps = matrix(0, nrow = 2, ncol = n.years.chuk-1),
-  # mod.chuk = rep(1,2),
-  # alpha.chuk =  rep(0,2),
-  # beta.drought.chuk = 0,
-  # beta.wintsev.chuk = 0,
-  # beta.rabbit.chuk = 0,
-  # beta.raven.chuk = 0,
-  # beta.nharrier.chuk = 0,
-  # n.chuk = as.matrix(chukar_na),
-  # log.r.chuk = r.chuk.init
+  theta.chuk = rep(1,2),
+  mod.chuk = rep(1,2),
+  n.chuk = as.matrix(chukar_na),
+  log.r.chuk = r.chuk.init
 )
 
 inits <- initsFunction()
@@ -394,8 +376,8 @@ model_test$simulate(c(#'GAS', 'PDI',
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
                       # 'mu.harv.trend',
                       'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',  
-                      # 'theta.sg', 'rate.sg', 'log.r.sg',
-                      # 'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
+                      'theta.sg', 'rate.sg', 'log.r.sg',
+                      'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                       'BPH'))
 model_test$initializeInfo()
 model_test$calculate()
@@ -411,7 +393,7 @@ pars1 <- c(### Hunter Effort
   # "pred.spl.hunt",
   
   ### Total Harvest
-  "alpha.harv"
+  "alpha.harv",
   # "beta.drought.harv",
   # "beta.wintsev.harv",
   # "beta.hunters.harv",
@@ -427,8 +409,8 @@ pars1 <- c(### Hunter Effort
   # "beta.rabbit.sg",
   # "beta.raven.sg",
   # "beta.nharrier.sg",
-  # "mod.sg",
-  # "theta.sg",
+  "mod.sg",
+  "theta.sg",
   
   ### Chukar Site Abundance
   # "alpha.chuk",
@@ -437,8 +419,8 @@ pars1 <- c(### Hunter Effort
   # "beta.rabbit.chuk",
   # "beta.raven.chuk",
   # # "beta.nharrier.chuk",
-  # "mod.chuk",
-  # "theta.chuk"
+  "mod.chuk",
+  "theta.chuk"
 )
 
 pars2 <- c(### Hunter Effort
@@ -452,11 +434,11 @@ pars2 <- c(### Hunter Effort
   "log.r.harv",
   
   # ### Sage Grouse Wing-Bee
-  # "log.r.sg",
+  "log.r.sg",
   # 
   # ### Chukar Site Abundance
   # 
-  # "log.r.chuk",
+  "log.r.chuk",
   
   ### Birds per Hunter
   "BPH")
@@ -478,19 +460,19 @@ pars.pred <- c(
   # "res",
   # "sig.wpdsi",
   # "sig.pdsi",
-  # "sig.awssi",
-  # "beta.awssi",
-  # "alpha.awssi",
+  "sig.awssi",
+  "beta.awssi",
+  "alpha.awssi",
   # "sig.rabbits",
   # "beta.rabbits",
   # "alpha.rabbits",
-  # "alpha.rav",
-  # "beta.t.rav",
-  # "sig.rav",
-  # "ar1.rav",
+  "alpha.rav",
+  "beta.t.rav",
+  "sig.rav",
+  "ar1.rav",
   # "sig.nhar",
-  # "raven",
-  # "awssi"
+  "raven",
+  "awssi"
   
 )
 
@@ -522,12 +504,12 @@ out.full.predict <- clusterEvalQ(cl, {
     'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
     # 'mu.harv.trend',
     'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',  
-    # 'theta.sg', 'rate.sg', 'log.r.sg',
-    # 'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
+    'theta.sg', 'rate.sg', 'log.r.sg',
+    'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
     'BPH'))
   model_test$initializeInfo()
   model_test$calculate()
-  mcmcConf <-  configureMCMC( model_test,   monitors =  c(pars1, pars2))#, monitors2 = pars.pred)
+  mcmcConf <-  configureMCMC( model_test,   monitors =  c(pars1, pars2), monitors2 = pars.pred)
   # mcmcConf <-  configureMCMC( model_test,   monitors =  pars1, monitors2 = pars2)
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
@@ -545,31 +527,31 @@ stopCluster(cl)
 end_time <- Sys.time()
 end_time - start_time
 
-samples1 <- list(chain1 =  out.full.predict[[1]],
-                 chain2 =  out.full.predict[[2]],
-                 chain3 =  out.full.predict[[3]])
+# samples1 <- list(chain1 =  out.full.predict[[1]],
+#                  chain2 =  out.full.predict[[2]],
+#                  chain3 =  out.full.predict[[3]])
+# 
+# mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
+
+samples1 <- list(chain1 =  out.full.predict[[1]]$samples,
+                 chain2 =  out.full.predict[[2]]$samples,
+                 chain3 =  out.full.predict[[3]]$samples)
 
 mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
 
-# samples1 <- list(chain1 =  out.full.predict[[1]]$samples, 
-#                  chain2 =  out.full.predict[[2]]$samples, 
-#                  chain3 =  out.full.predict[[3]]$samples)
-# 
-# mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
-# 
-# samples2 <- list(chain1 =  out.full.predict[[1]]$samples2, 
-#                  chain2 =  out.full.predict[[2]]$samples2, 
-#                  chain3 =  out.full.predict[[3]]$samples2)
-# 
-# mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
+samples2 <- list(chain1 =  out.full.predict[[1]]$samples2,
+                 chain2 =  out.full.predict[[2]]$samples2,
+                 chain3 =  out.full.predict[[3]]$samples2)
+
+mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
 #Save Outputs as file
 files <- list(mcmcList1, code)
 # files <- list(mcmcList1, mcmcList2, code)
 save(files, file = paste("./Holdout ", year.hold, '/model_output_FullModel_predict.rdata', sep = ""))
 
-
-mcmcList1 <- files[[1]]
+# 
+# mcmcList1 <- files[[1]]
 # mcmcList2 <- files[[2]]
 
 
@@ -584,75 +566,8 @@ source("./ChukSEM - Estimate Check.R")
 #Output full pdf with all trace plots
 MCMCtrace(mcmcList1, filename = paste("./Holdout ", year.hold, '/TraceOut - Full.pdf', sep = ""))
 
-# MCMCtrace(mcmcList2, filename = paste("./Holdout ", year.hold, '/TraceOut - Full - Predictors.pdf', sep = ""))
+MCMCtrace(mcmcList2, filename = paste("./Holdout ", year.hold, '/TraceOut - Full - Predictors.pdf', sep = ""))
 
 
 
 
-
-# 
-# 
-# ### FOR FORECASTING
-# ### Save beta coefficients and distribution values
-# coefficents.track <- c("alpha.hunt",
-#                      "beta.drought.hunt",
-#                      "beta.wintsev.hunt",
-#                      "beta.jobs",
-#                      "beta.income",
-#                      "beta.license",
-#                      # "pred.spl.hunt",
-#                      
-#                      ### Total Harvest
-#                      "alpha.harv",
-#                      "beta.drought.harv",
-#                      "beta.wintsev.harv",
-#                      # "beta.rabbit.harv",
-#                      "beta.raven.harv",
-#                      "beta.nharrier.harv")
-# 
-# test.beta <- MCMCsummary(mcmcList1, coefficents.track) %>%
-#   mutate(RowID = rownames(MCMCsummary(mcmcList1, coefficents.track))) %>%
-#   mutate(Species = str_extract(RowID, "(?<=\\[).*?(?=\\,)"),
-#          Region = sub('.*\\,', '', RowID)) %>%
-#   mutate(Species = ifelse(is.na(Species), str_extract(RowID, "(?<=\\[).*?(?=\\])"),Species)) %>%
-#   tibble::remove_rownames() %>%
-#   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-#   dplyr::select(RowID, Species,Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%') %>%
-#   mutate(Region = ifelse(as.numeric(Region) %in% 1:2, as.numeric(Region), NA))
-# 
-# write.csv(test.beta, file = "out_HNbetas.csv", row.names = F)
-# 
-# forecast.track <- c(
-#   "alpha.pdi",
-#   "beta.t.pdi",
-#   "sig.pdi",
-#   "ar1.pdi",
-#   "alpha.gas",
-#   "beta.t.gas",
-#   # "mu.gas",
-#   "sig.gas",
-#   "ar1.gas",
-#   # "rel.cost",
-#   "sig.une",
-#   # "une",
-#   "sig.res",
-#   # "res",
-#   "sig.wpdsi",
-#   "sig.pdsi",
-#   "sig.awssi",
-#   "beta.awssi",
-#   "alpha.awssi",
-#   # "sig.rabbits",
-#   # "beta.rabbits",
-#   # "alpha.rabbits",
-#   "alpha.rav",
-#   "beta.t.rav",
-#   "sig.rav",
-#   "ar1.rav",
-#   "sig.nhar"
-# )
-# 
-# test.forecast <- MCMCsummary(mcmcList2, forecast.track) %>%
-#   mutate(RowID = rownames(MCMCsummary(mcmcList2, forecast.track))) %>%
-#   tibble::remove_rownames() %>%
-#   mutate()
