@@ -183,6 +183,27 @@ code <- nimbleCode( {
   } #r
   
   ################################################################################
+  ### Chukar Site Abundance ###
+  for(r in 1:n.region){
+    # alpha.chuk[r] ~ dnorm(0, sd = 100) #Intercept
+    theta.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+    mod.chuk[r] ~ dlogis(0,1)
+  }
+  
+  for(p in 1:n.site){
+    C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
+    
+    for(t in 2:n.year.chuk){
+      log.r.chuk[p,t-1] <-  mod.chuk[reg.chuk[p]] * log.r.harv[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
+      
+      C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
+      
+      rate.chuk[p,t-1] <- theta.chuk[reg.chuk[p]]/(theta.chuk[reg.chuk[p]] + C.chuk[p,t]) #NB success parameter
+      n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[reg.chuk[p]]) #obs. # of chukars follow neg-bin
+    } #t
+  } #p
+  
+  ################################################################################
   ### Birds per Hunter
   for(t in 1:n.year){
     for(s in 1:n.species){

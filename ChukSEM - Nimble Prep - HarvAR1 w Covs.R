@@ -16,10 +16,10 @@ source("./ChukSEM - Data Prep.R")
 # Sys.time()
 
 load("./model_output_HuntEff_pred.rdata")
-# mcmcList2 <- files[[1]]
+mcmcList2 <- files[[1]]
 
 ### Load Model Code
-source("./ChukSEM - Model Only - Base w Covs.R")
+source("./ChukSEM - Model Only - HarvAR1 w Covs.R")
 
 
 ### Specify Data Inputs
@@ -94,8 +94,8 @@ data <- list(
   Z.hunt = ZZ1, #Spline
 
   ### Total Harvest
-  n.harv = upland,
-  Z.harv = ZZ #Spline
+  # Z.harv = ZZ, #Spline
+  n.harv = upland
 )
 
 
@@ -233,13 +233,16 @@ initsFunction <- function() list(
   alpha.awssi = 0,
   awssi = awssi.init,
   # #Ravens
-  alpha.rav = 0,
-  beta.t.rav = 0,
-  sig.rav = 1,
-  ar1.rav = 0,
+  # alpha.rav = 0,
+  # beta.t.rav = 0,
+  # sig.rav = 1,
+  # ar1.rav = 0,
   #Unemployment
   sig.une = 1,
   une = une.init,
+  # #Resident License Sales
+  # sig.res = 1,
+  # res = res.init,
 
   ###Beta Coefficient Means/SDs
   mu.wintsev.harv = 0,
@@ -251,12 +254,15 @@ initsFunction <- function() list(
   beta.wintsev.harv = rep(0, 7),
   beta.raven.harv = rep(0, 7),
   beta.hunter.harv = rep(0, 7),
-  beta.spl.harv = array(0, dim = c(7,2,12)),
+  # beta.spl.harv = array(0, dim = c(7,2,12)),
   mu.wintsev.hunt = 0,
   sig.wintsev.hunt = 1,
   mu.jobs = 0,
   sig.jobs = 1,
+  # mu.license = 0,
+  # sig.license = 1,
   beta.jobs = rep(0, 7),
+  # beta.license = rep(0, 7),
   beta.wintsev.hunt = rep(0, 7),
 
   ### Hunter Effort
@@ -268,7 +274,7 @@ initsFunction <- function() list(
   rho.hunt = abind(diag(n.species),diag(n.species),along = 3),
   alpha.hunt = matrix(0, ncol = 2, nrow = 7),
   sig.hunt = matrix(1, ncol = 2, nrow = 7),
-  sig.spl.hunt = matrix(1, ncol = 2, nrow = 7),
+  sig.spl.hunt = matrix(1, ncol = 2, nrow = 7),beta.wintsev.hunt = rep(0, 7),
 
   ### Total Harvest
   n.harv = n.harv.i,
@@ -280,8 +286,9 @@ initsFunction <- function() list(
   alpha.harv = matrix(0, ncol = 2, nrow = 7),
   sig.harv = matrix(1, ncol = 2, nrow = 7),
   log.r.harv = array(0, dim = c(7,(cut)-1,2) ),
-  sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
-  N = Ni
+  # sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
+  N = Ni,
+  ar1.harv = matrix(.5, nrow = 7, ncol = 2)
 )
 
 inits <- initsFunction()
@@ -294,7 +301,7 @@ model_test <- nimbleModel( code = code,
                            inits = inits)
 model_test$simulate(c(
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-                      'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+                      'mu.harv.trend','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
                       'BPH'
                       ))
 model_test$initializeInfo()
@@ -303,40 +310,73 @@ model_test$calculate()
 
 pars1 <- c(### Hunter Effort
   "alpha.hunt",
+  # "beta.drought.hunt",
   "beta.wintsev.hunt",
   "beta.jobs",
+  # "beta.income",
+  # "beta.license",
+  # "pred.spl.hunt",
   
   ### Total Harvest
   "alpha.harv",
+  # "beta.drought.harv",
   "beta.wintsev.harv",
   "beta.hunter.harv",
-  "beta.raven.harv"
+  "beta.raven.harv",
+  # "beta.nharrier.harv",
+  "ar1.harv"
+  # "pred.spl.harv",
 )
 
 pars2 <- c(### Hunter Effort
   "H",
-  "rho.hunt",
+  # "rho.hunt",
   "log.r.hunt",
   
   ### Total Harvest
   "N",
-  "rho.harv",
+  # "rho.harv",
   "log.r.harv",
+  
+  # ### Sage Grouse Wing-Bee
+  # "log.r.sg",
+  # 
+  # ### Chukar Site Abundance
+  # 
+  # "log.r.chuk",
   
   ### Birds per Hunter
   "BPH")
 
 pars.pred <- c(
+  # "alpha.pdi",
+  # "beta.t.pdi",
+  # "sig.pdi",
+  # "ar1.pdi",
+  # "alpha.gas",
+  # "beta.t.gas",
+  # "mu.gas",
+  # "sig.gas",
+  # "ar1.gas",
+  # "rel.cost",
   "sig.une",
   "une",
-  "alpha.rav",
-  "beta.t.rav",
-  "sig.rav",
-  "ar1.rav",
-  "raven",
+  # "sig.res",
+  # "res",
+  # "sig.wpdsi",
+  # "sig.pdsi",
   "sig.awssi",
   "beta.awssi",
   "alpha.awssi",
+  # "sig.rabbits",
+  # "beta.rabbits",
+  # "alpha.rabbits",
+  # "alpha.rav",
+  # "beta.t.rav",
+  # "sig.rav",
+  # "ar1.rav",
+  # "sig.nhar",
+  # "raven",
   "awssi"
 )
 
@@ -366,9 +406,9 @@ out.full.predict <- clusterEvalQ(cl, {
   
   model_test$simulate(c(
     'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-    'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+    'mu.harv.trend','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
     'BPH'
-    ))
+  ))
   model_test$initializeInfo()
   model_test$calculate()
   mcmcConf <-  configureMCMC( model_test,   monitors =  c(pars1, pars2), monitors2 = pars.pred)
@@ -377,7 +417,7 @@ out.full.predict <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 145000, niter = 150000, thin = 5, thin2 = 5)
+  samplesList <- runMCMC(Cmcmc,nburnin = 95000, niter = 100000, thin = 5, thin2 = 5)
   # samplesList <- runMCMC(Cmcmc,nburnin = 5, niter = 100, thin = 1, thin2 = 1)
   
   return(samplesList)
@@ -410,7 +450,7 @@ mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 #Save Outputs as file
 files <- list(mcmcList1, code)
 # files <- list(mcmcList1, mcmcList2, code)
-save(files, file = paste("./Holdout ", year.hold, '/model_output_FullModel_predict',year.hold +1,'.rdata', sep = ""))
+save(files, file = paste("./Holdout ", year.hold, '/model_output_FullModel_predict.rdata', sep = ""))
 
 # 
 # mcmcList1 <- files[[1]]

@@ -16,10 +16,10 @@ source("./ChukSEM - Data Prep.R")
 # Sys.time()
 
 load("./model_output_HuntEff_pred.rdata")
-# mcmcList2 <- files[[1]]
+mcmcList2 <- files[[1]]
 
 ### Load Model Code
-source("./ChukSEM - Model Only - Base w Covs.R")
+source("./ChukSEM - Model Only - HNC w Covs.R")
 
 
 ### Specify Data Inputs
@@ -79,23 +79,19 @@ ZZ1[is.na(ZZ1)] <- 0
 data <- list(
   ### Covariates
   une = une, #BL Unemployment information for Nevada, scaled
-  # res = res, #Residential license sales
-  # PDI = PDI, #personal disposable income
-  # GAS = GAS, #gas prices
   awssi = awssi, #winter severity index, scaled
-  # pdsi = pdsi, #Previous breeding season drought index
-  # wpdsi = wpdsi, #winter drought index, scaled
-  # rabbits = rabbits, #Number of rabbits harvested
   raven = as.vector(bbs.df$raven)[-nrow(bbs.df)], #bbs bayes index for ravens, t = 1 is 1975
-  # nharrier = as.vector(bbs.df$nharrier), #bbs bayes index for northern harriers, t = 1 is 1975
-
+ 
   ### Hunter Effort
   n.hunt = hunters, #Observed number of hunters for each species each year
   Z.hunt = ZZ1, #Spline
 
   ### Total Harvest
   n.harv = upland,
-  Z.harv = ZZ #Spline
+  Z.harv = ZZ, #Spline
+  
+  ### Chukar Site Abundance
+  n.chuk = data.matrix(chukar)
 )
 
 
@@ -123,7 +119,12 @@ constants <- list(
   I.hunt = abind(I,I,along = 3),
 
   ### Total Harvest
-  I.harv = abind(I2,I2,along = 3)
+  I.harv = abind(I2,I2,along = 3),
+  
+  ### Chukar Site Abundance
+  n.site = nrow(chukar),
+  n.year.chuk = ncol(chukar),
+  reg.chuk = chuk.reg
 )
 
 
@@ -281,7 +282,13 @@ initsFunction <- function() list(
   sig.harv = matrix(1, ncol = 2, nrow = 7),
   log.r.harv = array(0, dim = c(7,(cut)-1,2) ),
   sig.spl.harv = matrix(1, ncol = 2, nrow = 7),
-  N = Ni
+  N = Ni,
+  
+  ### Chukar Site Abundance
+  theta.chuk = rep(1,2),
+  mod.chuk = rep(1,2),
+  n.chuk = as.matrix(chukar_na),
+  log.r.chuk = r.chuk.init
 )
 
 inits <- initsFunction()
@@ -295,6 +302,7 @@ model_test <- nimbleModel( code = code,
 model_test$simulate(c(
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
                       'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+                      'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                       'BPH'
                       ))
 model_test$initializeInfo()
@@ -322,6 +330,9 @@ pars2 <- c(### Hunter Effort
   "N",
   "rho.harv",
   "log.r.harv",
+  
+  # ### Chukar Site Abundance
+  "log.r.chuk",
   
   ### Birds per Hunter
   "BPH")
@@ -367,8 +378,9 @@ out.full.predict <- clusterEvalQ(cl, {
   model_test$simulate(c(
     'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
     'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+    'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
     'BPH'
-    ))
+  ))
   model_test$initializeInfo()
   model_test$calculate()
   mcmcConf <-  configureMCMC( model_test,   monitors =  c(pars1, pars2), monitors2 = pars.pred)

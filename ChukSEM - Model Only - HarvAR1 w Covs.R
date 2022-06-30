@@ -6,29 +6,35 @@
 code <- nimbleCode( {
   ################################################################################
   ### Predictors ###
-  #Ravens (Highly correlated with Prairie Falcon and RTHawk)
-  alpha.rav ~ dnorm(0, 0.001) #intercept
-  beta.t.rav ~ dnorm(0, 0.01) #year
-  sig.rav~ T(dt(0, pow(2.5,-2), 1),0,)
-  
-  ar1.rav ~ dunif(-1,1) #Autoregressive parameter
-  
-  rav.trend[1] <- alpha.rav + beta.t.rav * 1
-  mu.rav[1] <- rav.trend[1]
-  for(t in 2:n.year){
-    rav.trend[t] <- alpha.rav + beta.t.rav * t
-    mu.rav[t] <- rav.trend[t] + ar1.rav * (raven[t-1] - rav.trend[t-1])
-  } #t
-  
-  for(t in 1:n.year){
-    raven[t] ~ dnorm(mu.rav[t], sd = sig.rav)
-  }
+  # #Ravens (Highly correlated with Prairie Falcon and RTHawk)
+  # alpha.rav ~ dnorm(0, 0.001) #intercept
+  # beta.t.rav ~ dnorm(0, 0.01) #year
+  # sig.rav~ T(dt(0, pow(2.5,-2), 1),0,)
+  # 
+  # ar1.rav ~ dunif(-1,1) #Autoregressive parameter
+  # 
+  # rav.trend[1] <- alpha.rav + beta.t.rav * 1
+  # mu.rav[1] <- rav.trend[1]
+  # for(t in 2:n.year){
+  #   rav.trend[t] <- alpha.rav + beta.t.rav * t
+  #   mu.rav[t] <- rav.trend[t] + ar1.rav * (raven[t-1] - rav.trend[t-1])
+  # } #t
+  # 
+  #   for(t in 1:n.year){
+  #     raven[t] ~ dnorm(mu.rav[t], sd = sig.rav)
+  #   }
   
   #Unemployment (Jobs)
   sig.une ~ T(dt(0, pow(2.5, -2), 1), 0, )
   for (t in 1:(n.year)) {
     une[t] ~ dnorm(0, sd = sig.une)
   }
+  
+  # #Resident Licenses
+  # sig.res ~ T(dt(0, pow(2.5, -2), 1), 0, )
+  # for (t in 1:n.year) {
+  #   res[t] ~ dnorm(0, sd = sig.res)
+  # }
   
   #Winter Severity
   beta.awssi ~ dnorm(0, sd = 100)
@@ -46,10 +52,13 @@ code <- nimbleCode( {
   sig.wintsev.hunt ~ T(dt(0, pow(2.5, -2), 1), 0, )
   mu.jobs ~ dnorm(0, sd = 100)
   sig.jobs ~ T(dt(0, pow(2.5, -2), 1), 0, )
+  # mu.license ~ dnorm(0, sd = 100)
+  # sig.license ~ T(dt(0, pow(2.5, -2), 1), 0, )
   
   for (s in 1:n.species) {
     beta.wintsev.hunt[s] ~ dnorm(mu.wintsev.hunt, sd = sig.wintsev.hunt)
     beta.jobs[s] ~ dnorm(mu.jobs, sd = sig.jobs)
+    # beta.license[s] ~ dnorm(mu.license, sd = sig.license)
   }
   
   for(r in 1:n.region){
@@ -65,6 +74,7 @@ code <- nimbleCode( {
         mu.hunt[s,t,r] <- alpha.hunt[s,r] + #intercept
           beta.wintsev.hunt[s] * awssi[r, t + 1] + 
           beta.jobs[s] * une[t] + 
+          # beta.license[s] * res[t] +
           inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #spline smoothing
         
         H[s,t,r] <- exp(hunt.eps[s,t,r]) #Log Link
@@ -127,20 +137,25 @@ code <- nimbleCode( {
   for(r in 1:n.region){
     for(s in 1:n.species){
       alpha.harv[s,r] ~ dnorm(0, sd = 12)
-      for(k in 1:K){
-        beta.spl.harv[s,r,k] ~ dnorm(0, sd = sig.spl.harv[s,r])
-      } #k
-      sig.spl.harv[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+      ar1.harv[s,r] ~ dunif(-1,1) #Autoregressive parameter
+      mu.harv.trend[s,1,r] <- alpha.harv[s,r] +#regression formula
+        beta.hunter.harv[s] * H[s,1,r] + #Current season hunter numbers
+        beta.wintsev.harv[s] * awssi[r,1] + #Previous winter severity (Affecting Survival)
+        beta.raven.harv[s] * raven[1]
+      mu.harv[s,1,r] <- mu.harv.trend[s,1,r]
       
       # Process Model
-      for(t in 1:n.year){
+      for(t in 2:n.year){
         #Unlinked estimate of Hunter Numbers
-        mu.harv[s,t,r] <- alpha.harv[s,r] +#regression formula
-          beta.hunter.harv[s] * ((n.hunt[s,t,r] - mean(n.hunt[s,1:n.year,r]))/sd(n.hunt[s,1:n.year,r])) + #Current season hunter numbers
+        mu.harv.trend[s,t,r] <- alpha.harv[s,r] +#regression formula
+          beta.hunter.harv[s] * H[s,t,r] + #Current season hunter numbers
           beta.wintsev.harv[s] * awssi[r,t] + #Previous winter severity (Affecting Survival)
-          beta.raven.harv[s] * raven[t] + #Previous Year BBS index (Affecting Reproduction)
-          inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #spline smoothing
+          beta.raven.harv[s] * raven[t] #Previous Year BBS index (Affecting Reproduction)
         
+        mu.harv[s,t,r] <- mu.harv.trend[s,t,r] + ar1.harv[s,r]*(harv.eps[s,t-1,r]-mu.harv[s,t-1,r])
+      }
+      
+      for(t in 1:n.year){ 
         N[s,t,r] <- exp(harv.eps[s,t,r]) #Log Link
         
         n.harv[s,t,r] ~ dpois(N[s,t,r]) #Number of hunters follows Poisson
