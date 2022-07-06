@@ -1,7 +1,3 @@
-#### Modeled Variation in N instead of log.r.harv
-#### Spline to deal with serial autocorrelation in N/H
-#### No Covariates
-
 ### Model Code
 code <- nimbleCode( {
   ################################################################################
@@ -115,13 +111,10 @@ code <- nimbleCode( {
   sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.raven ~ dnorm(0, 0.01)
   sig.raven ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.hunter ~ dnorm(0, 0.01)
-  sig.hunter ~ T(dt(0, pow(2.5,-2), 1),0,)
   
   for(s in 1:n.species){
     beta.wintsev.harv[s] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
     beta.raven.harv[s] ~ dnorm(mu.raven, sd  = sig.raven)
-    beta.hunter.harv[s] ~ dnorm(mu.hunter, sd  = sig.hunter)
   } #s
   
   for(r in 1:n.region){
@@ -136,7 +129,6 @@ code <- nimbleCode( {
       for(t in 1:n.year){
         #Unlinked estimate of Hunter Numbers
         mu.harv[s,t,r] <- alpha.harv[s,r] +#regression formula
-          beta.hunter.harv[s] * ((n.hunt[s,t,r] - mean(n.hunt[s,1:n.year,r]))/sd(n.hunt[s,1:n.year,r])) + #Current season hunter numbers
           beta.wintsev.harv[s] * awssi[r,t] + #Previous winter severity (Affecting Survival)
           beta.raven.harv[s] * raven[t] + #Previous Year BBS index (Affecting Reproduction)
           inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) #spline smoothing
@@ -185,7 +177,6 @@ code <- nimbleCode( {
   ################################################################################
   ### Chukar Site Abundance ###
   for(r in 1:n.region){
-    # alpha.chuk[r] ~ dnorm(0, sd = 100) #Intercept
     theta.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     mod.chuk[r] ~ dlogis(0,1)
   }

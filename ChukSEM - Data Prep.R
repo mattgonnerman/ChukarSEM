@@ -13,14 +13,14 @@ df <- gather(survey_data, "Population", "Count", 2:14)
 # Where chukar surveys occurred
 site_list <- unique(df$Population)
 # Years to assess
-year_list <- rep(1972:(cutoff.y+1))
+year_list <- rep(1990:cutoff.y.chuk)
 #Create new df for all population*year combinations
 df_full <- data.frame("Population" = rep(site_list, times = length(year_list)), "Year" = rep(year_list, each = length(site_list)))
 #Join associated number of surveys at each location in each year
 df_full <- left_join(df_full, df)
 #Format wider
 df_ch <- dcast(df_full, Population ~ Year)
-chukar <- df_ch[,-c(1:19)]
+chukar <- df_ch %>% dplyr::select(as.character(year_list))
 if(n.add.y >1){
   chukar <- cbind(chukar , as.data.frame(matrix(NA, nrow = nrow(chukar), ncol = n.add.y -1)))
 }

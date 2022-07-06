@@ -18,7 +18,7 @@ source("./ChukSEM - Hunter Effort Model - Predict.R")
 
 
 ### Load Model Code
-source("./ChukSEM - Model Only - HNC w Covs.R")
+source("./ChukSEM - Model Only - HNC No Cov.R")
 
 
 ### Specify Data Inputs
@@ -35,7 +35,7 @@ bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg
   get_bs_matrix <- matrix(bs(x, knots = knots, degree = deg, Boundary.knots = c(knots[1], knots[length(knots)])), nrow = length(x))
   # Remove columns that contain zero only
   bs_matrix <- get_bs_matrix[, -c(1:deg, ncol(get_bs_matrix):(ncol(get_bs_matrix) - deg))]
-
+  
   return(bs_matrix)
 }
 
@@ -76,15 +76,10 @@ ZZ1 <- Z1
 ZZ1[is.na(ZZ1)] <- 0
 
 data <- list(
-  ### Covariates
-  une = une, #BL Unemployment information for Nevada, scaled
-  awssi = awssi, #winter severity index, scaled
-  raven = as.vector(bbs.df$raven)[-nrow(bbs.df)], #bbs bayes index for ravens, t = 1 is 1975
- 
   ### Hunter Effort
   n.hunt = hunters, #Observed number of hunters for each species each year
-  Z.hunt = ZZ1, #Spline
-
+  Z.hunt = ZZ1, #Spline 
+  
   ### Total Harvest
   n.harv = upland,
   Z.harv = ZZ, #Spline
@@ -100,13 +95,10 @@ constants <- list(
   n.species = nrow(upland),
   n.year = ncol(hunters),
   K = 12,
-
-  ### Predictors
-  era.awssi = c(rep(0,length(1975:1994)),rep(1, length(1995:2001)), rep(0, length(2002:2017))), #Groupings for change in gas prices
-
+  
   ### Hunter Effort
   I.hunt = abind(I,I,along = 3),
-
+  
   ### Total Harvest
   I.harv = abind(I2,I2,along = 3),
   
@@ -162,7 +154,7 @@ Ni <- array(NA, c(nrow(n.harv.i), ncol(n.harv.i), 2))
 Ni[,1,] <- upland[,1,] + 50
 
 ## Chukar Site Abundance
-chukar_na <- chukar
+chukar_na <- chukar 
 
 for(i in 1:nrow(chukar_na)){
   for(j in 1:ncol(chukar_na)){
@@ -185,44 +177,8 @@ C.chuk.init <- chukar
 C.chuk.init[is.na(C.chuk.init)] <- floor(mean(as.matrix(chukar), na.rm = T))
 C.chuk.init[,2:ncol(C.chuk.init)] <- NA
 
-### Predictors
-une.init <- ifelse(is.na(une), 0, NA)
-awssi.init <- awssi
-for(i in 1:2){awssi.init[i,] <- ifelse(is.na(awssi[i,]), 0, NA)}
-raven.init <- as.vector(ifelse(is.na(bbs.df$raven), 0, NA))
-
 # Wrapper Function
 initsFunction <- function() list(
-  ### Predictors
-  #Winter Severity
-  sig.awssi = rep(1,2),
-  beta.awssi = 0,
-  alpha.awssi = 0,
-  awssi = awssi.init,
-  # #Ravens
-  alpha.rav = 0,
-  beta.t.rav = 0,
-  sig.rav = 1,
-  ar1.rav = 0,
-  #Unemployment
-  sig.une = 1,
-  une = une.init,
-
-  ###Beta Coefficient Means/SDs
-  mu.wintsev.harv = 0,
-  sig.wintsev.harv = 1,
-  mu.raven = 0,
-  sig.raven = 1,
-  beta.wintsev.harv = rep(0, 7),
-  beta.raven.harv = rep(0, 7),
-  beta.spl.harv = array(0, dim = c(7,2,12)),
-  mu.wintsev.hunt = 0,
-  sig.wintsev.hunt = 1,
-  mu.jobs = 0,
-  sig.jobs = 1,
-  beta.jobs = rep(0, 7),
-  beta.wintsev.hunt = rep(0, 7),
-
   ### Hunter Effort
   n.hunt = n.hunt.i,
   Q.hunt = abind(Q,Q,along = 3),
@@ -233,7 +189,7 @@ initsFunction <- function() list(
   alpha.hunt = matrix(0, ncol = 2, nrow = 7),
   sig.hunt = matrix(1, ncol = 2, nrow = 7),
   sig.spl.hunt = matrix(1, ncol = 2, nrow = 7),
-
+  
   ### Total Harvest
   n.harv = n.harv.i,
   Q.harv = abind(Q2,Q2,along = 3),
@@ -264,7 +220,7 @@ model_test <- nimbleModel( code = code,
                            inits = inits)
 model_test$simulate(c(
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-                      'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+                      'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',  
                       'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                       'BPH'
                       ))
@@ -274,13 +230,13 @@ model_test$calculate()
 
 pars1 <- c(### Hunter Effort
   "alpha.hunt",
-  "beta.wintsev.hunt",
-  "beta.jobs",
   
   ### Total Harvest
   "alpha.harv",
-  "beta.wintsev.harv",
-  "beta.raven.harv"
+  
+  ### Chukar Site Abundance
+  "mod.chuk",
+  "theta.chuk"
 )
 
 pars2 <- c(### Hunter Effort
@@ -293,25 +249,8 @@ pars2 <- c(### Hunter Effort
   "rho.harv",
   "log.r.harv",
   
-  # ### Chukar Site Abundance
-  "log.r.chuk",
-  
   ### Birds per Hunter
   "BPH")
-
-pars.pred <- c(
-  "sig.une",
-  "une",
-  "alpha.rav",
-  "beta.t.rav",
-  "sig.rav",
-  "ar1.rav",
-  "raven",
-  "sig.awssi",
-  "beta.awssi",
-  "alpha.awssi",
-  "awssi"
-)
 
 # Parallel Processing Setup
 rm(out)
@@ -321,7 +260,7 @@ start_time
 nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000) #Start 3 parallel processing clusters
 
-clusterExport(cl, c("code", "inits", "data", "constants", "pars1", "pars2", "pars.pred")) #identify what is to be exported to each cluster
+clusterExport(cl, c("code", "inits", "data", "constants", "pars1", "pars2")) #identify what is to be exported to each cluster
 
 for (j in seq_along(cl)) {
   set.seed(j)
@@ -332,25 +271,25 @@ for (j in seq_along(cl)) {
 out.full.predict <- clusterEvalQ(cl, {
   require(nimble)
   require(coda)
-  
   model_test <- nimbleModel( code = code,
                              constants = constants,
                              data =  data,
                              inits = inits )
   model_test$simulate(c(
     'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-    'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+    'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',  
     'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
     'BPH'
   ))
   model_test$initializeInfo()
   model_test$calculate()
   
-  mcmcConf <-  configureMCMC( model_test,   monitors =  c(pars1, pars2), monitors2 = pars.pred)
+  mcmcConf <-  configureMCMC( model_test,   monitors =  c(pars1, pars2))
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   samplesList <- runMCMC(Cmcmc,nburnin = 95000, niter = 100000, thin = 5, thin2 = 5)
+  
   return(samplesList)
 })
 #Stop parallel cluster
@@ -360,25 +299,18 @@ stopCluster(cl)
 end_time <- Sys.time()
 end_time - start_time
 
-samples1 <- list(chain1 =  out.full.predict[[1]]$samples,
-                 chain2 =  out.full.predict[[2]]$samples,
-                 chain3 =  out.full.predict[[3]]$samples)
+samples1 <- list(chain1 =  out.full.predict[[1]],
+                 chain2 =  out.full.predict[[2]],
+                 chain3 =  out.full.predict[[3]])
 
 mcmcList1 <- as.mcmc.list(lapply(samples1, mcmc))
 
-samples2 <- list(chain1 =  out.full.predict[[1]]$samples2,
-                 chain2 =  out.full.predict[[2]]$samples2,
-                 chain3 =  out.full.predict[[3]]$samples2)
-
-mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
-
 #Save Outputs as file
-files <- list(mcmcList1, mcmcList2, code)
-save(files, file = paste("./Holdout ", year.hold, '/model_output_FullModel_predict',year.hold +1,'.rdata', sep = ""))
+files <- list(mcmcList1, code)
+save(files, file = paste("./Holdout ", year.hold, '/model_output_FullModel_predict.rdata', sep = ""))
 
 #Traceplots
 MCMCtrace(mcmcList1, filename = paste("./Holdout ", year.hold, '/TraceOut - Full.pdf', sep = ""))
-MCMCtrace(mcmcList2, filename = paste("./Holdout ", year.hold, '/TraceOut - Full - Predictors.pdf', sep = ""))
 
 #Preliminary Graphs
 source("./ChukSEM - Estimate Check.R")
