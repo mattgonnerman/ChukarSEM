@@ -6,9 +6,10 @@ final.y <- 2017 #Last year to predict
 year.hold <- cutoff.y +1
 drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 n.add.y <- final.y - cutoff.y
+cut <- length(1976:cutoff.y) + n.add.y #Reference used to subset dataframes later
 
 ### Run Hunter Effort Solo Model to get estimates of H to create spline inputs
-source("E:/GitHub/ChukarSEM/ChukSEM - Data Prep.R")
+source("./ChukSEM - Data Prep.R")
 source("./ChukSEM - Hunter Effort Model - Predict.R")
 
 
@@ -350,7 +351,7 @@ out.full.predict <- clusterEvalQ(cl, {
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
-  samplesList <- runMCMC(Cmcmc,nburnin = 95000, niter = 100000, thin = 5, thin2 = 5)
+  samplesList <- runMCMC(Cmcmc,nburnin = 145000, niter = 200000, thin = 5, thin2 = 5)
   return(samplesList)
 })
 #Stop parallel cluster
