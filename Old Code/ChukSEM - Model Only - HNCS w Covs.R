@@ -45,24 +45,6 @@ code <- nimbleCode( {
     mu.bbs.pred[4,t] <- mu.bbs.p[4] + zeta.bbs[4] * pred.bbs.prime[t]
   }
 
-  #Winter Severity
-  beta.awssi ~ dnorm(0, sd = 10)
-  alpha.awssi ~ dnorm(0, sd = 10)
-  for (r in 1:n.region) {
-    sig.awssi[r] ~ T(dt(0, pow(2.5, -2), 1), 0, )
-    for (t in 1:(n.year+1)) {
-      awssi[t,r] ~ dnorm(alpha.awssi + (beta.awssi * era.awssi[t]), sd = sig.awssi[r])
-    }
-  }
-  
-  #Drought Index
-  for(r in 1:n.region){
-    sig.drought[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    for(t in 1:n.year){
-      pdsi[t,r] ~ dnorm(0, sd = sig.drought[r])
-    } #t
-  } #r
-  
   
   ################################################################################
   ### Hunter Effort ###
@@ -136,30 +118,37 @@ code <- nimbleCode( {
   sig.bbs ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.pdsi ~ dnorm(0, 0.01)
   sig.pdsi ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.hunter ~ dnorm(0, 0.01)
+  sig.hunter ~ T(dt(0, pow(2.5,-2), 1),0,)
   
   for(s in 1:n.species){
-      beta.wintsev.harv[s] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
-      beta.bbs.harv[s] ~ dnorm(mu.bbs, sd  = sig.bbs)
-      beta.pdsi.harv[s] ~ dnorm(mu.pdsi, sd  = sig.pdsi)
+    for(r in 1:2){
+      beta.wintsev.harv[s,r] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
+      beta.bbs.harv[s,r] ~ dnorm(mu.bbs, sd  = sig.bbs)
+      beta.pdsi.harv[s,r] ~ dnorm(mu.pdsi, sd  = sig.pdsi)
+      beta.hunter.harv[s,r] ~ dnorm(mu.hunter, sd  = sig.hunter)
+    }
+    
   } #s
   
   for(r in 1:n.region){
     for(s in 1:n.species){
       alpha.harv[s,r] ~ dnorm(0, sd = 12)
-      for(k in 1:K){
-        beta.spl.harv[s,r,k] ~ dnorm(0, sd = sig.spl.harv[s,r])
-      } #k
-      sig.spl.harv[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+      # for(k in 1:K){
+      #   beta.spl.harv[s,r,k] ~ dnorm(0, sd = sig.spl.harv[s,r])
+      # } #k
+      # sig.spl.harv[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
       
       # Process Model
       for(t in 1:n.year){
         #Unlinked estimate of Hunter Numbers
         mu.harv[s,t,r] <- alpha.harv[s,r] + # intercepts
-          beta.wintsev.harv[s] * awssi[t,r]  + # Previous winter severity (Affecting Survival)
-          beta.pdsi.harv[s] * pdsi[t,r] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
-          beta.bbs.harv[s] * pred.bbs.prime[t] + # Latent predator index (Affecting Reproduction)
-          inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) # Spline smoothing = OFFSET
-        
+          beta.hunter.harv[s,r] * ((n.hunt[s,t,r] - mean(n.hunt[s,1:n.year,r]))/sd(n.hunt[s,1:n.year,r])) + # Current season hunter numbers
+          beta.wintsev.harv[s,r] * awssi[t,r]  + # Previous winter severity (Affecting Survival)
+          beta.pdsi.harv[s,r] * pdsi[t,r] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
+          beta.bbs.harv[s,r] * pred.bbs.prime[t] #+ # Latent predator index (Affecting Reproduction)
+          # inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) # Spline smoothing
+
         N[s,t,r] <- exp(harv.eps[s,t,r]) #Log Link
         
         n.harv[s,t,r] ~ dpois(N[s,t,r]) #Number of hunters follows Poisson
@@ -220,6 +209,21 @@ code <- nimbleCode( {
       n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[reg.chuk[p]]) #obs. # of chukars follow neg-bin
     } #t
   } #p
+  
+  ###############################################################################
+  ### Sage Grouse Wing-Bee ###
+  for(r in 1:n.region){
+    # alpha.sg[r] ~ dnorm(0, sd = 100) #Intercept
+    mod.sg[r] ~ dlogis(0,1) #Constant modifier to translate harv change to wingb change
+    theta.sg[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+    
+    for(t in 1:n.years.sg){
+      log.r.sg[r,t] <- mod.sg[r] * log.r.harv[5, t+27, r] #log.r.harv[t=25] is 2004
+      
+      rate.sg[r,t] <- theta.sg[r]/(theta.sg[r] + (AHY.sg[r,t]*exp(log.r.sg[r,t]))) #NB rate
+      HY.sg[r,t] ~ dnegbin(prob = rate.sg[r,t], size = theta.sg[r])
+    } #t
+  } #r
   
   ################################################################################
   ### Birds per Hunter

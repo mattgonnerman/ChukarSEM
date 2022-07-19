@@ -35,39 +35,35 @@ test.N   <- MCMCsummary(mcmcList1, 'N') %>%
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
   dplyr::select(Species, Year, Region, Estimate = '50%', LCL = '2.5%', UCL = '97.5%')
-write.csv(test.bph, file = paste("./Holdout ", year.hold, "/CheckPlot - out_BPH_all.csv", sep = ""), row.names = F)
-write.csv(test.H, file = paste("./Holdout ", year.hold, "/CheckPlot - out_H_all.csv", sep = ""), row.names = F)
-write.csv(test.N, file =  paste("./Holdout ", year.hold, "/CheckPlot - out_N_all.csv", sep = ""), row.names = F)
+write.csv(test.bph, file = "./www/CheckPlot - out_BPH_all.csv", row.names = F)
+write.csv(test.H, file = "./www/CheckPlot - out_H_all.csv", row.names = F)
+write.csv(test.N, file =  "./www/CheckPlot - out_N_all.csv", row.names = F)
 
 checkplotN <- ggplot(data = test.N, aes(x = Year, y = Estimate, group = as.factor(Species))) +
   geom_line(aes(color = as.factor(Species))) +
   facet_wrap(vars(Region)) +
   scale_y_continuous(trans = "log10") +
   labs(title = "Total Harvest")
-ggsave(checkplotN, filename = paste("./Holdout ", year.hold, '/CheckPlot - N.jpg', sep = ""), dpi = 300)
+ggsave(checkplotN, filename = "./www/CheckPlot - N.jpg", dpi = 300)
 
 checkplotH <- ggplot(data = test.H, aes(x = Year, y = Estimate, as.factor(Species))) +
   geom_line(aes(color = as.factor(Species))) +
   facet_wrap(vars(Region)) +
   scale_y_continuous(trans = "log10") +
   labs(title = "Hunter Effort")
-ggsave(checkplotH, filename = paste("./Holdout ", year.hold, '/CheckPlot - H.jpg', sep = ""), dpi = 300)
+ggsave(checkplotH, filename = "./www/CheckPlot - H.jpg", dpi = 300)
 
 checkplotBPH <- ggplot(data = test.bph, aes(x = Year, y = Estimate, as.factor(Species))) +
   geom_line(aes(color = as.factor(Species))) +
   facet_wrap(vars(Region)) +
   scale_y_continuous(trans = "log10") +
   labs(title = "Birds Per Hunter")
-ggsave(checkplotBPH, filename = paste("./Holdout ", year.hold, '/CheckPlot - BPH.jpg', sep = ""), dpi = 300)
+ggsave(checkplotBPH, filename = "./www/CheckPlot - BPH.jpg", dpi = 300)
 
 
 ### Check Model Outputs against observed values
 
-if(drop.rabbit == "Y"){
-  check.species <- species[-c(4,7,8)]
-}else{
-  check.species <- species[-c(4,8)]
-}
+check.species <- species
 
 #Load all species harvest data
 obs.HarvestData <- read.csv('./Data/all_species_harvest_data.csv') %>%
@@ -93,6 +89,7 @@ obs.HarvestData <- read.csv('./Data/all_species_harvest_data.csv') %>%
   mutate(Obs.BPH = Obs.N/Obs.H) %>%
   dplyr::select(-State, -H.Days) %>%
   filter(Region != "Southern")  %>%
+  filter(Year <= final.y) %>%
   arrange(Region, Species, Year)
   
 est.N <- test.N %>%

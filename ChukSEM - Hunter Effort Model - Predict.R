@@ -1,33 +1,34 @@
 ### Model Code
 code <- nimbleCode( {
   ################################################################################
-  ### Predictors ###
-  #Unemployment (Jobs)
-  sig.une ~ T(dt(0, pow(2.5, -2), 1), 0, )
-  for (t in 1:(n.year)) {
-    une[t] ~ dnorm(0, sd = sig.une)
+  ### Economic Predictors ###
+  for(i in 1:4){
+    sig.econ.pred[i] ~ dgamma(1,1)
+    mu.econ.p[i] ~ dnorm(0, 1)
   }
-  
-  #Winter Severity
-  beta.awssi ~ dnorm(0, sd = 100)
-  alpha.awssi ~ dnorm(0, sd = 100)
-  for (r in 1:n.region) {
-    sig.awssi[r] ~ T(dt(0, pow(2.5, -2), 1), 0, )
-    for (t in 1:(n.year+1)) {
-      awssi[r, t] ~ dnorm(alpha.awssi + beta.awssi * (era.awssi[t] - 1), sd = sig.awssi[r])
-    }
+  zeta.econ[1] <- 1
+  for(i in 2:4){
+    zeta.econ[i] ~ dnorm(0, 1)
+  }
+  for(t in 1:n.year){
+    pred.econ.prime[t] ~ dnorm(0, 1) # Latent Predator Index
+    gas[t] ~ dnorm(mu.econ.pred[1,t], sd = sig.econ.pred[1])
+    une[t] ~ dnorm(mu.econ.pred[2,t], sd = sig.econ.pred[2])
+    res[t] ~ dnorm(mu.econ.pred[3,t], sd = sig.econ.pred[3])
+    pdi[t] ~ dnorm(mu.econ.pred[4,t], sd = sig.econ.pred[4])
+    
+    mu.econ.pred[1,t] <- mu.econ.p[1] + zeta.econ[1] * pred.econ.prime[t]
+    mu.econ.pred[2,t] <- mu.econ.p[2] + zeta.econ[2] * pred.econ.prime[t]
+    mu.econ.pred[3,t] <- mu.econ.p[3] + zeta.econ[3] * pred.econ.prime[t]
+    mu.econ.pred[4,t] <- mu.econ.p[4] + zeta.econ[4] * pred.econ.prime[t]
   }
   
   ################################################################################
   ### Hunter Effort ###
-  mu.wintsev.hunt ~ dnorm(0, sd = 100)
-  sig.wintsev.hunt ~ T(dt(0, pow(2.5, -2), 1), 0, )
-  mu.jobs ~ dnorm(0, sd = 100)
-  sig.jobs ~ T(dt(0, pow(2.5, -2), 1), 0, )
-  
+  mu.econ ~ dnorm(0, sd = 100)
+  sig.econ ~ T(dt(0, pow(2.5, -2), 1), 0, )
   for (s in 1:n.species) {
-    beta.wintsev.hunt[s] ~ dnorm(mu.wintsev.hunt, sd = sig.wintsev.hunt)
-    beta.jobs[s] ~ dnorm(mu.jobs, sd = sig.jobs)
+    beta.econ.hunt[s] ~ dnorm(mu.econ, sd = sig.econ)
   }
   
   for(r in 1:n.region){
@@ -41,8 +42,7 @@ code <- nimbleCode( {
       for(t in 1:n.year){ 
         #Unlinked estimate of Hunter Numbers
         mu.hunt[s,t,r] <- alpha.hunt[s,r] + #intercept
-          beta.wintsev.hunt[s] * awssi[r, t + 1] + 
-          beta.jobs[s] * une[t] + 
+          beta.econ.hunt[s] * pred.econ.prime[t] + #SEM economic indicator
           inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #spline smoothing
         
         H[s,t,r] <- exp(hunt.eps[s,t,r]) #Log Link
@@ -109,12 +109,12 @@ nseg <- 10 #Number of spline segments
 # Time
 time <- 1:cut
 
-BM1 <- array(NA, dim = c(cut,nseg+3,7,2))
-Z1  <- array(NA, dim = c(cut,nseg+2,7,2))
+BM1 <- array(NA, dim = c(cut,nseg+3,5,2))
+Z1  <- array(NA, dim = c(cut,nseg+2,5,2))
 D1 <- diff(diag(ncol(BM1[,,1,1])), diff = 1)
 Q1 <- t(D1) %*% solve(D1 %*% t(D1))
 
-for(i in 1:7){
+for(i in 1:5){
   for(j in 1:2){
     BM1[,,i,j] <- bs_bbase(time, nseg = 10)
     Z1[,,i,j] <-  BM1[,,i,j]%*% Q1
@@ -126,8 +126,10 @@ ZZ1[is.na(ZZ1)] <- 0
 
 data <- list(
   ### Covariates
-  une = une, #BL Unemployment information for Nevada, scaled
-  awssi = awssi, #winter severity index, scaled
+  une = econ_data[,2], #BL Unemployment information for Nevada, scaled
+  res = econ_data[,3], #Resident Licenses
+  pdi = econ_data[,4], #Personal Disposable Income
+  gas = econ_data[,1], #Gas Prices in May
   
   ### Hunter Effort
   n.hunt = hunters, #Observed number of hunters for each species each year
@@ -176,30 +178,22 @@ Sigma <- as.matrix(Matrix::nearPD(Sigma, corr = FALSE,doSym = TRUE)$mat)
 n.hunt.i <- ifelse(is.na(hunters), floor(mean(hunters, na.rm = T)), NA)
 
 ### Predictors
-une.init <- ifelse(is.na(une), 0, NA)
-awssi.init <- awssi
-for(i in 1:2){awssi.init[i,] <- ifelse(is.na(awssi[i,]), 0, NA)}
-
+GAS.inits <- ifelse(is.na(econ_data$Gas.May) == TRUE, 0, NA)
 
 # Wrapper Function
 initsFunction <- function() list(
   ### Predictors
-  #Winter Severity
-  sig.awssi = rep(1,2),
-  beta.awssi = 0,
-  alpha.awssi = 0,
-  awssi = awssi.init,
-  #Unemployment
-  sig.une = 1,
-  une = une.init,
+  sig.econ.pred = rep(1,4),
+  mu.econ.p = rep(0,4),
+  zeta.econ = rep(1,ncol(econ_data)),
+  gas = GAS.inits,
+  pred.econ.prime = rep(0, cut),
+  mu.econ.pred = matrix(0, 4, cut),
   
   ###Beta Coefficient Means/SDs
-  mu.wintsev.hunt = 0,
-  sig.wintsev.hunt = 1,
-  mu.jobs = 0,
-  sig.jobs = 1,
-  beta.jobs = rep(0, 7),
-  beta.wintsev.hunt = rep(0, 7),
+  mu.econ = 0,
+  sig.econ = 1,
+  beta.econ.hunt = rep(0, 5),
   
   ### Hunter Effort
   n.hunt = n.hunt.i,
@@ -208,9 +202,9 @@ initsFunction <- function() list(
   Lambda.hunt = abind(diag(n.species),diag(n.species),along = 3),
   Delta.hunt = abind(Delta,Delta,along = 3),
   rho.hunt = abind(diag(n.species),diag(n.species),along = 3),
-  alpha.hunt = matrix(0, ncol = 2, nrow = 7),
-  sig.hunt = matrix(1, ncol = 2, nrow = 7),
-  sig.spl.hunt = matrix(1, ncol = 2, nrow = 7)
+  alpha.hunt = matrix(0, ncol = 2, nrow = 5),
+  sig.hunt = matrix(1, ncol = 2, nrow = 5),
+  sig.spl.hunt = matrix(1, ncol = 2, nrow = 5)
 )
 
 inits <- initsFunction()
@@ -222,7 +216,7 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits)
 model_test$simulate(c(
-  'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt',
+  'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'mu.econ.pred',
   'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt'
 ))
 model_test$initializeInfo()
@@ -230,16 +224,10 @@ model_test$calculate()
 
 #Set Monitors
 pars1 <- c("alpha.hunt",
-           "beta.wintsev.hunt",
-           "beta.jobs",
+           "beta.econ.hunt",
            "H")
 
-pars2 <- c(
-  "sig.une",
-  "une",
-  "sig.awssi",
-  "beta.awssi",
-  "alpha.awssi"
+pars2 <- c("mu.econ.pred"
 )
 
 # Parallel Processing Setup
@@ -267,7 +255,7 @@ out <- clusterEvalQ(cl, {
                              inits = inits )
   
   model_test$simulate(c(
-    'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt',
+    'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'mu.econ.pred',
     'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt'
   ))
   model_test$initializeInfo()
@@ -277,7 +265,7 @@ out <- clusterEvalQ(cl, {
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
   
-  samplesList <- runMCMC(Cmcmc,nburnin = 45000, niter = 50000, thin = 5, thin2 = 5)
+  samplesList <- runMCMC(Cmcmc,nburnin = 50000, niter = 125000, thin = 5, thin2 = 5)
   
   return(samplesList)
 })

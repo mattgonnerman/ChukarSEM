@@ -51,7 +51,18 @@ ui <- navbarPage( tweaks,
                                             "HUPA",
                                             "PHEA",
                                             "RABB",
-                                            "SAGR"))
+                                            "SAGR")),
+                    
+                    sliderInput("econ", "Economic Predictor", min=-2, max=2, 
+                                value = 0, sep=""),
+                    sliderInput("bbs", "Predator Predictor", min=-2, max=2, 
+                                value = 0, sep=""),
+                    sliderInput("awssi", "Winter Severity", min=-2, max=2, 
+                                value = 0, sep=""),
+                    sliderInput("pdsi", "Drought Conditions", min=-2, max=2, 
+                                value = 0, sep=""),
+                    
+                    
                   ),
                   
                   ### Past Years

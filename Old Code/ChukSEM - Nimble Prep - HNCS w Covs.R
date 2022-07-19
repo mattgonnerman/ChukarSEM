@@ -3,18 +3,16 @@
 lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimble",
          "abind", "LaplacesDemon", "parallel", "coda", "MCMCvis"),
        require, character.only = T)
-cutoff.y <- 2017 #Last year from which data will be used
-cutoff.y.chuk <- 2017 #What is the last year of Chukar site abundance
-final.y <- year.hold <- 2020 #Last year to predict 
-
+cutoff.y <- 2013 #Last year from which data will be used
+cutoff.y.chuk <- cutoff.y + 1 #How many years of Chukar site data do we have (default to just the spring of same year)
+final.y <- 2014 #Last year to predict
+year.hold <- cutoff.y +1
+drop.rabbit <- "N" #N to keep rabbit in harvest data correlation models
 n.add.y <- final.y - cutoff.y
 cut <- length(1976:cutoff.y) + n.add.y #Reference used to subset dataframes later
 
 ### Run Hunter Effort Solo Model to get estimates of H to create spline inputs
 source("./ChukSEM - Data Prep.R")
-
-
-###If starting a new set of years, need to rerun below
 source("./ChukSEM - Hunter Effort Model - Predict.R")
 
 
@@ -103,7 +101,11 @@ data <- list(
 
   ### Total Harvest
   n.harv = upland,
-  Z.harv = ZZ, #Spline
+  # Z.harv = ZZ, #Spline
+  
+  ### Sage Grouse WingBee
+  AHY.sg =  wing.b.ahy,
+  HY.sg =  wing.b.hy,
   
   ### Chukar Site Abundance
   n.chuk = data.matrix(chukar)
@@ -123,13 +125,16 @@ constants <- list(
   K = 12,
 
   ### Predictors
-  era.awssi = c(rep(0,length(1975:1994)),rep(1, length(1995:2001)), rep(0, length(2002:final.y))), #Groupings for change in gas prices
+  era.awssi = c(rep(0,length(1975:1994)),rep(1, length(1995:2001)), rep(0, length(2002:2017))), #Groupings for change in gas prices
 
   ### Hunter Effort
   I.hunt = abind(I,I,along = 3),
 
   ### Total Harvest
   I.harv = abind(I2,I2,along = 3),
+  
+  ### Sage Grouse Wing-Bee
+  n.years.sg = n.years.sg,
   
   ### Chukar Site Abundance
   n.site = nrow(chukar),
@@ -182,6 +187,18 @@ n.harv.i <- ifelse(is.na(upland), floor(mean(upland, na.rm = T)), NA)
 Ni <- array(NA, c(nrow(n.harv.i), ncol(n.harv.i), 2))
 Ni[,1,] <- upland[,1,] + 50
 
+## Sage Grouse Wing-Bee
+C.sg.i <- matrix(NA, nrow = 2, ncol = n.years.sg)
+C.sg.i[,1] <- floor(rowMeans(wing.b.hy, na.rm = T))
+
+hy.sg.init <- wing.b.hy
+ahy.sg.init <- wing.b.ahy
+for(i in 1:2){
+  for(j in 1:ncol(wing.b.ahy)){
+    hy.sg.init[i,j] <- ifelse(is.na(wing.b.hy[i,j]), floor(mean(wing.b.hy[i,], na.rm = T)), NA)
+    ahy.sg.init[i,j] <- ifelse(is.na(wing.b.ahy[i,j]), floor(mean(wing.b.ahy[i,], na.rm = T)), NA)
+  }}
+
 ## Chukar Site Abundance
 chukar_na <- chukar
 
@@ -206,24 +223,12 @@ C.chuk.init <- chukar
 C.chuk.init[is.na(C.chuk.init)] <- floor(mean(as.matrix(chukar), na.rm = T))
 C.chuk.init[,2:ncol(C.chuk.init)] <- NA
 
-econ.inits <- econ_data %>% mutate_all(function(x) ifelse(is.na(x), 0, NA))
-bbs.inits <- as.data.frame(bbs.df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA))
-awssi.inits <- as.matrix(as.data.frame(awssi.df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA)))
-pdsi.inits <- as.matrix(as.data.frame(pdsi_df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA)))
+GAS.inits <- ifelse(is.na(econ_data$Gas.May) == TRUE, 0, NA)
 
 # Wrapper Function
 initsFunction <- function() list(
   ### Covariates
-  gas = econ.inits$Gas.May,
-  une = econ.inits$Une,
-  res = econ.inits$Licenses,
-  pdi = econ.inits$PDI,
-  ravens = bbs.inits$raven,
-  rthawk = bbs.inits$rthawk,
-  nharr = bbs.inits$nharrier,
-  pfal = bbs.inits$pfalcon,
-  awssi = awssi.inits,
-  pdsi = pdsi.inits,
+  gas = GAS.inits,
   sig.econ.pred = rep(1,4),
   mu.econ.p = rep(0,4),
   zeta.econ = rep(1,ncol(econ_data)),
@@ -234,10 +239,6 @@ initsFunction <- function() list(
   zeta.bbs = rep(1,ncol(bbs.df)),
   pred.bbs.prime = rep(0, cut),
   mu.bbs.pred = matrix(0, 4, cut),
-  beta.awssi = 0,
-  alpha.awssi = 0,
-  sig.awssi = rep(1,2),
-  sig.drought = rep(1,2),
   
   ### Covariates
   mu.econ = 0,
@@ -255,8 +256,11 @@ initsFunction <- function() list(
   mu.pdsi = 0,
   sig.pdsi = 1,
   beta.pdsi.harv = rep(0, 5),
-  beta.spl.harv = array(0, dim = c(5,2,12)),
-  sig.spl.harv = matrix(1, ncol = 2, nrow = 5),
+  mu.hunter = 0,
+  sig.hunter = 1,
+  beta.hunter.harv = rep(0, 5),
+  # beta.spl.harv = array(0, dim = c(5,2,12)),
+  # sig.spl.harv = matrix(1, ncol = 2, nrow = 5),
 
   ### Hunter Effort
   n.hunt = n.hunt.i,
@@ -280,6 +284,12 @@ initsFunction <- function() list(
   log.r.harv = array(0, dim = c(5,(cut)-1,2) ),
   N = Ni,
   
+  ### Sage Grouse Wing-Bee
+  theta.sg = rep(1,2),
+  mod.sg = rep(1,2),
+  AHY.sg = ahy.sg.init,
+  HY.sg = hy.sg.init,
+  
   ### Chukar Site Abundance
   theta.chuk = rep(1,2),
   mod.chuk = rep(1,2),
@@ -298,6 +308,7 @@ model_test <- nimbleModel( code = code,
 model_test$simulate(c(
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
                       'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+                      'theta.sg', 'rate.sg', 'log.r.sg',
                       'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
                       'BPH'
                       ))
@@ -308,18 +319,13 @@ model_test$calculate()
 pars1 <- c(### Hunter Effort
   "alpha.hunt",
   "beta.econ.hunt",
-  "beta.spl.hunt",
-  "Sigma.hunt",
   
   ### Total Harvest
   "alpha.harv",
   "beta.wintsev.harv",
   "beta.bbs.harv",
-  # "beta.hunter.harv",
-  "beta.pdsi.harv",
-  "beta.spl.harv",
-  "Sigma.harv",
-  "offset"
+  "beta.hunter.harv",
+  "beta.pdsi.harv"
 )
 
 pars2 <- c(### Hunter Effort
@@ -376,7 +382,7 @@ out.full.predict <- clusterEvalQ(cl, {
   model_test$initializeInfo()
   model_test$calculate()
   
-  mcmcConf <-  configureMCMC( model_test,   monitors =  pars2, monitors2 = c(pars1, pars.pred))
+  mcmcConf <-  configureMCMC( model_test,   monitors =  c(pars1, pars2), monitors2 = pars.pred)
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
@@ -403,12 +409,12 @@ samples2 <- list(chain1 =  out.full.predict[[1]]$samples2,
 mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
 #Save Outputs as file
-files <- list(mcmcList1, mcmcList2, code, data)
-save(files, file = "./www/NDOW_Upland_SEM_output.rdata")
+files <- list(mcmcList1, mcmcList2, code)
+save(files, file = paste("./Holdout ", year.hold, '/model_output_FullModel_predict',year.hold +1,'.rdata', sep = ""))
 
 #Traceplots
-MCMCtrace(mcmcList1, filename = "./www/TraceOut - Full.pdf")
-MCMCtrace(mcmcList2, filename = "./www/TraceOut - Full - Predictors.pdf")
+MCMCtrace(mcmcList1, filename = paste("./Holdout ", year.hold, '/TraceOut - Full.pdf', sep = ""))
+MCMCtrace(mcmcList2, filename = paste("./Holdout ", year.hold, '/TraceOut - Full - Predictors.pdf', sep = ""))
 
 #Preliminary Graphs
 source("./ChukSEM - Estimate Check.R")
