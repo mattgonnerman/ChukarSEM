@@ -4,7 +4,10 @@
 
 
 # Load packages
-lapply(c("shiny","ggplot2", "dplyr"), require, character.only = T)
+lapply(c("shiny", "shinyWidgets", "ggplot2", "dplyr"), require, character.only = T)
+
+# Load Data from Model
+load("./www/NDOW_SEM_app_objects.R")
 
 #Fix for unaligned checkboxes
 tweaks <- tags$head(tags$style(HTML(
@@ -17,7 +20,8 @@ tweaks <- tags$head(tags$style(HTML(
                     margin-right: 10px;
           }
         "
-)))
+  ), setBackgroundColor(color = "blue") ) )
+
   
 
 ##################################################################################
@@ -38,29 +42,40 @@ ui <- navbarPage( tweaks,
                   tabPanel(
                     title = "Forecast",
                     
-                    selectInput("forecastset", "Which dataset would you like to see forcast?",
-                                choices = c("Birds per Hunter" = "BPH", 
-                                            "Total Harvest" = "N", 
-                                            "Hunter Participation" = "H")),
-                    
-                    selectInput("spphighlight", "Species:",
-                                choices = c("All",
-                                            "BLGR",
-                                            "CAQU",
-                                            "CHUK",
-                                            "HUPA",
-                                            "PHEA",
-                                            "RABB",
-                                            "SAGR")),
-                    
-                    sliderInput("econ", "Economic Predictor", min=-2, max=2, 
-                                value = 0, sep=""),
-                    sliderInput("bbs", "Predator Predictor", min=-2, max=2, 
-                                value = 0, sep=""),
-                    sliderInput("awssi", "Winter Severity", min=-2, max=2, 
-                                value = 0, sep=""),
-                    sliderInput("pdsi", "Drought Conditions", min=-2, max=2, 
-                                value = 0, sep=""),
+                    sidebarLayout(
+                      sidebarPanel(selectInput("forecastset", "Which dataset would you like to see forcast?",
+                                               choices = c("Birds per Hunter" = "BPH", 
+                                                           "Total Harvest" = "N", 
+                                                           "Hunter Participation" = "H")),
+                                   
+                                   selectInput("spphighlight", "Species:",
+                                               choices = c("All",
+                                                           "BLGR",
+                                                           "CAQU",
+                                                           "CHUK",
+                                                           "HUPA",
+                                                           "PHEA",
+                                                           "RABB",
+                                                           "SAGR")),
+                                   
+                                   
+                                   
+                                   
+                                   sliderInput("econ", "Economic Predictor", min=-2, max=2, 
+                                               value = 0, sep=""),
+                                   sliderInput("bbs", "Predator Predictor", min=-2, max=2, 
+                                               value = 0, sep=""),
+                                   sliderInput("awssi", "Winter Severity", min=-2, max=2, 
+                                               value = 0, sep=""),
+                                   sliderInput("pdsi", "Drought Conditions", min=-2, max=2, 
+                                               value = 0, sep=""),
+                      ),
+                      
+                      mainPanel(#Output Plot
+                        plotOutput("forecastplot"),
+                      )
+                      
+                    )
                     
                     
                   ),
@@ -124,7 +139,20 @@ server <-  function(input,output){
                               species.constant[which(species.constant %in% unique(past.data()$Species))]))
   
   
+  forecast.plot <- reactive({
+    econ.var <- input$econ
+    winter.var <-  input$awssi
+    predator.var <- input$bbs
+    drought.var <- input$pdsi
+    
+    forecast.calculate <- data.frame(Year = 1:15, Est = econ.var + winter.var + predator.var + drought.var + 1:15)
+    forecast.calculate
+  })
   
+  output$forecastplot <- renderPlot(
+    ggplot(data = forecast.plot(), aes(x = Year, y = Est)) +
+      geom_point(size = 3)
+  )
   
   
   output$pastplot <- renderPlot(

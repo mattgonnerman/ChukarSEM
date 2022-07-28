@@ -55,7 +55,7 @@ code <- nimbleCode( {
     }
   }
   
-  #Drought Index
+  # Drought Index
   for(r in 1:n.region){
     sig.drought[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
     for(t in 1:n.year){
@@ -132,6 +132,8 @@ code <- nimbleCode( {
   ### Total Harvest ###
   mu.wintsev.harv ~ dnorm(0, 0.01)
   sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
+  mu.hunter.harv ~ dnorm(0, 0.01)
+  sig.hunter.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.bbs ~ dnorm(0, 0.01)
   sig.bbs ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.pdsi ~ dnorm(0, 0.01)
@@ -226,7 +228,7 @@ code <- nimbleCode( {
   for(t in 1:n.year){
     for(s in 1:n.species){
       for(r in 1:n.region){
-        BPH[s,t,r] <- N[s,t,r]/H[s,t,r]
+        BPH[s,t,r] <- n.harv[s,t,r]/(1+n.hunt[s,t,r])
       }
     }
   }

@@ -3,9 +3,9 @@
 lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimble",
          "abind", "LaplacesDemon", "parallel", "coda", "MCMCvis"),
        require, character.only = T)
-cutoff.y <- 2017 #Last year from which data will be used
-cutoff.y.chuk <- 2017 #What is the last year of Chukar site abundance
-final.y <- year.hold <- 2020 #Last year to predict 
+cutoff.y <- 2015 #Last year from which data will be used
+cutoff.y.chuk <- 2016 #What is the last year of Chukar site abundance
+final.y <- year.hold <- 2016 #Last year to predict 
 
 n.add.y <- final.y - cutoff.y
 cut <- length(1976:cutoff.y) + n.add.y #Reference used to subset dataframes later
@@ -15,7 +15,7 @@ source("./ChukSEM - Data Prep.R")
 
 
 ###If starting a new set of years, need to rerun below
-source("./ChukSEM - Hunter Effort Model - Predict.R")
+# source("./ChukSEM - Hunter Effort Model - Predict.R")
 
 
 ###########################
@@ -23,8 +23,8 @@ source("./ChukSEM - Hunter Effort Model - Predict.R")
 ###########################
 
 
-load("model_output_HuntEff_pred.rdata")
-mcmcList1 <- files[[1]]
+# load("model_output_HuntEff_pred.rdata")
+# mcmcList1 <- files[[1]]
 
 ### Load Model Code
 source("./ChukSEM - Model Only - HNC w Covs.R")
@@ -48,8 +48,8 @@ bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg
   return(bs_matrix)
 }
 
-hunter.prime   <- MCMCpstr(mcmcList1, 'H')$H #Extract hunter numbers from Model1
-
+# hunter.prime   <- MCMCpstr(mcmcList1, 'H')$H #Extract hunter numbers from Model1
+time <- 1:cut
 nseg <- 10 #Number of spline segments
 BM <- array(NA, dim = c(cut,nseg+3,5,2))
 Z  <- array(NA, dim = c(cut,nseg+2,5,2))
@@ -58,7 +58,8 @@ Q <- t(D) %*% solve(D %*% t(D))
 
 for(i in 1:5){
   for(j in 1:2){
-    BM[,,i,j] <- bs_bbase(hunter.prime[i,,j], nseg = 10)
+    # BM[,,i,j] <- bs_bbase(hunter.prime[i,,j], nseg = 10)
+    BM[,,i,j] <- bs_bbase(time, nseg = nseg)
     Z[,,i,j] <-  BM[,,i,j]%*% Q
   }
 }
@@ -103,7 +104,7 @@ data <- list(
 
   ### Total Harvest
   n.harv = upland,
-  Z.harv = ZZ, #Spline
+  # Z.harv = ZZ, #Spline
   
   ### Chukar Site Abundance
   n.chuk = data.matrix(chukar)
@@ -255,8 +256,11 @@ initsFunction <- function() list(
   mu.pdsi = 0,
   sig.pdsi = 1,
   beta.pdsi.harv = rep(0, 5),
-  beta.spl.harv = array(0, dim = c(5,2,12)),
-  sig.spl.harv = matrix(1, ncol = 2, nrow = 5),
+  mu.hunter.harv = 0,
+  sig.hunter.harv = 1,
+  beta.hunter.harv = matrix(0, 5, 2),
+  # beta.spl.harv = array(0, dim = c(5,2,12)),
+  # sig.spl.harv = matrix(1, ncol = 2, nrow = 5),
 
   ### Hunter Effort
   n.hunt = n.hunt.i,
@@ -315,22 +319,21 @@ pars1 <- c(### Hunter Effort
   "alpha.harv",
   "beta.wintsev.harv",
   "beta.bbs.harv",
-  # "beta.hunter.harv",
+  "beta.hunter.harv",
   "beta.pdsi.harv",
-  "beta.spl.harv",
-  "Sigma.harv",
-  "offset"
+  # "beta.spl.harv",
+  "Sigma.harv"
 )
 
 pars2 <- c(### Hunter Effort
   "H",
+  "n.hunt",
   "rho.hunt",
-  "log.r.hunt",
   
   ### Total Harvest
   "N",
+  "n.harv",
   "rho.harv",
-  "log.r.harv",
   
   # ### Chukar Site Abundance
   "log.r.chuk",

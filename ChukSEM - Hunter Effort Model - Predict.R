@@ -152,11 +152,7 @@ constants <- list(
   n.species = nrow(upland),
   n.year = ncol(hunters),
   K = 12,
-  
-  ### Predictors
-  # years.gas = length(1976:2005), #Change point in gas
-  era.awssi = c(rep(0,length(1975:1994)),rep(1, length(1995:2001)), rep(0, length(2002:2017))), #Groupings for change in gas prices
-  
+
   ### Hunter Effort
   I.hunt = abind(I,I,along = 3)
 )
@@ -178,7 +174,7 @@ Sigma <- as.matrix(Matrix::nearPD(Sigma, corr = FALSE,doSym = TRUE)$mat)
 n.hunt.i <- ifelse(is.na(hunters), floor(mean(hunters, na.rm = T)), NA)
 
 ### Predictors
-GAS.inits <- ifelse(is.na(econ_data$Gas.May) == TRUE, 0, NA)
+econ.inits <- econ_data %>% mutate_all(function(x) ifelse(is.na(x), 0, NA))
 
 # Wrapper Function
 initsFunction <- function() list(
@@ -186,7 +182,10 @@ initsFunction <- function() list(
   sig.econ.pred = rep(1,4),
   mu.econ.p = rep(0,4),
   zeta.econ = rep(1,ncol(econ_data)),
-  gas = GAS.inits,
+  gas = econ.inits$Gas.May,
+  une = econ.inits$Une,
+  res = econ.inits$Licenses,
+  pdi = econ.inits$PDI,
   pred.econ.prime = rep(0, cut),
   mu.econ.pred = matrix(0, 4, cut),
   

@@ -21,14 +21,14 @@ test.bph <- MCMCsummary(mcmcList1, 'BPH') %>%
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
   dplyr::select(Species, Year, Region, Estimate = '50%', LCL = '2.5%', UCL = '97.5%')
-test.H   <- MCMCsummary(mcmcList1, 'H') %>%
+test.H   <- MCMCsummary(mcmcList1, 'n.hunt') %>%
   mutate(RowID = rownames(MCMCsummary(mcmcList1, 'H'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
   dplyr::select(Species, Year, Region, Estimate = '50%', LCL = '2.5%', UCL = '97.5%')
-test.N   <- MCMCsummary(mcmcList1, 'N') %>%
+test.N   <- MCMCsummary(mcmcList1, 'n.harv') %>%
   mutate(RowID = rownames(MCMCsummary(mcmcList1, 'N'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
