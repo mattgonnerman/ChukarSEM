@@ -72,7 +72,7 @@ data <- list(
 
   ### Total Harvest
   n.harv = upland,
-  # Z.harv = ZZ, #Spline
+  Z.harv = ZZ, #Spline
   
   ### Chukar Site Abundance
   n.chuk = data.matrix(chukar)
@@ -227,8 +227,8 @@ initsFunction <- function() list(
   mu.hunter.harv = 0,
   sig.hunter.harv = 1,
   beta.hunter.harv = matrix(0, 5, 2),
-  # beta.spl.harv = array(0, dim = c(5,2,12)),
-  # sig.spl.harv = matrix(1, ncol = 2, nrow = 5),
+  beta.spl.harv = array(0, dim = c(5,2,12)),
+  sig.spl.harv = matrix(1, ncol = 2, nrow = 5),
 
   ### Hunter Effort
   n.hunt = n.hunt.i,

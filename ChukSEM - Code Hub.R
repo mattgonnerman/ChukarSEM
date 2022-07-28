@@ -5,13 +5,13 @@ lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimb
        require, character.only = T)
 
 #Last year from which data will be used
-cutoff.y <- 2015 
+cutoff.y <- 2016 
 
-#What is the last year of Chukar site abundance
-cutoff.y.chuk <- 2016 
+#What is the last year of Chukar site abundance (Should be 1 + cutoff.y)
+cutoff.y.chuk <- 2017 
 
 #Last year to predict 
-final.y <- year.hold <- 2016 
+final.y <- year.hold <- 2017 
 
 n.add.y <- final.y - cutoff.y
 cut <- length(1976:cutoff.y) + n.add.y #Reference used to subset dataframes later
@@ -26,7 +26,7 @@ source("./ChukSEM - Hunter Effort Model.R")
 source("./ChukSEM - Model Only - HNC w Covs.R")
 
 ### Run Full Model to Produce Estimates
-source("/ChukSEM - Nimble Prep - HNC w Covs.R")
+source("./ChukSEM - Nimble Prep - HNC w Covs.R")
 
 ### Save estimates and make preliminary Graphs
 source("./ChukSEM - Estimate Check.R")
