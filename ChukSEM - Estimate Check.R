@@ -21,14 +21,14 @@ test.bph <- MCMCsummary(mcmcList1, 'BPH') %>%
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
   dplyr::select(Species, Year, Region, Estimate = '50%', LCL = '2.5%', UCL = '97.5%')
-test.H   <- MCMCsummary(mcmcList1, 'n.hunt') %>%
+test.H   <- MCMCsummary(mcmcList1, 'H') %>%
   mutate(RowID = rownames(MCMCsummary(mcmcList1, 'H'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
   dplyr::select(Species, Year, Region, Estimate = '50%', LCL = '2.5%', UCL = '97.5%')
-test.N   <- MCMCsummary(mcmcList1, 'n.harv') %>%
+test.N   <- MCMCsummary(mcmcList1, 'N') %>%
   mutate(RowID = rownames(MCMCsummary(mcmcList1, 'N'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
@@ -156,7 +156,7 @@ est.check.H <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   scale_color_manual(name = "Region", values = c("#0033a0", "#ffa300"), labels = c("Eastern", "Western")) +
   theme(axis.title = element_blank(), legend.position = c(.9,.25))
 
-ggsave(est.check.H, filename = paste("./Holdout ", year.hold, '/EstCheck - H.jpeg', sep = ""),
+ggsave(est.check.H, filename = '/EstCheck - H.jpeg',
        dpi = 300, width = 10 + (2016 - year.hold), height = 8)
 
 

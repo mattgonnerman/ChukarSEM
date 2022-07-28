@@ -287,9 +287,8 @@ pars1 <- c(### Hunter Effort
   "alpha.harv",
   "beta.wintsev.harv",
   "beta.bbs.harv",
-  "beta.hunter.harv",
   "beta.pdsi.harv",
-  # "beta.spl.harv",
+  "beta.spl.harv",
   "Sigma.harv"
 )
 
