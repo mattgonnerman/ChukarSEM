@@ -1,35 +1,3 @@
-### Load Packages and Set Data Subset Info
-# Load necessary packages
-lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimble",
-         "abind", "LaplacesDemon", "parallel", "coda", "MCMCvis"),
-       require, character.only = T)
-cutoff.y <- 2015 #Last year from which data will be used
-cutoff.y.chuk <- 2016 #What is the last year of Chukar site abundance
-final.y <- year.hold <- 2016 #Last year to predict 
-
-n.add.y <- final.y - cutoff.y
-cut <- length(1976:cutoff.y) + n.add.y #Reference used to subset dataframes later
-
-### Run Hunter Effort Solo Model to get estimates of H to create spline inputs
-source("./ChukSEM - Data Prep.R")
-
-
-###If starting a new set of years, need to rerun below
-# source("./ChukSEM - Hunter Effort Model - Predict.R")
-
-
-###########################
-### Only Run Above Once ###
-###########################
-
-
-# load("model_output_HuntEff_pred.rdata")
-# mcmcList1 <- files[[1]]
-
-### Load Model Code
-source("./ChukSEM - Model Only - HNC w Covs.R")
-
-
 ### Specify Data Inputs
 # Splines
 require(splines)
@@ -413,8 +381,3 @@ save(files, file = "./NDOW_Upland_SEM_output.rdata")
 MCMCtrace(mcmcList1, filename = "./TraceOut - Full.pdf")
 MCMCtrace(mcmcList2, filename = "./TraceOut - Full - Predictors.pdf")
 
-#Save estimates and make preliminary Graphs
-source("./ChukSEM - Estimate Check.R")
-
-#Prepare estimates for shiny app
-source("./ChukSEM - ShinyDataPrep.R")
