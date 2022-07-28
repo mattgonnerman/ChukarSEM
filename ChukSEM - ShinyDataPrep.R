@@ -2,7 +2,7 @@ lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr", "tidyr"), require, ch
 
 
 #Load model outputs to get beta and sigma estimates
-load(file = "./www/NDOW_Upland_SEM_output.rdata")
+load(file = "./NDOW_Upland_SEM_output.rdata")
 beta.output <- files[[2]]
 rho.output <- files[[1]]
 data.input <- files[[4]]
@@ -124,70 +124,70 @@ appobject$N.reg <- Harv.reg.coef <- MCMCsummary(beta.output, 'beta.spl.hunt') %>
 
 save(appobject, file = "./www/NDOW_SEM_app_objects.R")
 
-#### For Integration into Shiny
-#These will represent the slider inputs. Will need to be reactive
-require(nimble)
-require(mvtnorm)
-
-econ.var <- 0
-winter.var <- 0
-drought.var <- 0
-predator.var <- 0
-start.year.f <- 2018
-last.year.f <- 2020
-n.year.f <- length(start.year.f:last.year.f)
-
-### Hunter Effort
-#Estimate
-mu.hunt.est <- Hunt.reg.coef %>%
-  merge(.,expand.grid(Species = 1:5, Region = 1:2, Year = 1:n.year.f),
-        by = c("Species", "Region"), all = T) %>%
-  mutate(Row = row_number()) %>%
-  rowwise() %>%
-  mutate(SPL = inprod(.[Row,3:14], Z.hunt[length(1976:(start.year.f-1))+Year,1:12,Species,Region])) %>%
-  mutate(Mu.hunt = A.hunt + B.econ.hunt*econ.var + SPL) %>%
-  as.data.frame() %>%
-  dplyr::select(Species, Region, Year, Mu.hunt) %>%
-  pivot_wider(names_from = Year, values_from = Mu.hunt, names_prefix = "Year", names_sep = "_")  %>%
-  group_split(Region, .keep = F)
-  
-
-H.est <- list(as.data.frame(matrix(NA, nrow = 5, ncol = n.year.f)),
-              as.data.frame(matrix(NA, nrow = 5, ncol = n.year.f)))
-for(r in 1:2){
-  for(t in 1:n.year){
-    H.est[[r]][,t] <- as.numeric(unlist(exp(rmvnorm(1, mean = as.numeric(unlist(mu.hunt.est[[r]][,t+1])), sigma = as.matrix(rho.hunt.list[[r]])))))
-  }
-}
-
-forecast.plot.input <- H.est %>% bind_rows() %>% mutate(Species = rep(1:5, 2), Region = rep(1:2, each = 5)) %>%
-  pivot_longer(cols = 1:n.year.f, names_prefix= "V") %>%
-  rename(Year = name, H.est = value) %>%
-  as.data.frame()
-
-#Confidence Limits
-mu.hunt.est <- Hunt.reg.coef %>%
-  merge(.,expand.grid(Species = 1:5, Region = 1:2, Year = 1:n.year.f),
-        by = c("Species", "Region"), all = T) %>%
-  mutate(Row = row_number()) %>%
-  rowwise() %>%
-  mutate(SPL = inprod(.[Row,3:14], Z.hunt[length(1976:(start.year.f-1))+Year,1:12,Species,Region])) %>%
-  mutate(LCL.hunt = A.hunt + (B.econ.hunt*econ.var + SPL) %>%
-  as.data.frame() %>%
-  dplyr::select(Species, Region, Year, Mu.hunt) %>%
-  pivot_wider(names_from = Year, values_from = Mu.hunt, names_prefix = "Year", names_sep = "_")  %>%
-  group_split(Region, .keep = F)
-
-
-H.est <- list(as.data.frame(matrix(NA, nrow = 5, ncol = n.year.f)),
-              as.data.frame(matrix(NA, nrow = 5, ncol = n.year.f)))
-for(r in 1:2){
-  for(t in 1:n.year){
-    H.est[[r]][,t] <- as.numeric(unlist(exp(rmvnorm(1, mean = as.numeric(unlist(mu.hunt.est[[r]][,t+1])), sigma = as.matrix(rho.hunt.list[[r]])))))
-  }
-}
-
-H.est %>% bind_rows() %>% mutate(Species = rep(1:5, 2), Region = rep(1:2, each = 5)) %>%
-  pivot_longer(cols = 1:n.year.f, names_prefix= "V") %>%
-  rename(Year = name, H.est = value) %>%
-  as.data.frame()
+# #### For Integration into Shiny
+# #These will represent the slider inputs. Will need to be reactive
+# require(nimble)
+# require(mvtnorm)
+# 
+# econ.var <- 0
+# winter.var <- 0
+# drought.var <- 0
+# predator.var <- 0
+# start.year.f <- 2018
+# last.year.f <- 2020
+# n.year.f <- length(start.year.f:last.year.f)
+# 
+# ### Hunter Effort
+# #Estimate
+# mu.hunt.est <- Hunt.reg.coef %>%
+#   merge(.,expand.grid(Species = 1:5, Region = 1:2, Year = 1:n.year.f),
+#         by = c("Species", "Region"), all = T) %>%
+#   mutate(Row = row_number()) %>%
+#   rowwise() %>%
+#   mutate(SPL = inprod(.[Row,3:14], Z.hunt[length(1976:(start.year.f-1))+Year,1:12,Species,Region])) %>%
+#   mutate(Mu.hunt = A.hunt + B.econ.hunt*econ.var + SPL) %>%
+#   as.data.frame() %>%
+#   dplyr::select(Species, Region, Year, Mu.hunt) %>%
+#   pivot_wider(names_from = Year, values_from = Mu.hunt, names_prefix = "Year", names_sep = "_")  %>%
+#   group_split(Region, .keep = F)
+#   
+# 
+# H.est <- list(as.data.frame(matrix(NA, nrow = 5, ncol = n.year.f)),
+#               as.data.frame(matrix(NA, nrow = 5, ncol = n.year.f)))
+# for(r in 1:2){
+#   for(t in 1:n.year){
+#     H.est[[r]][,t] <- as.numeric(unlist(exp(rmvnorm(1, mean = as.numeric(unlist(mu.hunt.est[[r]][,t+1])), sigma = as.matrix(rho.hunt.list[[r]])))))
+#   }
+# }
+# 
+# forecast.plot.input <- H.est %>% bind_rows() %>% mutate(Species = rep(1:5, 2), Region = rep(1:2, each = 5)) %>%
+#   pivot_longer(cols = 1:n.year.f, names_prefix= "V") %>%
+#   rename(Year = name, H.est = value) %>%
+#   as.data.frame()
+# 
+# #Confidence Limits
+# mu.hunt.est <- Hunt.reg.coef %>%
+#   merge(.,expand.grid(Species = 1:5, Region = 1:2, Year = 1:n.year.f),
+#         by = c("Species", "Region"), all = T) %>%
+#   mutate(Row = row_number()) %>%
+#   rowwise() %>%
+#   mutate(SPL = inprod(.[Row,3:14], Z.hunt[length(1976:(start.year.f-1))+Year,1:12,Species,Region])) %>%
+#   mutate(LCL.hunt = A.hunt + (B.econ.hunt*econ.var + SPL) %>%
+#   as.data.frame() %>%
+#   dplyr::select(Species, Region, Year, Mu.hunt) %>%
+#   pivot_wider(names_from = Year, values_from = Mu.hunt, names_prefix = "Year", names_sep = "_")  %>%
+#   group_split(Region, .keep = F)
+# 
+# 
+# H.est <- list(as.data.frame(matrix(NA, nrow = 5, ncol = n.year.f)),
+#               as.data.frame(matrix(NA, nrow = 5, ncol = n.year.f)))
+# for(r in 1:2){
+#   for(t in 1:n.year){
+#     H.est[[r]][,t] <- as.numeric(unlist(exp(rmvnorm(1, mean = as.numeric(unlist(mu.hunt.est[[r]][,t+1])), sigma = as.matrix(rho.hunt.list[[r]])))))
+#   }
+# }
+# 
+# H.est %>% bind_rows() %>% mutate(Species = rep(1:5, 2), Region = rep(1:2, each = 5)) %>%
+#   pivot_longer(cols = 1:n.year.f, names_prefix= "V") %>%
+#   rename(Year = name, H.est = value) %>%
+#   as.data.frame()

@@ -35,30 +35,30 @@ test.N   <- MCMCsummary(mcmcList1, 'n.harv') %>%
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
   dplyr::select(Species, Year, Region, Estimate = '50%', LCL = '2.5%', UCL = '97.5%')
-write.csv(test.bph, file = "./www/CheckPlot - out_BPH_all.csv", row.names = F)
-write.csv(test.H, file = "./www/CheckPlot - out_H_all.csv", row.names = F)
-write.csv(test.N, file =  "./www/CheckPlot - out_N_all.csv", row.names = F)
+write.csv(test.bph, file = "./CheckPlot - out_BPH_all.csv", row.names = F)
+write.csv(test.H, file = "./CheckPlot - out_H_all.csv", row.names = F)
+write.csv(test.N, file =  "./CheckPlot - out_N_all.csv", row.names = F)
 
 checkplotN <- ggplot(data = test.N, aes(x = Year, y = Estimate, group = as.factor(Species))) +
   geom_line(aes(color = as.factor(Species))) +
   facet_wrap(vars(Region)) +
   scale_y_continuous(trans = "log10") +
   labs(title = "Total Harvest")
-ggsave(checkplotN, filename = "./www/CheckPlot - N.jpg", dpi = 300)
+ggsave(checkplotN, filename = "./CheckPlot - N.jpg", dpi = 300)
 
 checkplotH <- ggplot(data = test.H, aes(x = Year, y = Estimate, as.factor(Species))) +
   geom_line(aes(color = as.factor(Species))) +
   facet_wrap(vars(Region)) +
   scale_y_continuous(trans = "log10") +
   labs(title = "Hunter Effort")
-ggsave(checkplotH, filename = "./www/CheckPlot - H.jpg", dpi = 300)
+ggsave(checkplotH, filename = "./CheckPlot - H.jpg", dpi = 300)
 
 checkplotBPH <- ggplot(data = test.bph, aes(x = Year, y = Estimate, as.factor(Species))) +
   geom_line(aes(color = as.factor(Species))) +
   facet_wrap(vars(Region)) +
   scale_y_continuous(trans = "log10") +
   labs(title = "Birds Per Hunter")
-ggsave(checkplotBPH, filename = "./www/CheckPlot - BPH.jpg", dpi = 300)
+ggsave(checkplotBPH, filename = "./CheckPlot - BPH.jpg", dpi = 300)
 
 
 ### Check Model Outputs against observed values
@@ -122,7 +122,7 @@ est.check.df[is.num] <- lapply(est.check.df[is.num], round, 2)
 
 pred.only.df <- est.check.df %>% filter(Year >= year.hold) %>%
   mutate(Year = as.factor(Year))
-write.csv(as.data.frame(pred.only.df), paste("./Holdout ", year.hold, '/EstCheck - Estimates_N_H_BPH.csv', sep = ""), row.names = F)
+write.csv(as.data.frame(pred.only.df), "EstCheck - Estimates_N_H_BPH.csv", row.names = F)
 
 est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   geom_errorbar(aes(ymin = Est.N.LCL, ymax = Est.N.UCL, color = Region),
@@ -138,7 +138,7 @@ est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   scale_color_manual(name = "Region", values = c("#0033a0", "#ffa300"), labels = c("Eastern", "Western")) +
   theme(axis.title = element_blank(), legend.position = c(.9,.25))
 
-ggsave(est.check.N, filename = paste("./Holdout ", year.hold, '/EstCheck - N.jpeg', sep = ""),
+ggsave(est.check.N, filename = '/EstCheck - N.jpeg',
        dpi = 300, width = 10 + (2016 - year.hold), height = 8)
 
 
@@ -174,7 +174,7 @@ est.check.BPH <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   scale_color_manual(name = "Region", values = c("#0033a0", "#ffa300"), labels = c("Eastern", "Western")) +
   theme(axis.title = element_blank(), legend.position = c(.9,.25))
 
-ggsave(est.check.BPH, filename = paste("./Holdout ", year.hold, '/EstCheck - BPH.jpeg', sep = ""),
+ggsave(est.check.BPH, filename = '/EstCheck - BPH.jpeg',
        dpi = 300, width = 10 + (2016 - year.hold), height = 8)
 
 
@@ -196,15 +196,15 @@ for(i in 1:nrow(rho.harv.est)){
 
 rho.harv.e <- rho.harv.list[[1]]
 rho.harv.w <- rho.harv.list[[2]]
-write.csv(rho.harv.e, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_harv_east.csv", sep = ""))
-write.csv(rho.harv.w, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_harv_west.csv", sep = ""))
+write.csv(rho.harv.e, file = "/CheckPlot - rho_harv_east.csv")
+write.csv(rho.harv.w, file = "/CheckPlot - rho_harv_west.csv")
 
 rho.harv.e.plot <- ggcorrplot::ggcorrplot(rho.harv.e, lab = T) +
   labs(title = "Harvest Correlation - East")
-ggsave(rho.harv.e.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Harv East.jpg', sep = ""), dpi = 300)
+ggsave(rho.harv.e.plot, filename = '/CheckPlot - Rho Harv East.jpg', dpi = 300)
 rho.harv.w.plot <- ggcorrplot::ggcorrplot(rho.harv.w, lab = T) +
   labs(title = "Harvest Correlation - West")
-ggsave(rho.harv.w.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Harv West.jpg', sep = ""), dpi = 300)
+ggsave(rho.harv.w.plot, filename = '/CheckPlot - Rho Harv West.jpg', dpi = 300)
 
 # hunter correlation
 rho.hunt.est <- MCMCsummary(mcmcList1, 'rho.hunt') %>%
@@ -223,15 +223,15 @@ for(i in 1:nrow(rho.hunt.est)){
 
 rho.hunt.e <- rho.hunt.list[[1]]
 rho.hunt.w <- rho.hunt.list[[2]]
-write.csv(rho.hunt.e, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_hunt_east.csv", sep = ""))
-write.csv(rho.hunt.w, file = paste("./Holdout ", year.hold, "/CheckPlot - rho_hunt_west.csv", sep = ""))
+write.csv(rho.hunt.e, file = "/CheckPlot - rho_hunt_east.csv")
+write.csv(rho.hunt.w, file = "/CheckPlot - rho_hunt_west.csv")
 
 rho.hunt.e.plot <- ggcorrplot::ggcorrplot(rho.hunt.e, lab = T) +
   labs(title = "Hunter Correlation - East")
-ggsave(rho.hunt.e.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Hunt East.jpg', sep = ""), dpi = 300)
+ggsave(rho.hunt.e.plot, filename = '/CheckPlot - Rho Hunt East.jpg', dpi = 300)
 rho.hunt.w.plot <- ggcorrplot::ggcorrplot(rho.hunt.w, lab = T) +
   labs(title = "Hunter Correlation - West")
-ggsave(rho.hunt.w.plot, filename = paste("./Holdout ", year.hold, '/CheckPlot - Rho Hunt West.jpg', sep = ""), dpi = 300)
+ggsave(rho.hunt.w.plot, filename = '/CheckPlot - Rho Hunt West.jpg', dpi = 300)
 
 
 

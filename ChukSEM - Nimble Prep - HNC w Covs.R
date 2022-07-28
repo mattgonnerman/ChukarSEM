@@ -407,11 +407,14 @@ mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
 #Save Outputs as file
 files <- list(mcmcList1, mcmcList2, code, data)
-save(files, file = "./www/NDOW_Upland_SEM_output.rdata")
+save(files, file = "./NDOW_Upland_SEM_output.rdata")
 
 #Traceplots
-MCMCtrace(mcmcList1, filename = "./www/TraceOut - Full.pdf")
-MCMCtrace(mcmcList2, filename = "./www/TraceOut - Full - Predictors.pdf")
+MCMCtrace(mcmcList1, filename = "./TraceOut - Full.pdf")
+MCMCtrace(mcmcList2, filename = "./TraceOut - Full - Predictors.pdf")
 
-#Preliminary Graphs
+#Save estimates and make preliminary Graphs
 source("./ChukSEM - Estimate Check.R")
+
+#Prepare estimates for shiny app
+source("./ChukSEM - ShinyDataPrep.R")
