@@ -74,6 +74,7 @@ code <- nimbleCode( {
   
   for(r in 1:n.region){
     for(s in 1:n.species){
+      sig.H[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
       alpha.hunt[s,r] ~ dnorm(5, sd = 12) #sd = 1)
       for(k in 1:K){
         beta.spl.hunt[s,r,k] ~ dnorm(0, sd = sig.spl.hunt[s,r])
@@ -81,14 +82,17 @@ code <- nimbleCode( {
       sig.spl.hunt[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
       
       for(t in 1:n.year){ 
+        
+        # latent.trend[s,t,r] <- inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #spline smoothing
+        latent.trend[s,t,r] <- inprod(beta.spl.hunt[s,r,1:K], basis[t,1:K]) #spline smoothing
         #Unlinked estimate of Hunter Numbers
         mu.hunt[s,t,r] <- alpha.hunt[s,r] + #intercept
           beta.econ.hunt[s] * pred.econ.prime[t] + #SEM economic indicator
-          inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #spline smoothing
+          latent.trend[s,t,r]
         
         H[s,t,r] <- exp(hunt.eps[s,t,r]) #Log Link
         
-        n.hunt[s,t,r] ~ dpois(H[s,t,r]) #Number of hunters follows Poisson
+        n.hunt[s,t,r] ~ dnorm(H[s,t,r], sd = sig.H[s,r]) #Number of hunters follows Poisson
       } #t
       
       for(t in 1:(n.year-1)){
@@ -132,8 +136,8 @@ code <- nimbleCode( {
   ### Total Harvest ###
   mu.wintsev.harv ~ dnorm(0, 0.01)
   sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.hunter.harv ~ dnorm(0, 0.01)
-  sig.hunter.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # mu.hunter.harv ~ dnorm(0, 0.01)
+  # sig.hunter.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.bbs ~ dnorm(0, 0.01)
   sig.bbs ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.pdsi ~ dnorm(0, 0.01)
@@ -146,25 +150,30 @@ code <- nimbleCode( {
   } #s
   
   for(r in 1:n.region){
+    mu.hunter.harv[r] ~ dnorm(0, 0.01)
+    sig.hunter.harv[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
     for(s in 1:n.species){
+      beta.hunter.harv[s,r] ~ dnorm(mu.hunter.harv[r], sd = sig.hunter.harv[r])
+      sig.N[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
       alpha.harv[s,r] ~ dnorm(0, sd = 12)
-      for(k in 1:K){
-        beta.spl.harv[s,r,k] ~ dnorm(0, sd = sig.spl.harv[s,r])
-      } #k
-      sig.spl.harv[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
+      # for(k in 1:K){
+      #   beta.spl.harv[s,r,k] ~ dnorm(0, sd = sig.spl.harv[s,r])
+      # } #k
+      # sig.spl.harv[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
       
       # Process Model
       for(t in 1:n.year){
         #Unlinked estimate of Hunter Numbers
         mu.harv[s,t,r] <- alpha.harv[s,r] + # intercepts
+          beta.hunter.harv[s,r] * latent.trend[s,t,r] + # Latent Hunter Trend
           beta.wintsev.harv[s] * awssi[t,r]  + # Previous winter severity (Affecting Survival)
           beta.pdsi.harv[s] * pdsi[t,r] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
-          beta.bbs.harv[s] * pred.bbs.prime[t] + # Latent predator index (Affecting Reproduction)
-          inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) # Spline smoothing = OFFSET
+          beta.bbs.harv[s] * pred.bbs.prime[t] #+ # Latent predator index (Affecting Reproduction)
+          # inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) # Spline smoothing = OFFSET
         
         N[s,t,r] <- exp(harv.eps[s,t,r]) #Log Link
         
-        n.harv[s,t,r] ~ dpois(N[s,t,r]) #Number of hunters follows Poisson
+        n.harv[s,t,r] ~ dnorm(N[s,t,r], sd = sig.N[s,r]) #Number of hunters follows Poisson
       } #t
       
       for(t in 1:(n.year-1)){
@@ -208,13 +217,14 @@ code <- nimbleCode( {
   for(r in 1:n.region){
     theta.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     mod.chuk[r] ~ dlogis(0,1)
+    mu.chuk[r] ~ dlogis(0,1)
   }
   
   for(p in 1:n.site){
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
     
     for(t in 2:n.year.chuk){
-      log.r.chuk[p,t-1] <-  mod.chuk[reg.chuk[p]] * log.r.harv[2, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
+      log.r.chuk[p,t-1] <-  mu.chuk[reg.chuk[p]] + mod.chuk[reg.chuk[p]] * latent.trend[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
       
       C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
       
@@ -228,7 +238,8 @@ code <- nimbleCode( {
   for(t in 1:n.year){
     for(s in 1:n.species){
       for(r in 1:n.region){
-        BPH[s,t,r] <- n.harv[s,t,r]/(1+n.hunt[s,t,r])
+        BPH[s,t,r] <-  N[s,t,r]/H[s,t,r]
+        BPH2[s,t,r]<- exp(mu.hunt[s,t,r]-mu.harv[s,t,r])
       }
     }
   }

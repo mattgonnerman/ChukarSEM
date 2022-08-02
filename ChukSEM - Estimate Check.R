@@ -122,13 +122,13 @@ est.check.df[is.num] <- lapply(est.check.df[is.num], round, 2)
 
 pred.only.df <- est.check.df %>% filter(Year >= year.hold) %>%
   mutate(Year = as.factor(Year))
-write.csv(as.data.frame(pred.only.df), "EstCheck - Estimates_N_H_BPH.csv", row.names = F)
+write.csv(as.data.frame(pred.only.df), "./EstCheck - Estimates_N_H_BPH.csv", row.names = F)
 
 est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
-  geom_errorbar(aes(ymin = Est.N.LCL, ymax = Est.N.UCL, color = Region),
+  geom_errorbar(aes(ymin = Est.N.LCL*1000, ymax = Est.N.UCL*1000, color = Region),
                 width = .3, size = 1,
                 position = position_dodge(width = .5), show.legend = F) +
-  geom_point(aes(y = Est.N, color = Region), shape = 19, size = 4,
+  geom_point(aes(y = Est.N*1000, color = Region), shape = 19, size = 4,
              position = position_dodge(width = .5)) +
   geom_point(aes(y = Obs.N, group = Region), color = "black", shape = 17, size = 3,
              position = position_dodge(width = .5), show.legend = F) +
@@ -138,15 +138,15 @@ est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   scale_color_manual(name = "Region", values = c("#0033a0", "#ffa300"), labels = c("Eastern", "Western")) +
   theme(axis.title = element_blank(), legend.position = c(.9,.25))
 
-ggsave(est.check.N, filename = '/EstCheck - N.jpeg',
+ggsave(est.check.N, filename = './EstCheck - N.jpeg',
        dpi = 300, width = 10 + (2016 - year.hold), height = 8)
 
 
 est.check.H <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
-  geom_errorbar(aes(ymin = Est.H.LCL, ymax = Est.H.UCL, color = Region),
+  geom_errorbar(aes(ymin = Est.H.LCL*1000, ymax = Est.H.UCL*1000, color = Region),
                 width = .3, size = 1,
                 position = position_dodge(width = .5), show.legend = F) +
-  geom_point(aes(y = Est.H, color = Region), shape = 19, size = 4,
+  geom_point(aes(y = Est.H*1000, color = Region), shape = 19, size = 4,
              position = position_dodge(width = .5)) +
   geom_point(aes(y = Obs.H, group = Region), color = "black", shape = 17, size = 3,
              position = position_dodge(width = .5), show.legend = F) +
@@ -156,7 +156,7 @@ est.check.H <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   scale_color_manual(name = "Region", values = c("#0033a0", "#ffa300"), labels = c("Eastern", "Western")) +
   theme(axis.title = element_blank(), legend.position = c(.9,.25))
 
-ggsave(est.check.H, filename = '/EstCheck - H.jpeg',
+ggsave(est.check.H, filename = './EstCheck - H.jpeg',
        dpi = 300, width = 10 + (2016 - year.hold), height = 8)
 
 
@@ -174,7 +174,7 @@ est.check.BPH <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   scale_color_manual(name = "Region", values = c("#0033a0", "#ffa300"), labels = c("Eastern", "Western")) +
   theme(axis.title = element_blank(), legend.position = c(.9,.25))
 
-ggsave(est.check.BPH, filename = '/EstCheck - BPH.jpeg',
+ggsave(est.check.BPH, filename = './EstCheck - BPH.jpeg',
        dpi = 300, width = 10 + (2016 - year.hold), height = 8)
 
 

@@ -4,7 +4,7 @@
 
 
 # Load packages
-lapply(c("shiny", "shinyWidgets", "ggplot2", "dplyr"), require, character.only = T)
+lapply(c("shiny", "shinyWidgets", "ggplot2", "dplyr", "mvtnorm", "R.utils", "tidyr", "lubridate"), require, character.only = T)
 
 # Load Data from Model
 load("./www/NDOW_SEM_app_objects.R")
@@ -58,9 +58,9 @@ ui <- navbarPage( tweaks,
                                                            "RABB",
                                                            "SAGR")),
                                    
-                                   
-                                   
-                                   
+                                   # sliderInput("years.f.plot", "Years to Display", min =1976, max = (1975 + ncol(appobject$N)), 
+                                   #             value = c(1976:(1975 + ncol(appobject$N))), sep=""),
+
                                    sliderInput("econ", "Economic Predictor", min=-2, max=2, 
                                                value = 0, sep=""),
                                    sliderInput("bbs", "Predator Predictor", min=-2, max=2, 
@@ -123,36 +123,171 @@ ui <- navbarPage( tweaks,
 ### Server Instructions
 server <-  function(input,output){
   
-  species.constant <- c("BLGR","CAQU","CHUK","HUPA","PHEA","RABB","SAGR")
-  colors.constant <- c("#0033a0","#015b6e","#016f55","#01833b","#80931e","#c09b0f","#ffa300")
-  
-  
-  past.data <- reactive(
-    read.csv(paste("./www/out_", input$pastset, "_all.csv", sep = "")) %>%
-      mutate(Region = ifelse(as.numeric(Region) == 1 ,"Eastern", "Western"),
-             Year = Year + 1975,
-             Species = species.constant[as.numeric(Species)]) %>%
-      filter(Year >= input$pastyears[1], Year <= input$pastyears[2],
-             Species %in% input$pastspp))
-  
-  colors <- reactive(setNames(colors.constant[seq(1,7, length.out = floor(length(unique(past.data()$Species))))],
+  species.constant <- c("BLGR","CAQU","CHUK","HUPA","SAGR")
+  colors.constant <- c("#0033a0","#015b6e","#01833b","#c09b0f","#ffa300")
+  colors <- reactive(setNames(colors.constant[seq(1,length(species.constant), length.out = floor(length(unique(past.data()$Species))))],
                               species.constant[which(species.constant %in% unique(past.data()$Species))]))
   
+  d.plot.input <- reactive({
+    if(input$forecastset == "BPH"){
+      d.input.array <- appobject$N.data/(1+appobject$H.data)
+    }else{
+      if(input$forecastset == "H"){
+        d.input.array <- 1000*appobject$H.data
+      }else{
+        d.input.array <- 1000*appobject$N.data
+      }
+    }
+    
+    as.data.frame.table(d.input.array) %>% 
+      dplyr::rename(Species = Var1, Year = Var2, Region = Var3, Est = Freq) %>%
+      filter(!is.na(Est)) %>%
+      mutate(Year = as.numeric(Year),
+             Region = as.numeric(Region),
+             Species = as.numeric(Species)) %>%
+      mutate(Year = Year + 1975)  %>%
+      mutate(Species = recode(Species, 
+                              '5' = "SAGR",
+                              '1' = "BLGR",
+                              '3' = "CHUK",
+                              '4' = 'HUPA',
+                              '2' = 'CAQU'))
+    # %>%
+    #   filter(Year %in% input$years.f.plot[1]:input$years.f.plot[2])
+  })
   
-  forecast.plot <- reactive({
+  forecast.plot.input <- reactive({
+    #Prep Inputs
+    H.reg <- appobject$H.reg
+    N.reg <- appobject$N.reg
+    Latent <- appobject$latent.trend
+    n.species <- nrow(H.reg[[1]])
     econ.var <- input$econ
     winter.var <-  input$awssi
     predator.var <- input$bbs
     drought.var <- input$pdsi
     
-    forecast.calculate <- data.frame(Year = 1:15, Est = econ.var + winter.var + predator.var + drought.var + 1:15)
-    forecast.calculate
+    d.start <- 1976
+    f.start <- min(which(is.na(appobject$N.data[1,,1]))) + 1975
+    d.end <- f.start - 1
+    f.end <- ncol(appobject$N.data) + 1975
+    y.b <- f.start-1976 #years of data before forecast
+    n.year.f <- length(f.end:d.start) #If you want to show more than next year, use this as another dimension in array
+    n.samples <- 1000
+    
+    #Function for formatting forecast graph inputs
+    sem_out_comb <- function(f.arr){
+      as.data.frame(wrap(f.arr, map=list(NA, 2))) %>%
+        mutate(Species = rep(1:n.species, n.year.f),
+               Year = rep(1:n.year.f, each = n.species)) %>%
+        pivot_longer(cols = 1:2, names_to = "Region", names_prefix = "V") %>%
+        as.data.frame()
+    }
+    #Empty arrays to fill
+    mu.N <- mu.H <- array(NA, dim = c(n.species, 2, n.year.f, n.samples))
+    BPH.Est <- BPH.LCL <- BPH.UCL <- N.Est <- N.LCL <- N.UCL <- H.Est <- H.LCL <- H.UCL <- array(NA, dim = c(n.species, 2, n.year.f))
+    
+    for(r in 1:2){
+      for(s in 1:n.species){
+        for(t in 1:n.year.f){
+          #Hunter Effort
+          mu.H[s,r,t,] <- rnorm(n.samples, H.reg[[r]]$A.hunt[s], H.reg[[r]]$A.hunt.sd[s]) +
+            econ.var*rnorm(n.samples, H.reg[[r]]$B.econ.hunt[s], H.reg[[r]]$B.econ.hunt.sd[s]) +
+            rnorm(n.samples, as.numeric(Latent$mean[[r]][s,t]), as.numeric(Latent$sd[[r]][s,t]))
+          
+          H.Est[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(.5)))
+          H.LCL[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(.075)))
+          H.UCL[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(.935)))
+          
+          # Total Harvest
+          mu.N[s,r,t,] <- rnorm(n.samples, N.reg[[r]]$A.harv[s], N.reg[[r]]$A.harv.sd[s]) +
+            rnorm(n.samples, N.reg[[r]]$B.hunter[s], N.reg[[r]]$B.hunter.sd[s])*rnorm(n.samples, as.numeric(Latent$mean[[r]][s,t]), as.numeric(Latent$sd[[r]][s,t]))+
+            winter.var * rnorm(n.samples, N.reg[[r]]$B.ws.harv[s], N.reg[[r]]$B.ws.harv.sd[s]) +
+            drought.var * rnorm(n.samples, N.reg[[r]]$B.pdsi.harv[s], N.reg[[r]]$B.pdsi.harv.sd[s]) +
+            predator.var * rnorm(n.samples, N.reg[[r]]$B.bbs.harv[s], N.reg[[r]]$B.bbs.harv.sd[s])
+          
+          N.Est[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(.5)))
+          N.LCL[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(.075)))
+          N.UCL[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(.935)))
+        }
+      }
+    }
+    
+    #Birds Per Hunter
+    mu.BPH <- mu.N/mu.H
+    for(r in 1:2){
+      for(s in 1:n.species){
+        for(t in 1:n.year.f){
+          BPH.Est[s,r,t] <- 1000*exp(quantile(mu.BPH[s,r,t,], c(.5)))
+          BPH.LCL[s,r,t] <- 1000*exp(quantile(mu.BPH[s,r,t,], c(.075)))
+          BPH.UCL[s,r,t] <- 1000*exp(quantile(mu.BPH[s,r,t,], c(.935)))
+        }
+      }
+    }
+    
+    N.df1 <- sem_out_comb(N.Est) %>% dplyr::rename(Est = value)
+    N.df2 <- sem_out_comb(N.LCL) %>% dplyr::rename(LCL = value) %>%
+      merge(N.df1, ., by = c("Species", "Region", "Year"))
+    N.df <- sem_out_comb(N.UCL) %>% dplyr::rename(UCL = value) %>%
+      merge(N.df2, ., by = c("Species", "Region", "Year")) %>% 
+      mutate(Year = Year + 1975) %>%
+      filter(Year > d.end) %>%
+      mutate(Species = recode(Species, 
+                              '5' = "SAGR",
+                              '1' = "BLGR",
+                              '3' = "CHUK",
+                              '4' = 'HUPA',
+                              '2' = 'CAQU'))
+    
+    H.df1 <- sem_out_comb(H.Est) %>% dplyr::rename(Est = value)
+    H.df2 <- sem_out_comb(H.LCL) %>% dplyr::rename(LCL = value) %>%
+      merge(H.df1, ., by = c("Species", "Region", "Year"))
+    H.df <- sem_out_comb(H.UCL) %>% dplyr::rename(UCL = value) %>%
+      merge(H.df2, ., by = c("Species", "Region", "Year"))%>% 
+      mutate(Year = Year + 1975)  %>%
+      filter( Year > d.end)%>%
+      mutate(Species = recode(Species, 
+                              '5' = "SAGR",
+                              '1' = "BLGR",
+                              '3' = "CHUK",
+                              '4' = 'HUPA',
+                              '2' = 'CAQU'))
+    
+    BPH.df1 <- sem_out_comb(BPH.Est) %>% dplyr::rename(Est = value)
+    BPH.df2 <- sem_out_comb(BPH.LCL) %>% dplyr::rename(LCL = value) %>%
+      merge(H.df1, ., by = c("Species", "Region", "Year"))
+    BPH.df <- sem_out_comb(BPH.UCL) %>% dplyr::rename(UCL = value) %>%
+      merge(H.df2, ., by = c("Species", "Region", "Year"))%>% 
+      mutate(Year = Year + 1975) %>%
+      filter( Year > d.end)%>%
+      mutate(Species = recode(Species, 
+                              '5' = "SAGR",
+                              '1' = "BLGR",
+                              '3' = "CHUK",
+                              '4' = 'HUPA',
+                              '2' = 'CAQU'))
+    
+    if(input$forecastset == "BPH"){
+      BPH.df 
+    }else{
+      if(input$forecastset == "H"){
+        H.df
+      }else{
+        N.df
+      }
+    }
   })
   
   output$forecastplot <- renderPlot(
-    ggplot(data = forecast.plot(), aes(x = Year, y = Est)) +
-      geom_point(size = 3)
+    ggplot(data = forecast.plot.input(), aes(x = Year, color = Species)) +
+      geom_errorbar(aes(ymin = UCL, ymax = LCL)) +
+      geom_point(aes(y = Est, color = Species)) +
+      geom_line(data = d.plot.input(), aes(y = Est)) +
+      facet_wrap(vars(Region), scales = "free_y", nrow = 2)
   )
+
+  
+  
   
   
   output$pastplot <- renderPlot(
@@ -172,27 +307,29 @@ server <-  function(input,output){
       scale_color_manual(values = colors()) +
       theme(axis.title = element_blank(), legend.position = "bottom")
   )
-  
-  
-  
-  
-  
-  ### "Download/Input Data"
-  # Downloadable csv of selected dataset ----
-  output$downloadData <- downloadHandler(
-    filename = function() {
-      paste(input$dataset, ".csv", sep = "")
-    },
-    content = function(file) {
-      write.csv(read.csv("FullDataDownload.csv"), file, row.names = F)
-    }
-  )
+ 
+  # ### "Download/Input Data"
+  # # Downloadable csv of selected dataset ----
+  # output$downloadData <- downloadHandler(
+  #   filename = function() {
+  #     paste(input$dataset, ".csv", sep = "")
+  #   },
+  #   content = function(file) {
+  #     write.csv(read.csv("FullDataDownload.csv"), file, row.names = F)
+  #   }
+  # )
 }
 
 
 ##################################################################################
 ### Construct Shiny App
 shinyApp(ui = ui, server = server)
+
+
+
+
+
+
 
 # ################################################################################
 #https://shiny.rstudio.com/images/shiny-cheatsheet.pdf

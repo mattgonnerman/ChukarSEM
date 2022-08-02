@@ -1,9 +1,6 @@
 ### Specify Data Inputs
-# Splines
 require(splines)
-# Function that Constructs B-Spline Base
-# from https://github.com/andrewcparnell/jags_examples/blob/master/R%20Code/jags_spline.R
-bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg = 5, deg = 3) {
+bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg = 10, deg = 3) {
   # Compute the length of the partitions
   dx <- (xr - xl) / nseg
   # Create equally spaced knots
@@ -12,46 +9,66 @@ bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg
   get_bs_matrix <- matrix(bs(x, knots = knots, degree = deg, Boundary.knots = c(knots[1], knots[length(knots)])), nrow = length(x))
   # Remove columns that contain zero only
   bs_matrix <- get_bs_matrix[, -c(1:deg, ncol(get_bs_matrix):(ncol(get_bs_matrix) - deg))]
-
+  
   return(bs_matrix)
 }
 
-# hunter.prime   <- MCMCpstr(mcmcList1, 'H')$H #Extract hunter numbers from Model1
+nseg <- 15 #Number of spline segments
 time <- 1:cut
-nseg <- 10 #Number of spline segments
-BM <- array(NA, dim = c(cut,nseg+3,5,2))
-Z  <- array(NA, dim = c(cut,nseg+2,5,2))
-D <- diff(diag(ncol(BM[,,1,1])), diff = 1)
-Q <- t(D) %*% solve(D %*% t(D))
-
-for(i in 1:5){
-  for(j in 1:2){
-    # BM[,,i,j] <- bs_bbase(hunter.prime[i,,j], nseg = 10)
-    BM[,,i,j] <- bs_bbase(time, nseg = nseg)
-    Z[,,i,j] <-  BM[,,i,j]%*% Q
-  }
-}
-
-ZZ <- Z
-ZZ[is.na(ZZ)] <- 0
-
-# Time
-time <- 1:cut
-
-BM1 <- array(NA, dim = c(cut,nseg+3,5,2))
-Z1  <- array(NA, dim = c(cut,nseg+2,5,2))
-D1 <- diff(diag(ncol(BM1[,,1,1])), diff = 1)
-Q1 <- t(D1) %*% solve(D1 %*% t(D1))
-
-for(i in 1:5){
-  for(j in 1:2){
-    BM1[,,i,j] <- bs_bbase(time, nseg = 10)
-    Z1[,,i,j] <-  BM1[,,i,j]%*% Q1
-  }
-}
-
-ZZ1 <- Z1
-ZZ1[is.na(ZZ1)] <- 0
+B <- bs_bbase(x = time, nseg = nseg)
+# # Splines
+# require(splines)
+# # Function that Constructs B-Spline Base
+# # from https://github.com/andrewcparnell/jags_examples/blob/master/R%20Code/jags_spline.R
+# bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg = 5, deg = 3) {
+#   # Compute the length of the partitions
+#   dx <- (xr - xl) / nseg
+#   # Create equally spaced knots
+#   knots <- seq(xl - deg * dx, xr + deg * dx, by = dx)
+#   # Use bs() function to generate the B-spline basis
+#   get_bs_matrix <- matrix(bs(x, knots = knots, degree = deg, Boundary.knots = c(knots[1], knots[length(knots)])), nrow = length(x))
+#   # Remove columns that contain zero only
+#   bs_matrix <- get_bs_matrix[, -c(1:deg, ncol(get_bs_matrix):(ncol(get_bs_matrix) - deg))]
+# 
+#   return(bs_matrix)
+# }
+# 
+# # hunter.prime   <- MCMCpstr(mcmcList1, 'H')$H #Extract hunter numbers from Model1
+# time <- 1:cut
+# nseg <- 15 #Number of spline segments
+# BM <- array(NA, dim = c(cut,nseg+3,5,2))
+# Z  <- array(NA, dim = c(cut,nseg+2,5,2))
+# D <- diff(diag(ncol(BM[,,1,1])), diff = 1)
+# Q <- t(D) %*% solve(D %*% t(D))
+# 
+# for(i in 1:5){
+#   for(j in 1:2){
+#     # BM[,,i,j] <- bs_bbase(hunter.prime[i,,j], nseg = 10)
+#     BM[,,i,j] <- bs_bbase(time, nseg = nseg)
+#     Z[,,i,j] <-  BM[,,i,j]%*% Q
+#   }
+# }
+# 
+# ZZ <- Z
+# ZZ[is.na(ZZ)] <- 0
+# 
+# # Time
+# time <- 1:cut
+# 
+# BM1 <- array(NA, dim = c(cut,nseg+3,5,2))
+# Z1  <- array(NA, dim = c(cut,nseg+2,5,2))
+# D1 <- diff(diag(ncol(BM1[,,1,1])), diff = 1)
+# Q1 <- t(D1) %*% solve(D1 %*% t(D1))
+# 
+# for(i in 1:5){
+#   for(j in 1:2){
+#     BM1[,,i,j] <- bs_bbase(time, nseg = 10)
+#     Z1[,,i,j] <-  BM1[,,i,j]%*% Q1
+#   }
+# }
+# 
+# ZZ1 <- Z1
+# ZZ1[is.na(ZZ1)] <- 0
 
 data <- list(
   ### Covariates
@@ -67,12 +84,13 @@ data <- list(
   pdsi = pdsi_df,
  
   ### Hunter Effort
-  n.hunt = hunters, #Observed number of hunters for each species each year
-  Z.hunt = ZZ1, #Spline
+  n.hunt = hunters/1000, #Observed number of hunters for each species each year
+  # Z.hunt = ZZ1, #Spline
+  basis = B, #Spline Base
 
   ### Total Harvest
-  n.harv = upland,
-  Z.harv = ZZ, #Spline
+  n.harv = upland/1000,
+  # Z.harv = ZZ, #Spline
   
   ### Chukar Site Abundance
   n.chuk = data.matrix(chukar)
@@ -89,7 +107,7 @@ constants <- list(
   n.region = 2,
   n.species = nrow(upland),
   n.year = ncol(hunters),
-  K = 12,
+  K = dim(B)[2],
 
   ### Predictors
   era.awssi = c(rep(0,length(1975:1994)),rep(1, length(1995:2001)), rep(0, length(2002:final.y))), #Groupings for change in gas prices
@@ -212,7 +230,7 @@ initsFunction <- function() list(
   mu.econ = 0,
   sig.econ = 1,
   beta.econ.hunt = rep(0, 5),
-  beta.spl.hunt = array(0, dim = c(5,2,12)),
+  beta.spl.hunt = array(0, dim = c(5,2,dim(B)[2])),
   sig.spl.hunt = matrix(1, ncol = 2, nrow = 5),
   
   mu.wintsev.harv = 0,
@@ -224,14 +242,15 @@ initsFunction <- function() list(
   mu.pdsi = 0,
   sig.pdsi = 1,
   beta.pdsi.harv = rep(0, 5),
-  mu.hunter.harv = 0,
-  sig.hunter.harv = 1,
+  mu.hunter.harv = c(0,0),
+  sig.hunter.harv = c(1,1),
   beta.hunter.harv = matrix(0, 5, 2),
-  beta.spl.harv = array(0, dim = c(5,2,12)),
-  sig.spl.harv = matrix(1, ncol = 2, nrow = 5),
+  # beta.spl.harv = array(0, dim = c(5,2,dim(B)[2])),
+  # sig.spl.harv = matrix(1, ncol = 2, nrow = 5),
 
   ### Hunter Effort
-  n.hunt = n.hunt.i,
+  sig.H =  matrix(1, 7,2),
+  n.hunt = n.hunt.i/1000,
   Q.hunt = abind(Q,Q,along = 3),
   P.hunt = abind(P,P,along = 3),
   Lambda.hunt = abind(diag(n.species),diag(n.species),along = 3),
@@ -241,7 +260,8 @@ initsFunction <- function() list(
   sig.hunt = matrix(1, ncol = 2, nrow = 5),
 
   ### Total Harvest
-  n.harv = n.harv.i,
+  sig.N =  matrix(1, 7,2),
+  n.harv = n.harv.i/1000,
   Q.harv = abind(Q2,Q2,along = 3),
   P.harv = abind(P2,P2,along = 3),
   Lambda.harv = abind(diag(n.species),diag(n.species),along = 3),
@@ -255,6 +275,7 @@ initsFunction <- function() list(
   ### Chukar Site Abundance
   theta.chuk = rep(1,2),
   mod.chuk = rep(1,2),
+  mu.chuk = c(0,0),
   n.chuk = as.matrix(chukar_na),
   log.r.chuk = r.chuk.init
 )
@@ -271,7 +292,7 @@ model_test$simulate(c(
                       'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
                       'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
                       'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
-                      'BPH'
+                      'BPH', 'BPH2'
                       ))
 model_test$initializeInfo()
 model_test$calculate()
@@ -288,29 +309,53 @@ pars1 <- c(### Hunter Effort
   "beta.wintsev.harv",
   "beta.bbs.harv",
   "beta.pdsi.harv",
-  "beta.spl.harv",
+  # "beta.spl.harv",
   "Sigma.harv"
 )
 
-pars2 <- c(### Hunter Effort
-  "H",
-  "n.hunt",
+pars2 <- c(
+  ### Hunter Effort
+  "H",'sig.H',
   "rho.hunt",
-  
+  "log.r.hunt",
   ### Total Harvest
-  "N",
-  "n.harv",
-  "rho.harv",
-  
+  "N",'sig.N',
+  "log.r.harv",
+  'rho.harv',
   # ### Chukar Site Abundance
   "log.r.chuk",
-  
+  'mod.chuk',
   ### Birds per Hunter
-  "BPH")
+  "BPH",'BPH2'
+  )
 
 pars.pred <- c(
-  "pred.bbs.prime",
-  "pred.econ.prime"
+  'pred.econ.prime',
+  'pred.bbs.prime',
+  'sig.econ.pred', 
+  'sig.bbs.pred',
+  
+  'mu.bbs.p',
+  'zeta.econ',
+  'zeta.bbs',
+  'alpha.awssi', 
+  'beta.awssi',
+  'awssi',
+  
+  'beta.econ.hunt',
+  'sig.H',
+  'alpha.hunt',
+  'beta.spl.hunt',
+  'latent.trend',
+  
+  'beta.wintsev.harv',
+  'beta.bbs.harv',
+  'beta.pdsi.harv',
+  'beta.hunter.harv',
+  'sig.N','mu.harv',
+  'mu.hunt',
+  'mod.chuk'
+  
 )
 
 # Parallel Processing Setup
@@ -341,7 +386,7 @@ out.full.predict <- clusterEvalQ(cl, {
     'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
     'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
     'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
-    'BPH'
+    'BPH', 'BPH2'
   ))
   model_test$initializeInfo()
   model_test$calculate()
