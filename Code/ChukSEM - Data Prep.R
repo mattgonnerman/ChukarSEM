@@ -49,7 +49,7 @@ harvest_data <- read.csv('./Data/all_species_harvest_data.csv') %>%
                                `DOVE` = 'DOVE',
                                `DUSKY_GROUSE` = 'BLGR',
                                `GAMBEL'S_QUAIL` = 'GAQU')) %>%
-  filter(Species %in% c("SAGR", "CHUK", "BLGR", "HUPA", "PHEA")) %>%
+  filter(Species %in% c("SAGR", "CHUK", "BLGR", "CAQU", "HUPA", "PHEA")) %>%
   dplyr::select(Section, Species, Year, N = Animals, H = Hunters)
 
 #Subset data from Eastern section
@@ -101,7 +101,6 @@ eastern_pdsi <- read.csv('./Data/Eastern_PDSIZ.csv') %>%
   mutate(Summer = (Apr + May + Jun + Jul + Aug)/5,
          Winter = (Nov + Dec + lead(Jan) + lead(Feb) + lead(Mar))/5) %>%
   select(Year, Summer) %>%
-  filter(Year %in% 1975:final.y) %>%
   mutate(Region = "Eastern")
 
 western_pdsi <- read.csv('./Data/Western_PDSIZ.csv') %>%
@@ -109,13 +108,14 @@ western_pdsi <- read.csv('./Data/Western_PDSIZ.csv') %>%
   mutate(Summer = (Apr + May + Jun + Jul + Aug)/5,
          Winter = (Nov + Dec + lead(Jan) + lead(Feb) + lead(Mar))/5) %>%
   select(Year, Summer) %>%
-  filter(Year %in% 1975:final.y) %>%
   mutate(Region = "Western")
 
 pdsi_df <- rbind(eastern_pdsi, western_pdsi) %>%
   pivot_wider(names_from = Region, values_from = c(Summer)) %>%
+  add_row(Year = (max(.$Year)+1):final.y, 
+          Eastern = rep(NA, length((max(.$Year)+1):final.y)),
+          Western = rep(NA, length((max(.$Year)+1):final.y))) %>%
   dplyr::select(-Year) %>%
-  add_row(Eastern = rep(NA, n.add.y), Western = rep(NA, n.add.y)) %>%
   as.matrix(.)
 
 
@@ -126,20 +126,19 @@ pdsi_df <- rbind(eastern_pdsi, western_pdsi) %>%
 unemployment <- read.csv("./Data/NEvadaUnemploymentUSBL.csv", colClasses = c("integer", "character", rep("numeric", 2), rep("integer", 3), "numeric")) %>%
   filter(Period == "Sep") %>%
   filter(Year > 1975) %>%
-  filter(Year <= cutoff.y) %>%
   mutate(Rate = unemployment/labor.force) %>%
   dplyr::select(Year, Une = Rate) %>%
   mutate(Une = scale(Une)[,1]) %>%
-  add_row(Year = (cutoff.y+1):final.y, Une = rep(NA, n.add.y))
+  add_row(Year = (max(.$Year)+1):final.y, Une = rep(NA, length((max(.$Year)+1):final.y)))
 # ggplot(data = data.frame(UNE= une, Year = 1:length(une)), aes(x = Year, y = UNE)) +
 #   geom_line()
 
 #Number of Resident Licenses Sold
 general <- read.csv(file = './Data/overall_hunting_data.csv') %>%
-  filter(ST == 'NV' & Year > 1975 & Year <= cutoff.y) %>%
+  filter(ST == 'NV' & Year > 1975) %>%
   dplyr::select(Year, Licenses = Resident.Licenses) %>%
   mutate(Licenses = scale(Licenses)[,1]) %>%
-  add_row(Year = (cutoff.y+1):final.y, Licenses = rep(NA, n.add.y))
+  add_row(Year = (max(.$Year)+1):final.y, Licenses = rep(NA, length((max(.$Year)+1):final.y)))
 
 #Gas Prices
 #https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=EMA_EPM0_PWG_SNV_DPG&f=M
@@ -149,17 +148,16 @@ gas.march <- read.csv('./Data/NV_Gas.csv') %>%
          Month = lubridate::month(Date)) %>%
   filter(Month == 5) %>%
   arrange(Year) %>%
-  filter(Year <= cutoff.y) %>%
   dplyr::select(Year, Gas.May = Dollars.per.Gallon) %>%
   mutate(Gas.May = scale(Gas.May)[,1]) %>%
-  add_row(Year = (cutoff.y+1):final.y, Gas.May = rep(NA, n.add.y))
+  add_row(Year = (max(.$Year)+1):final.y, Gas.May = rep(NA, length((max(.$Year)+1):final.y)))
 
 #Personal Disposalable Income/Merge All
 econ_data <- read.csv('./Data/economic_data.csv') %>%
   dplyr::rename(PDI = Per.Capita.Personal.Disposable.Income) %>%
-  filter(Year >1975 & Year <= cutoff.y) %>%
+  filter(Year >1975) %>%
   mutate(PDI = scale(PDI)[,1]) %>%
-  add_row(Year = (cutoff.y+1):final.y, PDI = rep(NA, n.add.y)) %>%
+  add_row(Year = (max(.$Year)+1):final.y, PDI = rep(NA, length((max(.$Year)+1):final.y))) %>%
   merge(., gas.march, by = "Year", all = T)%>%
   merge(., general, by = "Year", all = T) %>%
   merge(., unemployment, by = "Year", all = T) %>%
@@ -175,11 +173,11 @@ awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
   group_by(Region, Year) %>%
   filter(!is.na(AWSSI)) %>%
   summarise(AWSSI = mean(AWSSI)) %>%
-  filter(Year > 1974 & Year <= cutoff.y & Region != "Southern") %>%
+  filter(Year > 1974 & Region != "Southern") %>%
   mutate(AWSSI = scale(AWSSI)[,1]) %>%
   pivot_wider(names_from = Region, values_from = AWSSI) %>%
+  add_row(Year = (max(.$Year)+1):final.y, Eastern = rep(NA, length((max(.$Year)+1):final.y)), Western = rep(NA, length((max(.$Year)+1):final.y))) %>%
   dplyr::select(-Year) %>%
-  add_row(Eastern = rep(NA, n.add.y), Western = rep(NA, n.add.y)) %>%
   as.matrix(.)
 
 
@@ -191,8 +189,7 @@ bbs.df <- read.csv("./Data/bbs_indices.csv") %>%
          nharrier = scale(nharrier)[,1],
          pfalcon = scale(pfalcon)[,1]
          ) %>%
-  filter(Year <= cutoff.y) %>%
+  add_row(Year = (max(.$Year)+1):final.y, raven = rep(NA, length((max(.$Year)+1):final.y)), rthawk = rep(NA, length((max(.$Year)+1):final.y)),
+          nharrier = rep(NA, length((max(.$Year)+1):final.y)), pfalcon = rep(NA, length((max(.$Year)+1):final.y))) %>%
   dplyr::select(-Year) %>%
-  add_row(raven = rep(NA, n.add.y), rthawk = rep(NA, n.add.y),
-          nharrier = rep(NA, n.add.y), pfalcon = rep(NA, n.add.y)) %>%
   as.matrix()

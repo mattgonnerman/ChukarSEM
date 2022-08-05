@@ -5,13 +5,13 @@ lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimb
        require, character.only = T)
 
 #Last year from which data will be used
-cutoff.y <- 2016 
+cutoff.y <- 2017 
 
 #What is the last year of Chukar site abundance (Should be 1 + cutoff.y)
 cutoff.y.chuk <- 2017 
 
 #Last year to predict 
-final.y <- year.hold <- 2020 
+final.y <- year.hold <- 2022 
 
 n.add.y <- final.y - cutoff.y
 cut <- length(1976:cutoff.y) + n.add.y #Reference used to subset dataframes later
