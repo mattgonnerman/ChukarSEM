@@ -183,15 +183,15 @@ for(i in 1:nrow(rho.harv.est)){
 
 rho.harv.e <- rho.harv.list[[1]]
 rho.harv.w <- rho.harv.list[[2]]
-write.csv(rho.harv.e, file = "/Output/CheckPlot - rho_harv_east.csv")
-write.csv(rho.harv.w, file = "/Output/CheckPlot - rho_harv_west.csv")
+write.csv(rho.harv.e, file = "./Output/CheckPlot - rho_harv_east.csv")
+write.csv(rho.harv.w, file = "./Output/CheckPlot - rho_harv_west.csv")
 
 rho.harv.e.plot <- ggcorrplot::ggcorrplot(rho.harv.e, lab = T) +
   labs(title = "Harvest Correlation - East")
-ggsave(rho.harv.e.plot, filename = '/Output/CheckPlot - Rho Harv East.jpg', dpi = 300)
+ggsave(rho.harv.e.plot, filename = './Output/CheckPlot - Rho Harv East.jpg', dpi = 300)
 rho.harv.w.plot <- ggcorrplot::ggcorrplot(rho.harv.w, lab = T) +
   labs(title = "Harvest Correlation - West")
-ggsave(rho.harv.w.plot, filename = '/Output/CheckPlot - Rho Harv West.jpg', dpi = 300)
+ggsave(rho.harv.w.plot, filename = './Output/CheckPlot - Rho Harv West.jpg', dpi = 300)
 
 # hunter correlation
 rho.hunt.est <- MCMCsummary(mcmcList1, 'rho.hunt') %>%
@@ -210,15 +210,15 @@ for(i in 1:nrow(rho.hunt.est)){
 
 rho.hunt.e <- rho.hunt.list[[1]]
 rho.hunt.w <- rho.hunt.list[[2]]
-write.csv(rho.hunt.e, file = "/Output/CheckPlot - rho_hunt_east.csv")
-write.csv(rho.hunt.w, file = "/Output/CheckPlot - rho_hunt_west.csv")
+write.csv(rho.hunt.e, file = "./Output/CheckPlot - rho_hunt_east.csv")
+write.csv(rho.hunt.w, file = "./Output/CheckPlot - rho_hunt_west.csv")
 
 rho.hunt.e.plot <- ggcorrplot::ggcorrplot(rho.hunt.e, lab = T) +
   labs(title = "Hunter Correlation - East")
-ggsave(rho.hunt.e.plot, filename = '/Output/CheckPlot - Rho Hunt East.jpg', dpi = 300)
+ggsave(rho.hunt.e.plot, filename = './Output/CheckPlot - Rho Hunt East.jpg', dpi = 300)
 rho.hunt.w.plot <- ggcorrplot::ggcorrplot(rho.hunt.w, lab = T) +
   labs(title = "Hunter Correlation - West")
-ggsave(rho.hunt.w.plot, filename = '/Output/CheckPlot - Rho Hunt West.jpg', dpi = 300)
+ggsave(rho.hunt.w.plot, filename = './Output/CheckPlot - Rho Hunt West.jpg', dpi = 300)
 
 
 

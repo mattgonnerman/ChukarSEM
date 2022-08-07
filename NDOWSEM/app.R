@@ -32,9 +32,18 @@ tweaks <- tags$head(tags$style(HTML(
          .checkbox-inline+.checkbox-inline {
                     margin-left: 0px;
                     margin-right: 10px;
-          }
-        "
-), setBackgroundColor(color = "blue") ) )
+          }"),
+  setBackgroundColor(color = "#12263f")),
+  
+  setSliderColor(rep("#12263f",5),c(1:5)),
+  
+  chooseSliderSkin("Flat"),
+  tags$head(tags$style("#forecasttable table {background-color: white;
+                       border: 1px solid '#12263f';
+                       border-collapse: collapse;
+                       }",
+                       media="screen", type="text/css"))
+  )
 
 
 
@@ -86,6 +95,7 @@ ui <- navbarPage( tweaks,
                                    
                                    checkboxGroupInput("spphighlight", "Species:",
                                                       choices = c("Chukar" = "CHUK",
+                                                                  "California Quail" = "CAQU",
                                                                   "Blue Grouse" = "BLGR",
                                                                   "Hungarian Partridge" = "HUPA",
                                                                   "Pheasant" = "PHEA",
@@ -94,21 +104,27 @@ ui <- navbarPage( tweaks,
                                    
                                    sliderInput("years.f.plot", "Years to Display", min =1976, max = (1975 + lastyear),
                                                value = c(2011,(1975 + lastyear)), sep=""),
+                                   selectInput("conflevel", "Confidence Interval",
+                                               choices = c("95%" = .95, 
+                                                           "85%" = .85, 
+                                                           "50%" = .5, 
+                                                           "Hide Confidence Interval" = 0)),
                                    
-                                   sliderInput("econ", "Economic Predictor", min=-2, max=2, 
+                                   sliderInput("econ", "Economic Predictor", min=-3, max=3, 
                                                value = 0, sep=""),
-                                   sliderInput("bbs", "Predator Predictor", min=-2, max=2, 
+                                   sliderInput("bbs", "Predator Predictor", min=-3, max=3, 
                                                value = 0, sep=""),
-                                   sliderInput("awssi", "Winter Severity", min=-2, max=2, 
+                                   sliderInput("awssi", "Winter Severity", min=-3, max=3, 
                                                value = 0, sep=""),
-                                   sliderInput("pdsi", "Drought Conditions", min=-2, max=2, 
+                                   sliderInput("pdsi", "Drought Conditions", min=-3, max=3, 
                                                value = 0, sep=""),
                                    
                                    downloadButton("downloadData", "Download Displayed Estimates")
                       ),
                       
                       mainPanel(#Output Plot
-                        plotOutput("forecastplot"),
+                        plotOutput("forecastplot", width = "800px", height = "710px"),
+                        tableOutput('forecasttable')
                       )
                       
                     )
@@ -137,10 +153,10 @@ ui <- navbarPage( tweaks,
 ### Server Instructions
 server <-  function(input,output){
   
-  species.constant <- c("BLGR","CAQU","CHUK","HUPA","SAGR")
-  colors.constant <- c("#0033a0","#015b6e","#01833b","#c09b0f","#ffa300")
-  colors <- reactive(setNames(colors.constant[seq(1,length(species.constant), length.out = floor(length(unique(past.data()$Species))))],
-                              species.constant[which(species.constant %in% unique(past.data()$Species))]))
+  species.constant <- c("BLGR","CAQU","CHUK","HUPA","PHEA","SAGR")
+  colors.constant <- c("#E8A323","#23E8A3","#A323E8","#074A36","#36074A", "#4A3607")
+  colors <- reactive(setNames(colors.constant[which(species.constant %in% forecast.plot.input()$Species)],
+                              species.constant[which(species.constant %in% forecast.plot.input()$Species)]))
   
   output$tmptxt <- renderText({"Under Construction"})
   
@@ -164,7 +180,7 @@ server <-  function(input,output){
     f.end <- ncol(appobject$N.data) + 1975
     y.b <- f.start-1976 #years of data before forecast
     n.year.f <- length(f.end:d.start) #If you want to show more than next year, use this as another dimension in array
-    n.samples <- 1000
+    n.samples <- 10000
     
     
     #Function for formatting forecast graph inputs
@@ -196,37 +212,43 @@ server <-  function(input,output){
       mutate(Year = Year + 1975)  %>%
       mutate(Species = recode(Species, 
                               '1' = 'BLGR',
-                              '2' = 'CHUK',
-                              '3' = 'HUPA',
-                              '4' = 'PHEA',
-                              '5' = 'SAGR'))
+                              '2' = 'CAQU',
+                              '3' = 'CHUK',
+                              '4' = 'HUPA',
+                              '5' = 'PHEA',
+                              '6' = 'SAGR'))
     
     #Empty arrays to fill
-    mu.N <- mu.H <- array(NA, dim = c(n.species, 2, n.year.f, n.samples))
+    latent <- mu.N <- mu.H <- array(NA, dim = c(n.species, 2, n.year.f, n.samples))
     BPH.Est <- BPH.LCL <- BPH.UCL <- N.Est <- N.LCL <- N.UCL <- H.Est <- H.LCL <- H.UCL <- array(NA, dim = c(n.species, 2, n.year.f))
     
     for(r in 1:2){
       for(s in 1:n.species){
         for(t in 1:n.year.f){
+          #Latent time trend
+          latent[s,r,t,] <- rnorm(n.samples, as.numeric(Latent$mean[[r]][s,t]), as.numeric(Latent$sd[[r]][s,t]))
+          
           #Hunter Effort
           mu.H[s,r,t,] <- rnorm(n.samples, H.reg[[r]]$A.hunt[s], H.reg[[r]]$A.hunt.sd[s]) +
             econ.var*rnorm(n.samples, H.reg[[r]]$B.econ.hunt[s], H.reg[[r]]$B.econ.hunt.sd[s]) +
-            rnorm(n.samples, as.numeric(Latent$mean[[r]][s,t]), as.numeric(Latent$sd[[r]][s,t]))
+            latent[s,r,t,]
+          
+          CI <- (1-as.numeric(input$conflevel))/2
           
           H.Est[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(.5)))
-          H.LCL[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(.075)))
-          H.UCL[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(.935)))
+          H.LCL[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(CI)))
+          H.UCL[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(1-CI)))
           
           # Total Harvest
           mu.N[s,r,t,] <- rnorm(n.samples, N.reg[[r]]$A.harv[s], N.reg[[r]]$A.harv.sd[s]) +
-            rnorm(n.samples, N.reg[[r]]$B.hunter[s], N.reg[[r]]$B.hunter.sd[s])*rnorm(n.samples, as.numeric(Latent$mean[[r]][s,t]), as.numeric(Latent$sd[[r]][s,t]))+
+            rnorm(n.samples, N.reg[[r]]$B.hunter[s], N.reg[[r]]$B.hunter.sd[s])*latent[s,r,t,]+
             winter.var * rnorm(n.samples, N.reg[[r]]$B.ws.harv[s], N.reg[[r]]$B.ws.harv.sd[s]) +
             drought.var * rnorm(n.samples, N.reg[[r]]$B.pdsi.harv[s], N.reg[[r]]$B.pdsi.harv.sd[s]) +
             predator.var * rnorm(n.samples, N.reg[[r]]$B.bbs.harv[s], N.reg[[r]]$B.bbs.harv.sd[s])
           
           N.Est[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(.5)))
-          N.LCL[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(.075)))
-          N.UCL[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(.935)))
+          N.LCL[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(CI)))
+          N.UCL[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(1-CI)))
         }
       }
     }
@@ -237,8 +259,8 @@ server <-  function(input,output){
       for(s in 1:n.species){
         for(t in 1:n.year.f){
           BPH.Est[s,r,t] <- quantile(mu.BPH[s,r,t,], c(.5))
-          BPH.LCL[s,r,t] <- quantile(mu.BPH[s,r,t,], c(.075))
-          BPH.UCL[s,r,t] <- quantile(mu.BPH[s,r,t,], c(.935))
+          BPH.LCL[s,r,t] <- quantile(mu.BPH[s,r,t,], c(CI))
+          BPH.UCL[s,r,t] <- quantile(mu.BPH[s,r,t,], c(1-CI))
         }
       }
     }
@@ -251,10 +273,11 @@ server <-  function(input,output){
       mutate(Year = Year + 1975) %>%
       mutate(Species = recode(Species, 
                               '1' = 'BLGR',
-                              '2' = 'CHUK',
-                              '3' = 'HUPA',
-                              '4' = 'PHEA',
-                              '5' = 'SAGR'))
+                              '2' = 'CAQU',
+                              '3' = 'CHUK',
+                              '4' = 'HUPA',
+                              '5' = 'PHEA',
+                              '6' = 'SAGR'))
     
     H.df1 <- sem_out_comb(H.Est) %>% dplyr::rename(Est = value)
     H.df2 <- sem_out_comb(H.LCL) %>% dplyr::rename(LCL = value) %>%
@@ -264,10 +287,11 @@ server <-  function(input,output){
       mutate(Year = Year + 1975)  %>%
       mutate(Species = recode(Species, 
                               '1' = 'BLGR',
-                              '2' = 'CHUK',
-                              '3' = 'HUPA',
-                              '4' = 'PHEA',
-                              '5' = 'SAGR'))
+                              '2' = 'CAQU',
+                              '3' = 'CHUK',
+                              '4' = 'HUPA',
+                              '5' = 'PHEA',
+                              '6' = 'SAGR'))
     
     BPH.df1 <- sem_out_comb(BPH.Est) %>% dplyr::rename(Est = value)
     BPH.df2 <- sem_out_comb(BPH.LCL) %>% dplyr::rename(LCL = value) %>%
@@ -275,12 +299,13 @@ server <-  function(input,output){
     BPH.df <- sem_out_comb(BPH.UCL) %>% dplyr::rename(UCL = value) %>%
       merge(BPH.df2, ., by = c("Species", "Region", "Year"))%>% 
       mutate(Year = Year + 1975) %>%
-      mutate(Species = recode(Species,  
+      mutate(Species = recode(Species, 
                               '1' = 'BLGR',
-                              '2' = 'CHUK',
-                              '3' = 'HUPA',
-                              '4' = 'PHEA',
-                              '5' = 'SAGR'))
+                              '2' = 'CAQU',
+                              '3' = 'CHUK',
+                              '4' = 'HUPA',
+                              '5' = 'PHEA',
+                              '6' = 'SAGR'))
     
     if(input$forecastset == "BPH"){
       f.input <- BPH.df 
@@ -308,44 +333,65 @@ server <-  function(input,output){
   })
   
   linetext.pos <- reactive({
-    max(as.numeric(.6 * forecast.plot.input()$UCL.use), na.rm = T)
+    reg1 <- forecast.plot.input() %>% filter(Region == 1)
+    reg2 <- forecast.plot.input() %>% filter(Region == 2)
+    
+    c(max(as.numeric(reg1$UCL.use), na.rm = T),max(as.numeric(reg2$UCL.use), na.rm = T))
   })
+  
+  ylabel.rec <- reactive({
+    ifelse(input$forecastset == "BPH", "Birds Per Hunter",
+           ifelse(input$forecastset == "N", "Total Harvest", "Hunter Participation"))
+  })
+  
+ estrealtext <- reactive({
+   reg1 <- forecast.plot.input() %>% filter(Region == "East")
+   reg2 <- forecast.plot.input() %>% filter(Region == "West")
+
+   data.frame(Species = NA,
+              Region = c("East", "West", "East", "West"),
+              Text = c("\n\nEstimated", "\n\nEstimated", "Observered\n\n", "Observered\n\n"),
+              X =  1975 + min(which(is.na(appobject$N.data[1,,1]))) - 1,
+              Y = c(.8*max(as.numeric(reg1$UCL.use), na.rm = T),.8*max(as.numeric(reg2$UCL.use), na.rm = T),.8*max(as.numeric(reg1$UCL.use), na.rm = T),.8*max(as.numeric(reg2$UCL.use), na.rm = T)))
+ })
   
   output$forecastplot <- renderPlot(
     ggplot(data = forecast.plot.input(), aes(x = Year, fill = Species, color = Species)) +
       geom_ribbon(aes(ymin = UCL.use, ymax = LCL.use), alpha = .4, linetype = "dashed") +
       geom_line(aes(y = Graph.Y, color = Species), size = 1.4) +
       geom_vline(xintercept = vline.intercept(), size = 1.5, linetype = "dashed") +
-      geom_text(aes(x=vline.intercept(), label="\n\nEstimated", y=linetext.pos()), 
-                color = "black", angle=90, alpha = .5) +
-      geom_text(aes(x=vline.intercept(), label="Observered\n\n", y=linetext.pos()),
+      # geom_text(aes(x=vline.intercept(), label="\n\nEstimated", y=linetext.pos()),
+      #           color = "black", angle=90, alpha = .5) +
+      # geom_text(aes(x=vline.intercept(), label="Observered\n\n", y=linetext.pos()),
+      #           color = "black", angle=90, alpha = .5) +
+      geom_text(data = estrealtext(), aes(x = X, y = Y, label = Text),
                 color = "black", angle=90, alpha = .5) +
       facet_wrap(vars(Region), scales = "free_y", nrow = 2) +
       theme_classic(base_size = 18) + 
+      labs(y = ylabel.rec()) +
       scale_x_continuous(breaks= pretty_breaks(n = 4)) +
-      theme(legend.position = "bottom",
-            axis.title.y = element_blank()),
+      scale_color_manual(values = colors()) +
+      scale_fill_manual(values = colors()) +
+      theme(legend.position = c(.15,.9),
+            plot.background = element_rect(colour = "#a4a9ac", fill=NA, size=2))+
+      guides(color=guide_legend(nrow=3, byrow=TRUE),
+             fill=guide_legend(nrow=3, byrow=TRUE)),
     
-    height = 700
+    height = 700,
+    width = 800
   )
   
-  output$pastplot <- renderPlot(
-    ggplot(data = past.data(), aes(x = Year, y = Estimate, group = Species)) +
-      geom_line(aes(color = Species), size = 1.3) +
-      facet_wrap(vars(Region)) +
-      theme_classic(base_size = 18) +
-      scale_color_manual(values = colors()) +
-      theme(axis.title = element_blank(), legend.position = "bottom")
-  )
   
-  output$corplot <- renderPlot(
-    ggplot(data = past.data(), aes(x = Year, y = Estimate, group = Species)) +
-      geom_line(aes(color = Species), size = 1.3) +
-      facet_wrap(vars(Region)) +
-      theme_classic(base_size = 18) +
-      scale_color_manual(values = colors()) +
-      theme(axis.title = element_blank(), legend.position = "bottom")
-  )
+  forecasttable <- reactive({
+    forecast.plot.input() %>%
+      dplyr::select(Year, Value = Graph.Y, Species, Region) %>%
+      group_by(Region) %>%
+      pivot_wider(names_from = "Year", values_from = "Value") %>%
+      arrange(Region, Species)
+  })
+  
+  output$forecasttable <- renderTable(forecasttable(),
+                                      backgroundColor = "white")
   
   ### "Download/Input Data"
   saveestimates <- reactive({forecast.plot.input() %>% 
