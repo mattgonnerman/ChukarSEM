@@ -5,13 +5,13 @@ lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimb
        require, character.only = T)
 
 #Last year from which data will be used
-cutoff.y <- 2017 
+cutoff.y <-2016
 
 #What is the last year of Chukar site abundance (Should be 1 + cutoff.y)
 cutoff.y.chuk <- 2017 
 
 #Last year to predict 
-final.y <- year.hold <- 2022 
+final.y <- year.hold <- 2018 
 
 n.add.y <- final.y - cutoff.y
 cut <- length(1976:cutoff.y) + n.add.y #Reference used to subset dataframes later
@@ -32,7 +32,7 @@ source("./Code/ChukSEM - Estimate Check.R")
 source("./Code/ChukSEM - ShinyDataPrep.R") 
 
 #Send to shinyapps.io
-install.packages('rsconnect')
+# install.packages('rsconnect')
 rsconnect::setAccountInfo(name='mattgonnerman',
                           token='5920CD9D8BE3FD293A8AAF8B5676ED4D',
                           secret='ECJd+QuMwbWOHMmgxbgEngS5nK3aAGdu0DJPTTkd')

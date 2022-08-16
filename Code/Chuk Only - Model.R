@@ -44,14 +44,14 @@ code <- nimbleCode( {
     mu.bbs.pred[3,t] <- mu.bbs.p[3] + zeta.bbs[3] * pred.bbs.prime[t]
     mu.bbs.pred[4,t] <- mu.bbs.p[4] + zeta.bbs[4] * pred.bbs.prime[t]
   }
-
+  
   #Winter Severity
-  beta.awssi ~ dnorm(0, sd = 5)
-  alpha.awssi ~ dnorm(0, sd = 5)
-  for (r in 1:n.region) {
+  for (r in 1:3) {
+    # beta.awssi[r] ~ dnorm(0, sd = 10)
+    mu.awssi[r] ~ dnorm(0, sd = 10)
     sig.awssi[r] ~ T(dt(0, pow(2.5, -2), 1), 0, )
     for (t in 1:n.year) {
-      awssi[t,r] ~ dnorm(alpha.awssi + (beta.awssi * era.awssi[t]), sd = sig.awssi[r])
+      awssi[t,r] ~ dnorm(mu.awssi[r], sd = sig.awssi[r])
     }
   }
   
@@ -63,28 +63,19 @@ code <- nimbleCode( {
     } #t
   } #r
   
-  #Bobcat Productivity
-  beta.bob.t ~ dnorm(0, sd = 5)
-  alpha.bob ~ dnorm(0, sd = 5)
-  sig.bob ~ T(dt(0, pow(2.5,-2), 1),0,)
-  for(t in 1:n.year){
-    bobcat[t] ~ dnorm(mean = alpha.bob + beta.bob.t*t, sd = sig.bob)
-  }
-  
-  
   
   ################################################################################
   ### Hunter Effort ###
   mu.econ ~ dnorm(0, sd = 100)
   sig.econ ~ T(dt(0, pow(2.5, -2), 1), 0, )
-  for (s in 1:n.species) {
+  for (s in 1:n.counties) {
     beta.econ.hunt[s] ~ dnorm(mu.econ, sd = sig.econ)
   }
   
   for(r in 1:n.region){
-    for(s in 1:n.species){
+    for(s in 1:n.counties){
       sig.H[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-      alpha.hunt[s,r] ~ T(dnorm(mean = 0, sd = 7),0,)
+      alpha.hunt[s,r] ~ dnorm(5, sd = 12) #sd = 1)
       for(k in 1:K){
         beta.spl.hunt[s,r,k] ~ dnorm(0, sd = sig.spl.hunt[s,r])
       } #k
@@ -111,30 +102,30 @@ code <- nimbleCode( {
     } #s
     
     for(t in 1:n.year){
-      hunt.eps[1:n.species,t,r] ~ dmnorm(mu.hunt[1:n.species,t,r], cov =  Sigma.hunt[1:n.species,1:n.species,r] )
+      hunt.eps[1:n.counties,t,r] ~ dmnorm(mu.hunt[1:n.counties,t,r], cov =  Sigma.hunt[1:n.counties,1:n.counties,r] )
     } #t
     
     # Correlation Matrices
-    Q.hunt[1:n.species,1:n.species,r] ~ dinvwish(S = I.hunt[1:n.species,1:n.species,r], df = n.species + 1)
+    Q.hunt[1:n.counties,1:n.counties,r] ~ dinvwish(S = I.hunt[1:n.counties,1:n.counties,r], df = n.counties + 1)
     
-    for(s in 1:n.species){
+    for(s in 1:n.counties){
       sig.hunt[s,r] ~ dgamma(1,1)
       Delta.hunt[s,s,r] <- pow(Q.hunt[s,s,r], -0.5)
       Lambda.hunt[s,s,r] <- sig.hunt[s,r]
     } #s
     
-    for (s1 in 2:n.species){
+    for (s1 in 2:n.counties){
       for (s2 in 1:(s1-1)){
         Lambda.hunt[s1,s2,r] <- 0
         Delta.hunt[s1,s2,r] <- 0
       } #s2
     } #s1
     
-    Sigma.hunt[1:n.species,1:n.species,r] <- Lambda.hunt[1:n.species,1:n.species,r] %*% P.hunt[1:n.species,1:n.species,r] %*% Lambda.hunt[1:n.species,1:n.species,r]  
-    P.hunt[1:n.species,1:n.species,r] <- Delta.hunt[1:n.species,1:n.species,r] %*% Q.hunt[1:n.species,1:n.species,r] %*% Delta.hunt[1:n.species,1:n.species,r]
+    Sigma.hunt[1:n.counties,1:n.counties,r] <- Lambda.hunt[1:n.counties,1:n.counties,r] %*% P.hunt[1:n.counties,1:n.counties,r] %*% Lambda.hunt[1:n.counties,1:n.counties,r]  
+    P.hunt[1:n.counties,1:n.counties,r] <- Delta.hunt[1:n.counties,1:n.counties,r] %*% Q.hunt[1:n.counties,1:n.counties,r] %*% Delta.hunt[1:n.counties,1:n.counties,r]
     
-    for (s1 in 1:n.species){
-      for (s2 in 1:n.species){
+    for (s1 in 1:n.counties){
+      for (s2 in 1:n.counties){
         rho.hunt[s1,s2,r] <- Sigma.hunt[s1,s2,r]/sqrt(Sigma.hunt[s1,s1,r] * Sigma.hunt[s2,s2,r])   
       } #s2
     } #s1
@@ -145,27 +136,30 @@ code <- nimbleCode( {
   ### Total Harvest ###
   mu.wintsev.harv ~ dnorm(0, 0.01)
   sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
-  mu.bobcat ~ dnorm(0, 0.01)
-  sig.bobcat ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # mu.hunter.harv ~ dnorm(0, 0.01)
+  # sig.hunter.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.bbs ~ dnorm(0, 0.01)
   sig.bbs ~ T(dt(0, pow(2.5,-2), 1),0,)
   mu.pdsi ~ dnorm(0, 0.01)
   sig.pdsi ~ T(dt(0, pow(2.5,-2), 1),0,)
   
-  for(s in 1:n.species){
-      beta.wintsev.harv[s] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
-      beta.bbs.harv[s] ~ dnorm(mu.bbs, sd  = sig.bbs)
-      beta.pdsi.harv[s] ~ dnorm(mu.pdsi, sd  = sig.pdsi)
-      beta.bobcat.harv[s] ~ dnorm(mu.bobcat, sd  = sig.bobcat)
+  for(s in 1:n.counties){
+    beta.wintsev.harv[s] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
+    beta.bbs.harv[s] ~ dnorm(mu.bbs, sd  = sig.bbs)
+    beta.pdsi.harv[s] ~ dnorm(mu.pdsi, sd  = sig.pdsi)
   } #s
   
   for(r in 1:n.region){
     mu.hunter.harv[r] ~ dnorm(0, 0.01)
     sig.hunter.harv[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    for(s in 1:n.species){
+    for(s in 1:n.counties){
       beta.hunter.harv[s,r] ~ dnorm(mu.hunter.harv[r], sd = sig.hunter.harv[r])
       sig.N[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-      alpha.harv[s,r] ~ T(dnorm(mean = 0, sd = 7),0,)
+      alpha.harv[s,r] ~ dnorm(0, sd = 12)
+      # for(k in 1:K){
+      #   beta.spl.harv[s,r,k] ~ dnorm(0, sd = sig.spl.harv[s,r])
+      # } #k
+      # sig.spl.harv[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
       
       # Process Model
       for(t in 1:n.year){
@@ -174,8 +168,8 @@ code <- nimbleCode( {
           beta.hunter.harv[s,r] * latent.trend[s,t,r] + # Latent Hunter Trend
           beta.wintsev.harv[s] * awssi[t,r]  + # Previous winter severity (Affecting Survival)
           beta.pdsi.harv[s] * pdsi[t,r] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
-          beta.bbs.harv[s] * pred.bbs.prime[t] + # Latent predator index (Affecting Reproduction)
-          beta.bobcat.harv[s] * bobcat[t]
+          beta.bbs.harv[s] * pred.bbs.prime[t] #+ # Latent predator index (Affecting Reproduction)
+        # inprod(beta.spl.harv[s,r,1:K], Z.harv[t,1:K,s,r]) # Spline smoothing = OFFSET
         
         N[s,t,r] <- exp(harv.eps[s,t,r]) #Log Link
         
@@ -189,30 +183,30 @@ code <- nimbleCode( {
     } #s
     
     for(t in 1:n.year){
-      harv.eps[1:n.species,t,r] ~ dmnorm(mu.harv[1:n.species,t,r], cov =  Sigma.harv[1:n.species,1:n.species,r] )
+      harv.eps[1:n.counties,t,r] ~ dmnorm(mu.harv[1:n.counties,t,r], cov =  Sigma.harv[1:n.counties,1:n.counties,r] )
     }
     
     ### Correlation Matrices
-    Q.harv[1:n.species,1:n.species,r] ~ dinvwish(S = I.harv[1:n.species,1:n.species,r], df = n.species + 1)
+    Q.harv[1:n.counties,1:n.counties,r] ~ dinvwish(S = I.harv[1:n.counties,1:n.counties,r], df = n.counties + 1)
     
-    for(s in 1:n.species){
+    for(s in 1:n.counties){
       sig.harv[s,r] ~ dgamma(1,1)
       Delta.harv[s,s,r] <- pow(Q.harv[s,s,r], -0.5)
       Lambda.harv[s,s,r] <- sig.harv[s,r]
     } #s
     
-    for (s1 in 2:n.species){
+    for (s1 in 2:n.counties){
       for (s2 in 1:(s1-1)){
         Lambda.harv[s1,s2,r] <- 0
         Delta.harv[s1,s2,r] <- 0
       } #s2
     } #s1
     
-    Sigma.harv[1:n.species,1:n.species,r] <- Lambda.harv[1:n.species,1:n.species,r] %*% P.harv[1:n.species,1:n.species,r] %*% Lambda.harv[1:n.species,1:n.species,r]  
-    P.harv[1:n.species,1:n.species,r] <- Delta.harv[1:n.species,1:n.species,r] %*% Q.harv[1:n.species,1:n.species,r] %*% Delta.harv[1:n.species,1:n.species,r]  
+    Sigma.harv[1:n.counties,1:n.counties,r] <- Lambda.harv[1:n.counties,1:n.counties,r] %*% P.harv[1:n.counties,1:n.counties,r] %*% Lambda.harv[1:n.counties,1:n.counties,r]  
+    P.harv[1:n.counties,1:n.counties,r] <- Delta.harv[1:n.counties,1:n.counties,r] %*% Q.harv[1:n.counties,1:n.counties,r] %*% Delta.harv[1:n.counties,1:n.counties,r]  
     
-    for (s1 in 1:n.species){
-      for (s2 in 1:n.species){
+    for (s1 in 1:n.counties){
+      for (s2 in 1:n.counties){
         rho.harv[s1,s2,r] <- Sigma.harv[s1,s2,r]/sqrt(Sigma.harv[s1,s1,r] * Sigma.harv[s2,s2,r])   
       } #s2
     } #s1
@@ -242,18 +236,11 @@ code <- nimbleCode( {
   ################################################################################
   ### Birds per Hunter
   for(t in 1:n.year){
-    for(s in 1:n.species){
+    for(s in 1:n.counties){
       for(r in 1:n.region){
         BPH[s,t,r] <-  N[s,t,r]/H[s,t,r]
         BPH2[s,t,r]<- exp(mu.hunt[s,t,r]-mu.harv[s,t,r])
       }
-    }
-  }
-   
-  for(s in 1:n.species){  
-    sig.bph[s] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    for(t in 1:3){
-      bph.survey[s,t] ~ dnorm(mean = mean(BPH[s,42+t,1:2]), sd = sig.bph[s]) 
     }
   }
 })

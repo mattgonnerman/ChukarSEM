@@ -235,7 +235,7 @@ server <-  function(input,output){
           
           CI <- (1-as.numeric(input$conflevel))/2
           
-          H.Est[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(.5)))
+          H.Est[s,r,t] <- round(1000*exp(quantile(mu.H[s,r,t,], c(.5))))
           H.LCL[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(CI)))
           H.UCL[s,r,t] <- 1000*exp(quantile(mu.H[s,r,t,], c(1-CI)))
           
@@ -246,7 +246,7 @@ server <-  function(input,output){
             drought.var * rnorm(n.samples, N.reg[[r]]$B.pdsi.harv[s], N.reg[[r]]$B.pdsi.harv.sd[s]) +
             predator.var * rnorm(n.samples, N.reg[[r]]$B.bbs.harv[s], N.reg[[r]]$B.bbs.harv.sd[s])
           
-          N.Est[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(.5)))
+          N.Est[s,r,t] <- round(1000*exp(quantile(mu.N[s,r,t,], c(.5))))
           N.LCL[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(CI)))
           N.UCL[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(1-CI)))
         }
@@ -350,7 +350,7 @@ server <-  function(input,output){
 
    data.frame(Species = NA,
               Region = c("East", "West", "East", "West"),
-              Text = c("\n\nEstimated", "\n\nEstimated", "Observered\n\n", "Observered\n\n"),
+              Text = c("\n\nEstimated", "\n\nEstimated", "Observed\n\n", "Observed\n\n"),
               X =  1975 + min(which(is.na(appobject$N.data[1,,1]))) - 1,
               Y = c(.8*max(as.numeric(reg1$UCL.use), na.rm = T),.8*max(as.numeric(reg2$UCL.use), na.rm = T),.8*max(as.numeric(reg1$UCL.use), na.rm = T),.8*max(as.numeric(reg2$UCL.use), na.rm = T)))
  })
@@ -383,11 +383,21 @@ server <-  function(input,output){
   
   
   forecasttable <- reactive({
-    forecast.plot.input() %>%
+    if(input$forecastset == "BPH"){
+      forecast.plot.input() %>%
       dplyr::select(Year, Value = Graph.Y, Species, Region) %>%
       group_by(Region) %>%
       pivot_wider(names_from = "Year", values_from = "Value") %>%
       arrange(Region, Species)
+    }else{
+      forecast.plot.input() %>%
+        dplyr::select(Year, Value = Graph.Y, Species, Region) %>%
+        mutate(Value = as.integer(Value)) %>%
+        group_by(Region) %>%
+        pivot_wider(names_from = "Year", values_from = "Value") %>%
+        arrange(Region, Species)
+    }
+    
   })
   
   output$forecasttable <- renderTable(forecasttable(),

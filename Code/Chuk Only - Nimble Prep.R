@@ -1,22 +1,5 @@
-### Specify Data Inputs
-require(splines)
-bs_bbase <- function(x, xl = min(x, na.rm = TRUE), xr = max(x, na.rm=TRUE), nseg = 10, deg = 3) {
-  # Compute the length of the partitions
-  dx <- (xr - xl) / nseg
-  # Create equally spaced knots
-  knots <- seq(xl - deg * dx, xr + deg * dx, by = dx)
-  # Use bs() function to generate the B-spline basis
-  get_bs_matrix <- matrix(bs(x, knots = knots, degree = deg, Boundary.knots = c(knots[1], knots[length(knots)])), nrow = length(x))
-  # Remove columns that contain zero only
-  bs_matrix <- get_bs_matrix[, -c(1:deg, ncol(get_bs_matrix):(ncol(get_bs_matrix) - deg))]
-  
-  return(bs_matrix)
-}
-
-nseg <- 15 #Number of spline segments
-time <- 1:cut
-B <- bs_bbase(x = time, nseg = nseg)
-
+#####################################################################################
+### Data
 data <- list(
   ### Covariates
   awssi = awssi.df, #winter severity index, scaled
@@ -29,39 +12,27 @@ data <- list(
   pdi = econ_data[,4], #Personal Disposable Income
   gas = econ_data[,1], #Gas Prices in May
   pdsi = pdsi_df,
-  bobcat = bobcat.df[,2],
- 
-  ### Harvest Data
-  n.hunt = hunters/1000, #Observed number of hunters for each species each year
+  
+  ### Hunter Effort
+  n.hunt = chuk_hunt/1000, #Observed number of hunters for each species each year
   basis = B, #Spline Base
-  n.harv = upland/1000,
-  bph.survey = surveybph,
+  I.hunt = abind(I,I,along = 3),
+  
+  ### Total Harvest
+  n.harv = chuk_harv/1000,
+  I.harv = abind(I2,I2,along = 3),
   
   ### Chukar Site Abundance
-  n.chuk = data.matrix(chukar)
+  n.chuk = data.matrix(survey.abun)
 )
 
-
-### Specify Constants
-n.species<- dim(hunters)[1]
-sig = rgamma(n.species,1,1)
-Lambda <- Lambda2 <- diag(sig)
-I2 <- I <- diag(n.species) #identity matrix
-
+#####################################################################################
+### Constants
 constants <- list(
   n.region = 2,
-  n.species = nrow(upland),
-  n.year = ncol(hunters),
+  n.counties = n.counties,
+  n.year = ncol(chuk_hunt),
   K = dim(B)[2],
-
-  ### Predictors
-  era.awssi = c(rep(0,length(1975:1994)),rep(1, length(1995:2001)), rep(0, length(2002:final.y))), #Groupings for change in gas prices
-
-  ### Hunter Effort
-  I.hunt = abind(I,I,along = 3),
-
-  ### Total Harvest
-  I.harv = abind(I2,I2,along = 3),
   
   ### Chukar Site Abundance
   n.site = nrow(chukar),
@@ -69,82 +40,8 @@ constants <- list(
   reg.chuk = chuk.reg
 )
 
-
-### Specify Initial Values
-## Hunter Effort
-nu = n.species + 1 #degrees of freedom for rinvwishart
-Q = rinvwishart(nu, I)    # note output is an array
-Delta = matrix(0, n.species, n.species)
-for (j in 1:n.species){
-  Delta[j,j] = Q[j,j]^(-0.5)
-}
-P = Delta %*% Q %*% Delta
-Sigma <- Lambda %*% P %*% Lambda
-
-Sigma <- as.matrix(Matrix::nearPD(Sigma, corr = FALSE,doSym = TRUE)$mat)
-
-n.hunt.i <- ifelse(is.na(hunters), floor(mean(hunters, na.rm = T)), NA)
-
-
-##Total Harvest
-nu = n.species + 1 #degrees of freedom for rinvwishart
-Q = rinvwishart(nu, I)    # note output is an array
-Delta = matrix(0, n.species, n.species)
-for (j in 1:n.species){
-  Delta[j,j] = Q[j,j]^(-0.5)
-}
-P = Delta %*% Q %*% Delta
-Sigma <- Lambda %*% P %*% Lambda
-
-Sigma <- as.matrix(Matrix::nearPD(Sigma, corr = FALSE,doSym = TRUE)$mat)
-
-nu = n.species + 1
-Q2 = rinvwishart(nu, I)    # note output is an array
-Delta2 = matrix(0, n.species, n.species)
-
-for (j in 1:n.species){
-  Delta2[j,j] = Q2[j,j]^(-0.5)
-}
-P2 = Delta2 %*% Q2 %*% Delta2
-Sigma2 = Lambda2 %*% P2 %*% Lambda2
-
-n.hunt.i <- ifelse(is.na(hunters), floor(mean(hunters, na.rm = T)), NA)
-n.harv.i <- ifelse(is.na(upland), floor(mean(upland, na.rm = T)), NA)
-
-Ni <- array(NA, c(nrow(n.harv.i), ncol(n.harv.i), 2))
-Ni[,1,] <- upland[,1,] + 50
-
-## Chukar Site Abundance
-chukar_na <- chukar
-
-for(i in 1:nrow(chukar_na)){
-  for(j in 1:ncol(chukar_na)){
-    if(is.na(chukar_na[i,j])){
-      chukar_na[i,j] <- floor(mean(as.matrix(chukar[i,]), na.rm = T))
-    }else{
-      chukar_na[i,j] <- NA
-    }
-  }
-}
-
-r.chuk.init <- matrix(NA, nrow = nrow(chukar), ncol = ncol(chukar)-1)
-for(i in 1:nrow(chukar_na)){
-  for(j in 2:ncol(chukar_na)){
-    r.chuk.init[i,j-1] <- chukar_na[i,j]/chukar_na[i,j-1]
-  }
-}
-
-C.chuk.init <- chukar
-C.chuk.init[is.na(C.chuk.init)] <- floor(mean(as.matrix(chukar), na.rm = T))
-C.chuk.init[,2:ncol(C.chuk.init)] <- NA
-
-econ.inits <- econ_data %>% mutate_all(function(x) ifelse(is.na(x), 0, NA))
-bbs.inits <- as.data.frame(bbs.df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA))
-awssi.inits <- as.matrix(as.data.frame(awssi.df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA)))
-pdsi.inits <- as.matrix(as.data.frame(pdsi_df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA)))
-bobcat.inits <- as.matrix(as.data.frame(bobcat.df[,2]) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA)))
-
-# Wrapper Function
+#####################################################################################
+### Initial Values
 initsFunction <- function() list(
   ### Covariates
   gas = econ.inits$Gas.May,
@@ -157,7 +54,6 @@ initsFunction <- function() list(
   pfal = bbs.inits$pfalcon,
   awssi = awssi.inits,
   pdsi = pdsi.inits,
-  bobcat = as.numeric(bobcat.inits),
   sig.econ.pred = rep(1,4),
   mu.econ.p = rep(0,4),
   zeta.econ = rep(1,ncol(econ_data)),
@@ -172,9 +68,6 @@ initsFunction <- function() list(
   alpha.awssi = 0,
   sig.awssi = rep(1,2),
   sig.drought = rep(1,2),
-  beta.bob.t = 0,
-  alpha.bob = 0,
-  sig.bob = 1,
   
   ### Covariates
   mu.econ = 0,
@@ -189,16 +82,13 @@ initsFunction <- function() list(
   mu.bbs = 0,
   sig.bbs = 1,
   beta.bbs.harv = rep(0, n.species),
-  mu.bobcat = 0,
-  sig.bobcat = 1,
-  beta.bobcat.harv = rep(0, n.species),
   mu.pdsi = 0,
   sig.pdsi = 1,
   beta.pdsi.harv = rep(0, n.species),
   mu.hunter.harv = c(0,0),
   sig.hunter.harv = c(1,1),
   beta.hunter.harv = matrix(0, n.species, 2),
-
+  
   ### Hunter Effort
   sig.H =  matrix(1, n.species,2),
   n.hunt = n.hunt.i/1000,
@@ -209,7 +99,7 @@ initsFunction <- function() list(
   rho.hunt = abind(diag(n.species),diag(n.species),along = 3),
   alpha.hunt = matrix(0, ncol = 2, nrow = n.species),
   sig.hunt = matrix(1, ncol = 2, nrow = n.species),
-
+  
   ### Total Harvest
   sig.N =  matrix(1, n.species ,2),
   n.harv = n.harv.i/1000,
@@ -223,8 +113,6 @@ initsFunction <- function() list(
   log.r.harv = array(0, dim = c(n.species,(cut)-1,2) ),
   N = Ni,
   
-  sig.bph = rep(.1, n.species),
-  
   ### Chukar Site Abundance
   theta.chuk = rep(1,2),
   mod.chuk = rep(1,2),
@@ -235,23 +123,41 @@ initsFunction <- function() list(
 
 inits <- initsFunction()
 
-### MCMC
-#Check Model
+
+#####################################################################################
+### Check Model
 model_test <- nimbleModel( code = code,
                            constants = constants,
                            data =  data,
                            inits = inits)
 model_test$simulate(c(
-                      'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-                      'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
-                      'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
-                      'BPH', 'BPH2'
-                      ))
+  'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
+  'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+  'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
+  'BPH', 'BPH2'
+))
 model_test$initializeInfo()
 model_test$calculate()
 
 
-estimates <- c(
+#####################################################################################
+### Parameters to Montior
+pars1 <- c(### Hunter Effort
+  "alpha.hunt",
+  "beta.econ.hunt",
+  "beta.spl.hunt",
+  "Sigma.hunt",
+  
+  ### Total Harvest
+  "alpha.harv",
+  "beta.wintsev.harv",
+  "beta.bbs.harv",
+  "beta.pdsi.harv",
+  # "beta.spl.harv",
+  "Sigma.harv"
+)
+
+pars2 <- c(
   ### Hunter Effort
   "H",'sig.H',
   "rho.hunt",
@@ -262,52 +168,43 @@ estimates <- c(
   'rho.harv',
   # ### Chukar Site Abundance
   "log.r.chuk",
-  "theta.chuk",
+  'mod.chuk',
   ### Birds per Hunter
   "BPH",'BPH2'
 )
 
-coefficients <- c(
-  ### Hunter Effort
-  "alpha.hunt",
-  "beta.econ.hunt",
-  "beta.spl.hunt",
-  "latent.trend",
-  
-  ### Total Harvest
-  "alpha.harv",
-  "beta.wintsev.harv",
-  "beta.hunter.harv",
-  "beta.bobcat.harv",
-  "beta.bbs.harv",
-  "beta.pdsi.harv",
-  
-  ### Chukar Site Abundance
-  'mod.chuk',
-  'mu.chuk'
-  )
-
-predictors <- c(
+pars.pred <- c(
   'pred.econ.prime',
   'pred.bbs.prime',
-  'mu.econ.p',
-  'mu.bbs.p',
   'sig.econ.pred', 
   'sig.bbs.pred',
+  
+  'mu.bbs.p',
   'zeta.econ',
   'zeta.bbs',
-  
   'alpha.awssi', 
   'beta.awssi',
+  'awssi',
   
-  'sig.drought',
+  'beta.econ.hunt',
+  'sig.H',
+  'alpha.hunt',
+  'beta.spl.hunt',
+  'latent.trend',
   
-  'beta.bob.t',
-  'alpha.bob',
-  'sig.bob'
+  'beta.wintsev.harv',
+  'beta.bbs.harv',
+  'beta.pdsi.harv',
+  'beta.hunter.harv',
+  'sig.N','mu.harv',
+  'mu.hunt',
+  'mod.chuk'
+  
 )
 
-# Parallel Processing Setup
+
+#####################################################################################
+### Run Model (Parallel Processing)
 rm(out)
 rm(out.full.predict)
 start_time <- Sys.time() # To track runtime
@@ -315,7 +212,7 @@ start_time
 nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000) #Start 3 parallel processing clusters
 
-clusterExport(cl, c("code", "inits", "data", "constants", "estimates", "coefficients", "predictors")) #identify what is to be exported to each cluster
+clusterExport(cl, c("code", "inits", "data", "constants", "pars1", "pars2", "pars.pred")) #identify what is to be exported to each cluster
 
 for (j in seq_along(cl)) {
   set.seed(j)
@@ -340,7 +237,7 @@ out.full.predict <- clusterEvalQ(cl, {
   model_test$initializeInfo()
   model_test$calculate()
   
-  mcmcConf <-  configureMCMC( model_test,   monitors =  estimates, monitors2 = c(coefficients, predictors))
+  mcmcConf <-  configureMCMC( model_test,   monitors =  pars2, monitors2 = c(pars1, pars.pred))
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
@@ -349,11 +246,12 @@ out.full.predict <- clusterEvalQ(cl, {
 })
 #Stop parallel cluster
 stopCluster(cl)
-
-#Find model runtime
 end_time <- Sys.time()
 end_time - start_time
 
+
+#####################################################################################
+### Save Outputs
 samples1 <- list(chain1 =  out.full.predict[[1]]$samples,
                  chain2 =  out.full.predict[[2]]$samples,
                  chain3 =  out.full.predict[[3]]$samples)
@@ -371,6 +269,6 @@ files <- list(mcmcList1, mcmcList2, code, data)
 save(files, file = "./Output/NDOW_Upland_SEM_output.rdata")
 
 #Traceplots
-MCMCtrace(mcmcList1, filename = "./Output/TraceOut - Estimates.pdf")
-MCMCtrace(mcmcList2, filename = "./Output/TraceOut - Covariates.pdf")
+MCMCtrace(mcmcList1, filename = "./Output/TraceOut - Full.pdf")
+MCMCtrace(mcmcList2, filename = "./Output/TraceOut - Full - Predictors.pdf")
 
