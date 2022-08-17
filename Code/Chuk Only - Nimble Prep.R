@@ -29,15 +29,17 @@ data <- list(
 #####################################################################################
 ### Constants
 constants <- list(
+  #Harvest Information
   n.region = 2,
-  n.counties = n.counties,
+  n.counties = n_county,
   n.year = ncol(chuk_hunt),
   K = dim(B)[2],
+  reg.county = county_reg,
   
   ### Chukar Site Abundance
   n.site = nrow(chukar),
   n.year.chuk = ncol(chukar),
-  reg.chuk = chuk.reg
+  county.site = county.site.chuk
 )
 
 #####################################################################################

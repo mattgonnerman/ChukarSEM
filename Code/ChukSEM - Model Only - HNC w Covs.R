@@ -92,7 +92,6 @@ code <- nimbleCode( {
       
       for(t in 1:n.year){ 
         
-        # latent.trend[s,t,r] <- inprod(beta.spl.hunt[s,r,1:K], Z.hunt[t,1:K,s,r]) #spline smoothing
         latent.trend[s,t,r] <- inprod(beta.spl.hunt[s,r,1:K], basis[t,1:K]) #spline smoothing
         #Unlinked estimate of Hunter Numbers
         mu.hunt[s,t,r] <- alpha.hunt[s,r] + #intercept
@@ -250,10 +249,10 @@ code <- nimbleCode( {
     }
   }
    
-  for(s in 1:n.species){  
-    sig.bph[s] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    for(t in 1:3){
-      bph.survey[s,t] ~ dnorm(mean = mean(BPH[s,42+t,1:2]), sd = sig.bph[s]) 
-    }
-  }
+  # for(s in 1:n.species){  
+  #   sig.bph[s] ~ T(dt(0, pow(2.5,-2), 1),0,)
+  #   for(t in 1:3){
+  #     bph.survey[s,t] ~ dnorm(mean = mean(BPH[s,42+t,1:2]), sd = sig.bph[s]) 
+  #   }
+  # }
 })

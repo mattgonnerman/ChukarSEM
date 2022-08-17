@@ -1,14 +1,3 @@
-# Install and Load packages
-packages <- c("shinyWidgets", "ggplot2", "dplyr", "mvtnorm", "R.utils", "tidyr", "lubridate", "scales")
-# '%notin%' <- Negate('%in%')
-# for(i in 1:length(packages)){
-#   if(packages[i] %notin% installed.packages()){
-#     install.packages(packages[i])
-#   }
-# }
-
-lapply(packages, library, character.only = T)
-
 library(shinyWidgets)
 library(ggplot2)
 library(dplyr)
@@ -18,6 +7,7 @@ library(tidyr)
 library(lubridate)
 library(scales)
 library(plotly)
+library(DT)
 
 # Load Data from Model
 load("./www/NDOW_SEM_app_objects.R")
@@ -110,21 +100,37 @@ ui <- navbarPage( tweaks,
                                                            "50%" = .5, 
                                                            "Hide Confidence Interval" = 0)),
                                    
-                                   sliderInput("econ", "Economic Predictor", min=-3, max=3, 
-                                               value = 0, sep=""),
-                                   sliderInput("bbs", "Predator Predictor", min=-3, max=3, 
-                                               value = 0, sep=""),
-                                   sliderInput("awssi", "Winter Severity", min=-3, max=3, 
-                                               value = 0, sep=""),
-                                   sliderInput("pdsi", "Drought Conditions", min=-3, max=3, 
-                                               value = 0, sep=""),
+                                   conditionalPanel(
+                                     condition = "input.forecastset == 'H'|input.forecastset == 'BPH'",
+                                     
+                                     sliderInput("econ", HTML("Economic Strength (Low \u2192 High)"), min=-3, max=3, 
+                                               value = 0, sep="", step = 0.1)
+                                   ),
+                                   conditionalPanel(
+                                     condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
+                                     
+                                     sliderInput("bbs", HTML("Predator Abundance (Low \u2192 High)"), min=-3, max=3, 
+                                                 value = 0, sep="", step = 0.1)
+                                   ),
+                                   conditionalPanel(
+                                     condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
+                                     
+                                     sliderInput("awssi", HTML("Winter Severity (Low \u2192 High)"), min=-3, max=3, 
+                                                 value = 0, sep="", step = 0.1)
+                                   ),
+                                   conditionalPanel(
+                                     condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
+                                     
+                                     sliderInput("pdsi", HTML("Drought Severity (High \u2192 Low)"), min=-3, max=3, 
+                                                 value = 0, sep="", step = 0.1)
+                                   ),
                                    
                                    downloadButton("downloadData", "Download Displayed Estimates")
                       ),
                       
                       mainPanel(#Output Plot
                         plotOutput("forecastplot", width = "800px", height = "710px"),
-                        tableOutput('forecasttable')
+                        DT::dataTableOutput('forecasttable')
                       )
                       
                     )
@@ -151,7 +157,7 @@ ui <- navbarPage( tweaks,
 
 ##################################################################################
 ### Server Instructions
-server <-  function(input,output){
+server <-  function(input,output,session){
   
   species.constant <- c("BLGR","CAQU","CHUK","HUPA","PHEA","SAGR")
   colors.constant <- c("#E8A323","#23E8A3","#A323E8","#074A36","#36074A", "#4A3607")
@@ -162,6 +168,35 @@ server <-  function(input,output){
   
   output$appinstrhead <- renderText({"Using this app:"})
   output$datainsthead <- renderText({"Updating model with new data:"})
+
+  observe({
+    find.na <- data.frame(A = appobject$data.all$une,
+                          B = appobject$data.all$gas,
+                          C = appobject$data.all$pdi,
+                          D = appobject$data.all$res)
+    t <- max(sapply(find.na, function(x) max(which(!is.na(x)))))
+    val <- as.numeric(appobject$pred.econ[t,2])
+    updateSliderInput(session, "econ", value = val)
+    
+    find.na <- data.frame(A = appobject$data.all$ravens,
+                          B = appobject$data.all$rthawk,
+                          C = appobject$data.all$nharr,
+                          D = appobject$data.all$pfal)
+    t <- max(sapply(find.na, function(x) max(which(!is.na(x)))))
+    val <- as.numeric(appobject$pred.bbs[t,2])
+    updateSliderInput(session, "bbs", value = val)
+    
+    find.na <- as.data.frame(appobject$data.all$awssi) %>% mutate(Mean = (Eastern + Western )/ 2)
+    t <- max(sapply(find.na, function(x) max(which(!is.na(x)))))
+    val <- as.numeric(find.na[t,3])
+    updateSliderInput(session, "awssi", value = val)
+    
+    find.na <- as.data.frame(appobject$data.all$pdsi) %>% mutate(Mean = (Eastern + Western )/ 2)
+    t <- max(sapply(find.na, function(x) max(which(!is.na(x)))))
+    val <- as.numeric(find.na[t,3])
+    updateSliderInput(session, "pdsi", value = val)
+  })
+
                               
   forecast.plot.input <- reactive({
     #Prep Inputs
@@ -385,23 +420,30 @@ server <-  function(input,output){
   forecasttable <- reactive({
     if(input$forecastset == "BPH"){
       forecast.plot.input() %>%
-      dplyr::select(Year, Value = Graph.Y, Species, Region) %>%
-      group_by(Region) %>%
-      pivot_wider(names_from = "Year", values_from = "Value") %>%
-      arrange(Region, Species)
+        dplyr::select(Year, Value = Graph.Y, Species, Region) %>%
+        group_by(Region) %>%
+        mutate(Value = round(Value, digits = 2)) %>%
+        pivot_wider(names_from = "Year", values_from = "Value") %>%
+        arrange(Region, Species)
     }else{
       forecast.plot.input() %>%
         dplyr::select(Year, Value = Graph.Y, Species, Region) %>%
         mutate(Value = as.integer(Value)) %>%
         group_by(Region) %>%
+        mutate(Value = round(Value, digits = 2)) %>%
         pivot_wider(names_from = "Year", values_from = "Value") %>%
         arrange(Region, Species)
     }
     
   })
   
-  output$forecasttable <- renderTable(forecasttable(),
-                                      backgroundColor = "white")
+  output$forecasttable <- DT::renderDataTable(forecasttable(),
+                                              options = list(
+                                                scrollY = T,
+                                                scrollX = T,
+                                                columnDefs = list(list( targets = "_all", width = '15px'))
+                                              )
+                                      )
   
   ### "Download/Input Data"
   saveestimates <- reactive({forecast.plot.input() %>% 

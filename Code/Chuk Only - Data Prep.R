@@ -1,39 +1,28 @@
-### NDOW Upland Game Bird SEM
-# Load Packages and Set Data Subset Info
-lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimble",
-         "abind", "LaplacesDemon", "parallel", "coda", "MCMCvis"),
-       require, character.only = T)
-
-#Last year from which data will be used
-cutoff.y <- 2017 
-
-#What is the last year of Chukar site abundance (Should be 1 + cutoff.y)
-cutoff.y.chuk <- 2017 
-
-#Last year to predict 
-final.y <- year.hold <- 2022 
-
-n.add.y <- final.y - cutoff.y
-cut <- length(1976:cutoff.y) + n.add.y #Reference used to subset dataframes later
-
 #####################################################################################
 ## Harvest Data
 chukharv_data <- read.csv('./Data/ChukarHarvestData.csv') %>%
   mutate(N = round(N),
          H = round(H)) %>%
   filter(Year <= cutoff.y) %>%
-  arrange(County) 
+  arrange(County)
+list.all.y <- min(chukharv_data$Year):final.y
+
+county_order1 <- unique(chukharv_data$County)
+# Regions, 1 == West, 2 == East, 3 == South
+county_reg1 <- c(1, 1, 3, 1, 2, 3, 2, 1, 2, 3, 1, 1, 3, 1, 1, 1, 2)
+
+chukharv_data <- rbind(chukharv_data,
+                       expand.grid(County = county_order1, N = NA, H = NA,
+                                   Year = list.all.y[which(list.all.y %notin% unique(chukharv_data$Year))])) %>%
+  rowwise() %>%
+  #Identify southern region and remove for now.
+  mutate(Region = county_reg1[which(County == county_order1)]) %>%
+  filter(Region != 3) %>% dplyr::select(-Region)
 
 county_order <- unique(chukharv_data$County)
 # Regions, 1 == West, 2 == East, 3 == South
-county_reg <- c(1, 1, 3, 1, 2, 3, 2, 1, 2, 3, 1, 1, 3, 1, 1, 1, 2)
+county_reg <- c(1, 1, 1, 2, 2, 1, 2, 1, 1, 1, 1, 1, 2)
 n_county <- length(county_order)
-
-
-chukharv_data <- rbind(chukharv_data,
-                       data.frame(expand.grid(Year = (cutoff.y+1):final.y,
-                                              County = county_order, N = NA, H = NA)))
-
 
 chuk_hunt <- chukharv_data %>%
   arrange(County, Year) %>%
@@ -60,22 +49,21 @@ n.year.harv <- ncol(chuk_hunt)
 ##################################################################################
 ### Chukar Survey Data ###
 chuk_site_ID <- read.csv("./Data/Chukar_Surveys_locations.csv") %>%
-  dplyr::select(Survey.Location, County = COUNTY) %>%
-  mutate(CountyID = match(County, county_order, nomatch = NA)) %>%
-  mutate(RegionID = county_reg[CountyID])
+  dplyr::select(Population = Survey.Location, County = COUNTY) %>%
+  mutate(CountyID = match(County, county_order1, nomatch = NA)) %>%
+  mutate(RegionID = county_reg1[CountyID])
 
-chuksiteabun_data1 <- read.csv('./Data/Chukar_Surveys_data.csv') %>%
-  gather("Population", "Count", 2:14)
-
-chuksiteabun_data <- rbind(chuksiteabun_data1,
-                           expand.grid(Year = c(2002:2007,(cutoff.y+1):final.y),
-                                       Population = unique(chuksiteabun_data1$Population),
-                                       Count = NA)) %>%
+chuksiteabun_data <- read.csv('./Data/Chukar_Surveys_data.csv') %>%
+  gather("Population", "Count", 2:14) %>%
+  merge(., chuk_site_ID, by = "Population", all = T)  %>%
+  filter(RegionID != 3)%>%
+  dplyr::select(-RegionID, -CountyID, -County) %>%
+  merge(.,expand.grid(Year = c(min(.$Year):max(.$Year)),
+                      Population = unique(.$Population))) %>%
   pivot_wider(values_from = Count, names_from = Year) %>%
-  dplyr::rename(Survey.Location = Population) %>%
-  merge(., chuk_site_ID, by = "Survey.Location", all.x = T)
+  merge(., chuk_site_ID, by = "Population", all.x = T)
 
-survey.abun <- as.matrix(chuksiteabun_data %>% dplyr::select(as.character(1990:final.y)))
+survey.abun <- as.matrix(chuksiteabun_data %>% dplyr::select(-Population, -County, -CountyID, -RegionID))
 survey.county <- chuksiteabun_data$CountyID
 survey.reg <- chuksiteabun_data$RegionID
 n.year.surv <- ncol(survey.abun)
@@ -229,9 +217,6 @@ Sigma <- Lambda %*% P %*% Lambda
 
 Sigma <- as.matrix(Matrix::nearPD(Sigma, corr = FALSE,doSym = TRUE)$mat)
 
-n.hunt.i <- ifelse(is.na(hunters), floor(mean(hunters, na.rm = T)), NA)
-
-
 ##Total Harvest
 nu = n.counties + 1 #degrees of freedom for rinvwishart
 Q = rinvwishart(nu, I)    # note output is an array
@@ -254,37 +239,38 @@ for (j in 1:n.counties){
 P2 = Delta2 %*% Q2 %*% Delta2
 Sigma2 = Lambda2 %*% P2 %*% Lambda2
 
-n.hunt.i <- ifelse(is.na(hunters), floor(mean(hunters, na.rm = T)), NA)
-n.harv.i <- ifelse(is.na(upland), floor(mean(upland, na.rm = T)), NA)
+n.hunt.i <- ifelse(is.na(chuk_hunt), floor(mean(as.matrix(chuk_hunt), na.rm = T)), NA)
+n.harv.i <- ifelse(is.na(chuk_harv), floor(mean(as.matrix(chuk_harv), na.rm = T)), NA)
 
 Ni <- array(NA, c(nrow(n.harv.i), ncol(n.harv.i), 2))
-Ni[,1,] <- upland[,1,] + 50
+Ni[,1,] <- chuk_harv[,1,] + 50
 
 ## Chukar Site Abundance
-chukar_na <- chukar
+chukar_na <- survey.abun
 
 for(i in 1:nrow(chukar_na)){
   for(j in 1:ncol(chukar_na)){
     if(is.na(chukar_na[i,j])){
-      chukar_na[i,j] <- floor(mean(as.matrix(chukar[i,]), na.rm = T))
+      chukar_na[i,j] <- floor(mean(as.matrix(survey.abun[i,]), na.rm = T))
     }else{
       chukar_na[i,j] <- NA
     }
   }
 }
 
-r.chuk.init <- matrix(NA, nrow = nrow(chukar), ncol = ncol(chukar)-1)
+r.chuk.init <- matrix(NA, nrow = nrow(survey.abun), ncol = ncol(survey.abun)-1)
 for(i in 1:nrow(chukar_na)){
   for(j in 2:ncol(chukar_na)){
     r.chuk.init[i,j-1] <- chukar_na[i,j]/chukar_na[i,j-1]
   }
 }
 
-C.chuk.init <- chukar
-C.chuk.init[is.na(C.chuk.init)] <- floor(mean(as.matrix(chukar), na.rm = T))
+C.chuk.init <- survey.abun
+C.chuk.init[is.na(C.chuk.init)] <- floor(mean(as.matrix(survey.abun), na.rm = T))
 C.chuk.init[,2:ncol(C.chuk.init)] <- NA
 
 econ.inits <- econ_data %>% mutate_all(function(x) ifelse(is.na(x), 0, NA))
 bbs.inits <- as.data.frame(bbs.df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA))
 awssi.inits <- as.matrix(as.data.frame(awssi.df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA)))
 pdsi.inits <- as.matrix(as.data.frame(pdsi_df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA)))
+

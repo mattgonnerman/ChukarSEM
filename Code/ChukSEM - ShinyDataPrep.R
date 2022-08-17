@@ -15,35 +15,35 @@ appobject$data.all <- data.input
 
 n.species<- dim(data.input$n.hunt)[1]
 
-### Hunter Effort Covariance Matrix
-rho.harv.est <- MCMCsummary(rho.output, 'rho.hunt') %>%
-  mutate(RowID = rownames(MCMCsummary(rho.output, 'rho.hunt'))) %>%
-  mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-
-blank.cor.df <- as.data.frame(matrix(NA, nrow = n.species, ncol = n.species))
-appobject$rho.harv <- list(blank.cor.df, blank.cor.df)
-for(i in 1:nrow(rho.harv.est)){
-  appobject$rho.harv[[rho.harv.est$Region[i]]][rho.harv.est$Species1[i], rho.harv.est$Species2[i]] <- rho.harv.est$Estimate[i]
-}
-
-### Hunter Effort Covariance Matrix
-rho.hunt.est <- MCMCsummary(rho.output, 'rho.hunt') %>%
-  mutate(RowID = rownames(MCMCsummary(rho.output, 'rho.hunt'))) %>%
-  mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
-  dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
-
-blank.cor.df <- as.data.frame(matrix(NA, nrow = n.species, ncol = n.species))
-appobject$rho.hunt <- list(blank.cor.df, blank.cor.df)
-for(i in 1:nrow(rho.hunt.est)){
-  appobject$rho.hunt[[rho.hunt.est$Region[i]]][rho.hunt.est$Species1[i], rho.hunt.est$Species2[i]] <- rho.hunt.est$Estimate[i]
-}
+# ### Hunter Effort Covariance Matrix
+# rho.harv.est <- MCMCsummary(rho.output, 'rho.hunt') %>%
+#   mutate(RowID = rownames(MCMCsummary(rho.output, 'rho.hunt'))) %>%
+#   mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+#          Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+#          Region = sub('.*\\,', '', RowID)) %>%
+#   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+#   dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+# 
+# blank.cor.df <- as.data.frame(matrix(NA, nrow = n.species, ncol = n.species))
+# appobject$rho.harv <- list(blank.cor.df, blank.cor.df)
+# for(i in 1:nrow(rho.harv.est)){
+#   appobject$rho.harv[[rho.harv.est$Region[i]]][rho.harv.est$Species1[i], rho.harv.est$Species2[i]] <- rho.harv.est$Estimate[i]
+# }
+# 
+# ### Hunter Effort Covariance Matrix
+# rho.hunt.est <- MCMCsummary(rho.output, 'rho.hunt') %>%
+#   mutate(RowID = rownames(MCMCsummary(rho.output, 'rho.hunt'))) %>%
+#   mutate(Species1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+#          Species2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
+#          Region = sub('.*\\,', '', RowID)) %>%
+#   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
+#   dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+# 
+# blank.cor.df <- as.data.frame(matrix(NA, nrow = n.species, ncol = n.species))
+# appobject$rho.hunt <- list(blank.cor.df, blank.cor.df)
+# for(i in 1:nrow(rho.hunt.est)){
+#   appobject$rho.hunt[[rho.hunt.est$Region[i]]][rho.hunt.est$Species1[i], rho.hunt.est$Species2[i]] <- rho.hunt.est$Estimate[i]
+# }
 
 ### Observed Hunter and Harvest Data For Graphs
 appobject$H <- H.input <- data.input$n.hunt
@@ -133,6 +133,27 @@ appobject$N.reg <- Harv.reg.coef <- MCMCsummary(beta.output, 'beta.hunter.harv')
   dplyr::select(Species, Region, B.hunter = mean, B.hunter.sd = sd) %>%
   merge(Harv.reg.coef4, ., by = c("Species", "Region"), all =T) %>%
   group_split(Region, .keep = F)
+
+# appobject$N.reg <- Harv.reg.coef <- MCMCsummary(beta.output, 'beta.bobcat.harv') %>%
+#   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
+#   mutate(Species = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])"))) %>%
+#   dplyr::select(Species, B.bobcat = mean, B.bobcat.sd = sd) %>%
+#   merge(Harv.reg.coef5, ., by = c("Species", "Region"), all =T) %>%
+#   group_split(Region, .keep = F)
+
+
+### SEM Predictor Values
+appobject$pred.econ <- MCMCsummary(beta.output, 'pred.econ.prime')%>%
+  mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
+  mutate(Year = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
+         ID = "econ.input") %>%
+  dplyr::select(Year, Pred.Econ = mean, Pred.Econ.sd = sd)
+appobject$pred.bbs <- MCMCsummary(beta.output, 'pred.bbs.prime')%>%
+  mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
+  mutate(Year = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
+         ID = "econ.input") %>%
+  dplyr::select(Year, Pred.Econ = mean, Pred.Econ.sd = sd)
+
 
 
 save(appobject, file = "./NDOWSEM/www/NDOW_SEM_app_objects.R")
