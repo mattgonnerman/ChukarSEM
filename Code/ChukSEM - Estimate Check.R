@@ -5,8 +5,8 @@ mcmcList1 <- files[[1]]
 mcmcList2 <- files[[1]]
 
 # Extract important values and plot
-test.bph <- MCMCsummary(mcmcList1, 'BPH2') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'BPH2'))) %>%
+test.bph <- MCMCsummary(mcmcList1, 'BPH') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'BPH'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%

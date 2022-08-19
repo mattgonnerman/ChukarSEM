@@ -163,9 +163,9 @@ code <- nimbleCode( {
       mu.harv[c,t] <- alpha.harv[c] + # intercepts
         beta.hunter.harv[c] * latent.trend[c,t] + # Latent Hunter Trend
         beta.wintsev.harv[reg.county[c]] * awssi[t,reg.county[c]]  + # Previous winter severity (Affecting Survival)
-        beta.pdsi.harv[reg.county[c]] * pdsi[t,reg.county[c]] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
-        beta.bbs.harv[reg.county[c]] * pred.bbs.prime[t] + # Latent predator index (Affecting Reproduction)
-        beta.bobcat.harv[reg.county[c]] * bobcat[t]
+        # beta.pdsi.harv[reg.county[c]] * pdsi[t,reg.county[c]] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
+        beta.bbs.harv[reg.county[c]] * pred.bbs.prime[t] #+ # Latent predator index (Affecting Reproduction)
+        # beta.bobcat.harv[reg.county[c]] * bobcat[t]
       
       N[c,t] <- exp(harv.eps[c,t]) #Log Link
       n.harv[c,t] ~ dnorm(N[c,t], sd = sig.N[c]) #Number of hunters follows Poisson
@@ -212,17 +212,17 @@ code <- nimbleCode( {
   for(c in 1:n.counties){
     theta.chuk[c] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     mod.chuk[c] ~ dlogis(0,1)
-    mu.chuk[c] ~ dlogis(0,1)
+    # mu.chuk[c] ~ dlogis(0,1)
   }
   
   for(p in 1:n.site){
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
-    
-    for(t in 2:n.year.chuk){
-      log.r.chuk[p,t-1] <-  mu.chuk[county.site[p]] + mod.chuk[county.site[p]] * latent.trend[county.site[p], t]
-      
-      C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
-      
+    for(t in 1:(n.year.chuk-1)){
+      log.r.chuk[p,t] <-  mod.chuk[county.site[p]] * log.r.harv[county.site[p], t]
+      C.chuk[p,t+1] <- exp(log.r.chuk[p,t]) * C.chuk[p,t] #Equivalent of Poisson lambda
+    }
+     
+    for(t in 2:n.year.chuk){ 
       rate.chuk[p,t-1] <- theta.chuk[county.site[p]]/(theta.chuk[county.site[p]] + C.chuk[p,t]) #NB success parameter
       n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[county.site[p]]) #obs. # of chukars follow neg-bin
     } #t
@@ -233,7 +233,7 @@ code <- nimbleCode( {
   for(t in 1:n.year){
     for(c in 1:n.counties){
       BPH[c,t] <-  N[c,t]/H[c,t]
-      BPH2[c,t]<- exp(mu.hunt[c,t]-mu.harv[c,t])
+      BPH2[c,t]<- exp(mu.harv[c,t]-mu.hunt[c,t])
     } #c
   } #t
 })

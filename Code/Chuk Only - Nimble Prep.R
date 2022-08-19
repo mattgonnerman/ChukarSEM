@@ -128,7 +128,6 @@ initsFunction <- function() list(
   ### Chukar Site Abundance
   theta.chuk = rep(1,n_county),
   mod.chuk = rep(1,n_county),
-  mu.chuk = rep(0,n_county),
   n.chuk = as.matrix(chukar_na),
   log.r.chuk = r.chuk.init
 )
@@ -181,13 +180,12 @@ coefficients <- c(
   "alpha.harv",
   "beta.wintsev.harv",
   "beta.hunter.harv",
-  "beta.bobcat.harv",
+  # "beta.bobcat.harv",
   "beta.bbs.harv",
-  "beta.pdsi.harv",
+  # "beta.pdsi.harv",
   
   ### Chukar Site Abundance
-  'mod.chuk',
-  'mu.chuk'
+  'mod.chuk'
 )
 
 predictors <- c(

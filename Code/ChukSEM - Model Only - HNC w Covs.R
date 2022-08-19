@@ -220,17 +220,17 @@ code <- nimbleCode( {
   for(r in 1:n.region){
     theta.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     mod.chuk[r] ~ dlogis(0,1)
-    mu.chuk[r] ~ dlogis(0,1)
+    # mu.chuk[r] ~ dlogis(0,1)
   }
-  
+
   for(p in 1:n.site){
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
-    
+    for(t in 1:(n.year.chuk-1)){
+      log.r.chuk[p,t] <-  mod.chuk[reg.chuk[p]] * log.r.harv[3, t+13, reg.chuk[p]] # log.r.chuk[t == 1] == log.r.harv[t == 14]
+      C.chuk[p,t+1] <- exp(log.r.chuk[p,t]) * C.chuk[p,t] #Equivalent of Poisson lambda
+    }
+
     for(t in 2:n.year.chuk){
-      log.r.chuk[p,t-1] <-  mod.chuk[reg.chuk[p]] * log.r.harv[3, t+13, reg.chuk[p]] 
-      
-      C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
-      
       rate.chuk[p,t-1] <- theta.chuk[reg.chuk[p]]/(theta.chuk[reg.chuk[p]] + C.chuk[p,t]) #NB success parameter
       n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[reg.chuk[p]]) #obs. # of chukars follow neg-bin
     } #t
@@ -242,15 +242,15 @@ code <- nimbleCode( {
     for(s in 1:n.species){
       for(r in 1:n.region){
         BPH[s,t,r] <-  N[s,t,r]/H[s,t,r]
-        BPH2[s,t,r]<- exp(mu.hunt[s,t,r]-mu.harv[s,t,r])
+        BPH2[s,t,r]<- exp(mu.harv[s,t,r]-mu.hunt[s,t,r])
       }
     }
   }
    
-  # for(s in 1:n.species){
-  #   sig.bph[s] ~ T(dt(0, pow(2.5,-2), 1),0,)
-  #   for(t in 1:3){
-  #     bph.survey[s,t] ~ dnorm(mean = mean(BPH[s,42+t,1:2]), sd = sig.bph[s])
-  #   }
-  # }
+  for(s in 1:n.species){
+    sig.bph[s] ~ T(dt(0, pow(2.5,-2), 1),0,)
+    for(t in 1:3){
+      bph.survey[s,t] ~ dnorm(mean = mean(BPH[s,42+t,1:2]), sd = sig.bph[s])
+    }
+  }
 })

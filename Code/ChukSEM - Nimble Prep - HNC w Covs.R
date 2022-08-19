@@ -35,7 +35,7 @@ data <- list(
   n.hunt = hunters/100, #Observed number of hunters for each species each year
   basis = B, #Spline Base
   n.harv = upland/100,
-  bph.survey = surveybph,
+  # bph.survey = surveybph,
   
   ### Chukar Site Abundance
   n.chuk = data.matrix(chukar)
@@ -221,12 +221,11 @@ initsFunction <- function() list(
   log.r.harv = array(0, dim = c(n.species,(cut)-1,2) ),
   N = Ni,
   
-  sig.bph = rep(.1, n.species),
+  # sig.bph = rep(.1, n.species),
   
   ### Chukar Site Abundance
   theta.chuk = rep(1,2),
   mod.chuk = rep(1,2),
-  mu.chuk = c(0,0),
   n.chuk = as.matrix(chukar_na),
   log.r.chuk = r.chuk.init
 )
@@ -275,13 +274,12 @@ coefficients <- c(
   "alpha.harv",
   "beta.wintsev.harv",
   "beta.hunter.harv",
-  "beta.bobcat.harv",
+  # "beta.bobcat.harv",
   "beta.bbs.harv",
-  "beta.pdsi.harv",
+  # "beta.pdsi.harv",
   
   ### Chukar Site Abundance
-  'mod.chuk',
-  'mu.chuk'
+  'mod.chuk'
   )
 
 predictors <- c(
