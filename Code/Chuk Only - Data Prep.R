@@ -5,7 +5,6 @@ chukharv_data <- read.csv('./Data/ChukarHarvestData.csv') %>%
          H = round(H)) %>%
   filter(Year <= cutoff.y) %>%
   arrange(County)
-list.all.y <- min(chukharv_data$Year):final.y
 
 county_order1 <- unique(chukharv_data$County)
 # Regions, 1 == West, 2 == East, 3 == South
@@ -55,13 +54,18 @@ chuk_site_ID <- read.csv("./Data/Chukar_Surveys_locations.csv") %>%
 
 chuksiteabun_data <- read.csv('./Data/Chukar_Surveys_data.csv') %>%
   gather("Population", "Count", 2:14) %>%
+  rbind(., expand.grid(Population = unique(.$Population),
+                       Year = list.all.y[which(list.all.y %notin% unique(.$Year))],
+                       Count = NA)) %>%
   merge(., chuk_site_ID, by = "Population", all = T)  %>%
   filter(RegionID != 3)%>%
   dplyr::select(-RegionID, -CountyID, -County) %>%
   merge(.,expand.grid(Year = c(min(.$Year):max(.$Year)),
                       Population = unique(.$Population))) %>%
   pivot_wider(values_from = Count, names_from = Year) %>%
-  merge(., chuk_site_ID, by = "Population", all.x = T)
+  merge(., chuk_site_ID, by = "Population", all.x = T) %>%
+  mutate(CountyID = match(County, county_order, nomatch = NA)) %>%
+  mutate(RegionID = county_reg[CountyID])
 
 survey.abun <- as.matrix(chuksiteabun_data %>% dplyr::select(-Population, -County, -CountyID, -RegionID))
 survey.county <- chuksiteabun_data$CountyID
@@ -89,10 +93,9 @@ western_pdsi <- read.csv('./Data/Western_PDSIZ.csv') %>%
   mutate(Region = "Western")
 
 pdsi_df <- rbind(eastern_pdsi, western_pdsi) %>%
-  pivot_wider(names_from = Region, values_from = c(Summer)) %>%
-  add_row(Year = (max(.$Year)+1):final.y, 
-          Eastern = rep(NA, length((max(.$Year)+1):final.y)),
-          Western = rep(NA, length((max(.$Year)+1):final.y))) %>%
+  pivot_wider(names_from = Region, values_from = c(Summer)) %>% 
+  filter(Year <= final.y) %>%
+  rbind(., expand.grid(Eastern = NA, Western = NA, Year = list.all.y[which(list.all.y %notin% unique(.$Year))])) %>%
   dplyr::select(-Year) %>%
   as.matrix(.)
 
@@ -107,9 +110,7 @@ unemployment <- read.csv("./Data/NEvadaUnemploymentUSBL.csv", colClasses = c("in
   mutate(Rate = unemployment/labor.force) %>%
   dplyr::select(Year, Une = Rate) %>%
   mutate(Une = scale(Une)[,1]) %>%
-  add_row(Year = (max(.$Year)+1):final.y, Une = rep(NA, length((max(.$Year)+1):final.y)))
-# ggplot(data = data.frame(UNE= une, Year = 1:length(une)), aes(x = Year, y = UNE)) +
-#   geom_line()
+  rbind(., expand.grid(Une = NA, Year = list.all.y[which(list.all.y %notin% unique(.$Year))]))
 
 #Number of Resident Licenses Sold
 general <- read.csv(file = './Data/overall_hunting_data.csv') %>%
@@ -129,14 +130,15 @@ gas.march <- read.csv('./Data/NV_Gas.csv') %>%
   arrange(Year) %>%
   dplyr::select(Year, Gas.May = Dollars.per.Gallon) %>%
   mutate(Gas.May = scale(Gas.May)[,1]) %>%
-  add_row(Year = (max(.$Year)+1):final.y, Gas.May = rep(NA, length((max(.$Year)+1):final.y)))
+  rbind(., expand.grid(Gas.May = NA, Year = list.all.y[which(list.all.y %notin% unique(.$Year))]))
 
 #Personal Disposalable Income/Merge All
 econ_data <- read.csv('./Data/economic_data.csv') %>%
   dplyr::rename(PDI = Per.Capita.Personal.Disposable.Income) %>%
   filter(Year >= first.y.cov) %>%
   mutate(PDI = scale(PDI)[,1]) %>%
-  add_row(Year = (max(.$Year)+1):final.y, PDI = rep(NA, length((max(.$Year)+1):final.y))) %>%
+  dplyr::select(-3) %>%
+  rbind(., expand.grid(PDI = NA, Year = list.all.y[which(list.all.y %notin% unique(.$Year))])) %>%
   merge(., gas.march, by = "Year", all = T)%>%
   merge(., general, by = "Year", all = T) %>%
   merge(., unemployment, by = "Year", all = T) %>%
@@ -155,7 +157,8 @@ awssi.df <- read.csv("./Data/Nevada AWSSI.csv") %>%
   filter(Year >= first.y.cov & Region != "Southern") %>%
   mutate(AWSSI = scale(AWSSI)[,1]) %>%
   pivot_wider(names_from = Region, values_from = AWSSI) %>%
-  add_row(Year = (max(.$Year)+1):final.y, Eastern = rep(NA, length((max(.$Year)+1):final.y)), Western = rep(NA, length((max(.$Year)+1):final.y))) %>%
+  rbind(., expand.grid(Eastern = NA, Western = NA, 
+                       Year = list.all.y[which(list.all.y %notin% unique(.$Year))])) %>%
   dplyr::select(-Year) %>%
   as.matrix(.)
 
@@ -168,10 +171,21 @@ bbs.df <- read.csv("./Data/bbs_indices.csv") %>%
          rthawk = scale(rthawk)[,1],
          nharrier = scale(nharrier)[,1],
          pfalcon = scale(pfalcon)[,1]) %>%
-  add_row(Year = (max(.$Year)+1):final.y, raven = rep(NA, length((max(.$Year)+1):final.y)), rthawk = rep(NA, length((max(.$Year)+1):final.y)),
-          nharrier = rep(NA, length((max(.$Year)+1):final.y)), pfalcon = rep(NA, length((max(.$Year)+1):final.y))) %>%
+  rbind(., expand.grid(raven = NA, rthawk = NA, nharrier = NA, pfalcon = NA, 
+                       Year = list.all.y[which(list.all.y %notin% unique(.$Year))])) %>%
   dplyr::select(-Year) %>%
   as.matrix()
+
+
+#####################################################################################
+#Bobcat Productivity Data
+bobcat.df <- read.csv("./Data/NV Bobcat Prod.csv") %>%
+  dplyr::rename(bobcat = Kper100F) %>% dplyr::select(-Period) %>%
+  filter(Year >= min(list.all.y) -1) %>%
+  mutate(bobcat = scale(bobcat)[,1]) %>%
+  rbind(., expand.grid(bobcat = NA, Year = c(min(list.all.y) -1, list.all.y)[which(c(min(list.all.y) -1, list.all.y) %notin% unique(.$Year))])) %>%
+  filter(Year <= final.y -1) %>%
+  arrange(Year)
 
 
 #####################################################################################
@@ -240,10 +254,10 @@ P2 = Delta2 %*% Q2 %*% Delta2
 Sigma2 = Lambda2 %*% P2 %*% Lambda2
 
 n.hunt.i <- ifelse(is.na(chuk_hunt), floor(mean(as.matrix(chuk_hunt), na.rm = T)), NA)
-n.harv.i <- ifelse(is.na(chuk_harv), floor(mean(as.matrix(chuk_harv), na.rm = T)), NA)
+n.harv.i <- as.data.frame(ifelse(is.na(chuk_harv), floor(mean(as.matrix(chuk_harv), na.rm = T)), NA))
 
-Ni <- array(NA, c(nrow(n.harv.i), ncol(n.harv.i), 2))
-Ni[,1,] <- chuk_harv[,1,] + 50
+Ni <- matrix(NA, nrow = nrow(n.harv.i), ncol = ncol(n.harv.i))
+Ni[,1] <- n.harv.i[,1] + 50
 
 ## Chukar Site Abundance
 chukar_na <- survey.abun
@@ -273,4 +287,5 @@ econ.inits <- econ_data %>% mutate_all(function(x) ifelse(is.na(x), 0, NA))
 bbs.inits <- as.data.frame(bbs.df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA))
 awssi.inits <- as.matrix(as.data.frame(awssi.df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA)))
 pdsi.inits <- as.matrix(as.data.frame(pdsi_df) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA)))
+bobcat.inits <- as.matrix(as.data.frame(bobcat.df[,2]) %>% mutate_all(function(x) ifelse(is.na(x), 0, NA)))[,1]
 

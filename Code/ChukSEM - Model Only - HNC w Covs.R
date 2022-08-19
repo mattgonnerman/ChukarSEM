@@ -64,11 +64,9 @@ code <- nimbleCode( {
   } #r
   
   #Bobcat Productivity
-  beta.bob.t ~ dnorm(0, sd = 5)
-  alpha.bob ~ dnorm(0, sd = 5)
   sig.bob ~ T(dt(0, pow(2.5,-2), 1),0,)
   for(t in 1:n.year){
-    bobcat[t] ~ dnorm(mean = alpha.bob + beta.bob.t*t, sd = sig.bob)
+    bobcat[t] ~ dnorm(mean = 0, sd = sig.bob)
   }
   
   
@@ -84,7 +82,7 @@ code <- nimbleCode( {
   for(r in 1:n.region){
     for(s in 1:n.species){
       sig.H[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-      alpha.hunt[s,r] ~ T(dnorm(mean = 0, sd = 7),0,)
+      alpha.hunt[s,r] ~ dnorm(mean = 0, sd = 7)
       for(k in 1:K){
         beta.spl.hunt[s,r,k] ~ dnorm(0, sd = sig.spl.hunt[s,r])
       } #k
@@ -164,7 +162,7 @@ code <- nimbleCode( {
     for(s in 1:n.species){
       beta.hunter.harv[s,r] ~ dnorm(mu.hunter.harv[r], sd = sig.hunter.harv[r])
       sig.N[s,r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-      alpha.harv[s,r] ~ T(dnorm(mean = 0, sd = 7),0,)
+      alpha.harv[s,r] ~ dnorm(mean = 0, sd = 7)
       
       # Process Model
       for(t in 1:n.year){
@@ -172,9 +170,9 @@ code <- nimbleCode( {
         mu.harv[s,t,r] <- alpha.harv[s,r] + # intercepts
           beta.hunter.harv[s,r] * latent.trend[s,t,r] + # Latent Hunter Trend
           beta.wintsev.harv[s] * awssi[t,r]  + # Previous winter severity (Affecting Survival)
-          beta.pdsi.harv[s] * pdsi[t,r] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
-          beta.bbs.harv[s] * pred.bbs.prime[t] + # Latent predator index (Affecting Reproduction)
-          beta.bobcat.harv[s] * bobcat[t]
+          # beta.pdsi.harv[s] * pdsi[t,r] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
+          beta.bbs.harv[s] * pred.bbs.prime[t] #+ # Latent predator index (Affecting Reproduction)
+          # beta.bobcat.harv[s] * bobcat[t]
         
         N[s,t,r] <- exp(harv.eps[s,t,r]) #Log Link
         
@@ -229,7 +227,7 @@ code <- nimbleCode( {
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
     
     for(t in 2:n.year.chuk){
-      log.r.chuk[p,t-1] <-  mu.chuk[reg.chuk[p]] + mod.chuk[reg.chuk[p]] * latent.trend[3, t+13, reg.chuk[p]] #log.r.harv[t=13] is 1990-1991
+      log.r.chuk[p,t-1] <-  mod.chuk[reg.chuk[p]] * log.r.harv[3, t+13, reg.chuk[p]] 
       
       C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
       
@@ -249,10 +247,10 @@ code <- nimbleCode( {
     }
   }
    
-  # for(s in 1:n.species){  
+  # for(s in 1:n.species){
   #   sig.bph[s] ~ T(dt(0, pow(2.5,-2), 1),0,)
   #   for(t in 1:3){
-  #     bph.survey[s,t] ~ dnorm(mean = mean(BPH[s,42+t,1:2]), sd = sig.bph[s]) 
+  #     bph.survey[s,t] ~ dnorm(mean = mean(BPH[s,42+t,1:2]), sd = sig.bph[s])
   #   }
   # }
 })

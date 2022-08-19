@@ -32,9 +32,9 @@ data <- list(
   bobcat = bobcat.df[,2],
  
   ### Harvest Data
-  n.hunt = hunters/1000, #Observed number of hunters for each species each year
+  n.hunt = hunters/100, #Observed number of hunters for each species each year
   basis = B, #Spline Base
-  n.harv = upland/1000,
+  n.harv = upland/100,
   bph.survey = surveybph,
   
   ### Chukar Site Abundance
@@ -172,8 +172,6 @@ initsFunction <- function() list(
   alpha.awssi = 0,
   sig.awssi = rep(1,2),
   sig.drought = rep(1,2),
-  beta.bob.t = 0,
-  alpha.bob = 0,
   sig.bob = 1,
   
   ### Covariates
@@ -201,7 +199,7 @@ initsFunction <- function() list(
 
   ### Hunter Effort
   sig.H =  matrix(1, n.species,2),
-  n.hunt = n.hunt.i/1000,
+  n.hunt = n.hunt.i/100,
   Q.hunt = abind(Q,Q,along = 3),
   P.hunt = abind(P,P,along = 3),
   Lambda.hunt = abind(diag(n.species),diag(n.species),along = 3),
@@ -212,7 +210,7 @@ initsFunction <- function() list(
 
   ### Total Harvest
   sig.N =  matrix(1, n.species ,2),
-  n.harv = n.harv.i/1000,
+  n.harv = n.harv.i/100,
   Q.harv = abind(Q2,Q2,along = 3),
   P.harv = abind(P2,P2,along = 3),
   Lambda.harv = abind(diag(n.species),diag(n.species),along = 3),
@@ -301,13 +299,10 @@ predictors <- c(
   
   'sig.drought',
   
-  'beta.bob.t',
-  'alpha.bob',
   'sig.bob'
 )
 
 # Parallel Processing Setup
-rm(out)
 rm(out.full.predict)
 start_time <- Sys.time() # To track runtime
 start_time

@@ -7,10 +7,10 @@ lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimb
 '%notin%' <- Negate('%in%')
 
 #Last year from which data will be used
-cutoff.y <-2022
+cutoff.y <-2016
 
 #What is the last year of Chukar site abundance (Should be 1 + cutoff.y)
-cutoff.y.chuk <- 2022 
+cutoff.y.chuk <- 2017 
 
 #Last year to predict 
 final.y <- year.hold <- 2022 
@@ -37,14 +37,16 @@ source("./Code/ChukSEM - Estimate Check.R")
 #############################################################################################
 ### CHUKAR-ONLY MODEL
 #############################################################################################
+### Load Model Code
+source("./Code/Chuk Only - Model.R")
+
 ### Run Data prep 
+list.all.y <- 1990:final.y
+cut <- length(1990:cutoff.y) + n.add.y #Reference used to subset dataframes later
 source("./Code/Chuk Only - Data Prep.R")
 
-### Load Model Code
-source("./Code/Chuk Only - Model Only - HNC w Covs.R")
-
 ### Run Full Model to Produce Estimates
-source("./Code/Chuk Only - Nimble Prep - HNC w Covs.R")
+source("./Code/Chuk Only - Nimble Prep.R")
 
 ### Save estimates and make preliminary Graphs
 source("./Code/Chuk Only - Estimate Check.R")

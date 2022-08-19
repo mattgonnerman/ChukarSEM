@@ -12,15 +12,16 @@ data <- list(
   pdi = econ_data[,4], #Personal Disposable Income
   gas = econ_data[,1], #Gas Prices in May
   pdsi = pdsi_df,
+  bobcat = bobcat.df[,2],
   
   ### Hunter Effort
-  n.hunt = chuk_hunt/1000, #Observed number of hunters for each species each year
+  n.hunt = chuk_hunt/100, #Observed number of hunters for each species each year
   basis = B, #Spline Base
-  I.hunt = abind(I,I,along = 3),
+  I.hunt = I,
   
   ### Total Harvest
-  n.harv = chuk_harv/1000,
-  I.harv = abind(I2,I2,along = 3),
+  n.harv = chuk_harv/100,
+  I.harv = I2,
   
   ### Chukar Site Abundance
   n.chuk = data.matrix(survey.abun)
@@ -37,9 +38,13 @@ constants <- list(
   reg.county = county_reg,
   
   ### Chukar Site Abundance
-  n.site = nrow(chukar),
-  n.year.chuk = ncol(chukar),
-  county.site = county.site.chuk
+  n.site = nrow(chuk_hunt),
+  n.year.chuk = ncol(chuk_hunt),
+  county.site = survey.county,
+  
+  ### Predictors
+  era.awssi = c(rep(0,length(1990:1994)),rep(1, length(1995:2001)), rep(0, length(2002:final.y))) #Groupings for change in gas prices
+  
 )
 
 #####################################################################################
@@ -56,6 +61,7 @@ initsFunction <- function() list(
   pfal = bbs.inits$pfalcon,
   awssi = awssi.inits,
   pdsi = pdsi.inits,
+  bobcat = bobcat.inits,
   sig.econ.pred = rep(1,4),
   mu.econ.p = rep(0,4),
   zeta.econ = rep(1,ncol(econ_data)),
@@ -70,55 +76,59 @@ initsFunction <- function() list(
   alpha.awssi = 0,
   sig.awssi = rep(1,2),
   sig.drought = rep(1,2),
+  sig.bob = 1,
   
   ### Covariates
   mu.econ = 0,
   sig.econ = 1,
-  beta.econ.hunt = rep(0, n.species),
-  beta.spl.hunt = array(0, dim = c(n.species,2,dim(B)[2])),
-  sig.spl.hunt = matrix(1, ncol = 2, nrow = n.species),
+  beta.econ.hunt = rep(0, max(county_reg)),
+  beta.spl.hunt = matrix(0, nrow = n_county, ncol = dim(B)[2]),
+  sig.spl.hunt = rep(1, n_county),
   
   mu.wintsev.harv = 0,
   sig.wintsev.harv = 1,
-  beta.wintsev.harv = rep(0, n.species),
+  beta.wintsev.harv = rep(0, max(county_reg)),
   mu.bbs = 0,
   sig.bbs = 1,
-  beta.bbs.harv = rep(0, n.species),
+  beta.bbs.harv = rep(0, max(county_reg)),
+  mu.bobcat = 0,
+  sig.bobcat = 1,
+  beta.bobcat.harv = rep(0, max(county_reg)),
   mu.pdsi = 0,
   sig.pdsi = 1,
-  beta.pdsi.harv = rep(0, n.species),
-  mu.hunter.harv = c(0,0),
-  sig.hunter.harv = c(1,1),
-  beta.hunter.harv = matrix(0, n.species, 2),
+  beta.pdsi.harv = rep(0, max(county_reg)),
+  mu.hunter.harv = 0,
+  sig.hunter.harv = 1,
+  beta.hunter.harv = rep(0, n_county),
   
   ### Hunter Effort
-  sig.H =  matrix(1, n.species,2),
-  n.hunt = n.hunt.i/1000,
-  Q.hunt = abind(Q,Q,along = 3),
-  P.hunt = abind(P,P,along = 3),
-  Lambda.hunt = abind(diag(n.species),diag(n.species),along = 3),
-  Delta.hunt = abind(Delta,Delta,along = 3),
-  rho.hunt = abind(diag(n.species),diag(n.species),along = 3),
-  alpha.hunt = matrix(0, ncol = 2, nrow = n.species),
-  sig.hunt = matrix(1, ncol = 2, nrow = n.species),
+  sig.H =  rep(1, n_county),
+  n.hunt = n.hunt.i/100,
+  Q.hunt = Q,
+  P.hunt = P,
+  Lambda.hunt = diag(n_county),
+  Delta.hunt = Delta,
+  rho.hunt = diag(n_county),
+  alpha.hunt = rep(0, n_county),
+  sig.hunt = rep(1, n_county),
   
   ### Total Harvest
-  sig.N =  matrix(1, n.species ,2),
-  n.harv = n.harv.i/1000,
-  Q.harv = abind(Q2,Q2,along = 3),
-  P.harv = abind(P2,P2,along = 3),
-  Lambda.harv = abind(diag(n.species),diag(n.species),along = 3),
-  Delta.harv = abind(Delta2,Delta2,along = 3),
-  rho.harv = abind(diag(n.species),diag(n.species),along = 3),
-  alpha.harv = matrix(0, ncol = 2, nrow = n.species),
-  sig.harv = matrix(1, ncol = 2, nrow = n.species),
-  log.r.harv = array(0, dim = c(n.species,(cut)-1,2) ),
+  sig.N =  rep(1, n_county),
+  n.harv = n.harv.i/100,
+  Q.harv = Q2,
+  P.harv = P2,
+  Lambda.harv = diag(n_county),
+  Delta.harv = Delta2,
+  rho.harv = diag(n_county),
+  alpha.harv = rep(0, n_county),
+  sig.harv = rep(1, n_county),
+  log.r.harv = matrix(0, nrow = n_county, ncol = (cut)-1),
   N = Ni,
   
   ### Chukar Site Abundance
-  theta.chuk = rep(1,2),
-  mod.chuk = rep(1,2),
-  mu.chuk = c(0,0),
+  theta.chuk = rep(1,n_county),
+  mod.chuk = rep(1,n_county),
+  mu.chuk = rep(0,n_county),
   n.chuk = as.matrix(chukar_na),
   log.r.chuk = r.chuk.init
 )
@@ -144,77 +154,70 @@ model_test$calculate()
 
 #####################################################################################
 ### Parameters to Montior
-pars1 <- c(### Hunter Effort
-  "alpha.hunt",
-  "beta.econ.hunt",
-  "beta.spl.hunt",
-  "Sigma.hunt",
-  
-  ### Total Harvest
-  "alpha.harv",
-  "beta.wintsev.harv",
-  "beta.bbs.harv",
-  "beta.pdsi.harv",
-  # "beta.spl.harv",
-  "Sigma.harv"
-)
-
-pars2 <- c(
+estimates <- c(
   ### Hunter Effort
-  "H",'sig.H',
+  "H",
   "rho.hunt",
-  "log.r.hunt",
   ### Total Harvest
   "N",'sig.N',
   "log.r.harv",
   'rho.harv',
   # ### Chukar Site Abundance
   "log.r.chuk",
-  'mod.chuk',
+  "theta.chuk",
+  'n.chuk',
   ### Birds per Hunter
   "BPH",'BPH2'
 )
 
-pars.pred <- c(
+coefficients <- c(
+  ### Hunter Effort
+  "alpha.hunt",
+  "beta.econ.hunt",
+  "beta.spl.hunt",
+  "latent.trend",
+  
+  ### Total Harvest
+  "alpha.harv",
+  "beta.wintsev.harv",
+  "beta.hunter.harv",
+  "beta.bobcat.harv",
+  "beta.bbs.harv",
+  "beta.pdsi.harv",
+  
+  ### Chukar Site Abundance
+  'mod.chuk',
+  'mu.chuk'
+)
+
+predictors <- c(
   'pred.econ.prime',
   'pred.bbs.prime',
+  'mu.econ.p',
+  'mu.bbs.p',
   'sig.econ.pred', 
   'sig.bbs.pred',
-  
-  'mu.bbs.p',
   'zeta.econ',
   'zeta.bbs',
+  
   'alpha.awssi', 
   'beta.awssi',
-  'awssi',
   
-  'beta.econ.hunt',
-  'sig.H',
-  'alpha.hunt',
-  'beta.spl.hunt',
-  'latent.trend',
+  'sig.drought',
   
-  'beta.wintsev.harv',
-  'beta.bbs.harv',
-  'beta.pdsi.harv',
-  'beta.hunter.harv',
-  'sig.N','mu.harv',
-  'mu.hunt',
-  'mod.chuk'
-  
+  'sig.bob'
 )
 
 
 #####################################################################################
 ### Run Model (Parallel Processing)
-rm(out)
 rm(out.full.predict)
 start_time <- Sys.time() # To track runtime
 start_time
 nc <- detectCores()/2    # number of chains
 cl<-makeCluster(nc,timeout=5184000) #Start 3 parallel processing clusters
 
-clusterExport(cl, c("code", "inits", "data", "constants", "pars1", "pars2", "pars.pred")) #identify what is to be exported to each cluster
+clusterExport(cl, c("code", "inits", "data", "constants", "estimates", "coefficients", "predictors")) #identify what is to be exported to each cluster
 
 for (j in seq_along(cl)) {
   set.seed(j)
@@ -239,7 +242,7 @@ out.full.predict <- clusterEvalQ(cl, {
   model_test$initializeInfo()
   model_test$calculate()
   
-  mcmcConf <-  configureMCMC( model_test,   monitors =  pars2, monitors2 = c(pars1, pars.pred))
+  mcmcConf <-  configureMCMC( model_test,   monitors =  estimates, monitors2 = c(coefficients, predictors))
   mcmc     <-  buildMCMC( mcmcConf)
   Cmodel   <- compileNimble(model_test)
   Cmcmc    <- compileNimble(mcmc)
@@ -248,6 +251,8 @@ out.full.predict <- clusterEvalQ(cl, {
 })
 #Stop parallel cluster
 stopCluster(cl)
+
+#Find model runtime
 end_time <- Sys.time()
 end_time - start_time
 
@@ -267,10 +272,11 @@ samples2 <- list(chain1 =  out.full.predict[[1]]$samples2,
 mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
 #Save Outputs as file
-files <- list(mcmcList1, mcmcList2, code, data)
-save(files, file = "./Output/NDOW_Upland_SEM_output.rdata")
+files <- list(mcmcList1, mcmcList2, code, data, county_order)
+save(files, file = "./Output/NDOW_ChukOnly_SEM_output.rdata")
 
 #Traceplots
-MCMCtrace(mcmcList1, filename = "./Output/TraceOut - Full.pdf")
-MCMCtrace(mcmcList2, filename = "./Output/TraceOut - Full - Predictors.pdf")
+MCMCtrace(mcmcList1, filename = "./Output/ChukOnly - Estimates.pdf")
+
+MCMCtrace(mcmcList2, filename = "./Output/ChukOnly - Covariates.pdf")
 

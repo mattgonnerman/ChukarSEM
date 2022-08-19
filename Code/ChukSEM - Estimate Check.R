@@ -1,8 +1,12 @@
 lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr"), require, character.only = T)
 
+load(file = "./Output/NDOW_Upland_SEM_output.rdata")
+mcmcList1 <- files[[1]]
+mcmcList2 <- files[[1]]
+
 # Extract important values and plot
-test.bph <- MCMCsummary(mcmcList1, 'BPH') %>%
-  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'BPH'))) %>%
+test.bph <- MCMCsummary(mcmcList1, 'BPH2') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'BPH2'))) %>%
   mutate(Species = as.factor(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\,)")),
          Region = sub('.*\\,', '', RowID)) %>%
@@ -106,16 +110,16 @@ est.check.df <- merge(est.check.df, obs.HarvestData, by = c("Region", "Species",
   arrange(Species, Year, Region)
 is.num <- sapply(est.check.df, is.numeric)
 est.check.df[is.num] <- lapply(est.check.df[is.num], round, 2)
-
-pred.only.df <- est.check.df %>% filter(Year >= year.hold) %>%
+pred.only.df <- est.check.df %>% filter(Year >= cutoff.y) %>%
   mutate(Year = as.factor(Year))
+
 write.csv(as.data.frame(pred.only.df), "./Output/EstCheck - Estimates_N_H_BPH.csv", row.names = F)
 
 est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
-  geom_errorbar(aes(ymin = Est.N.LCL*1000, ymax = Est.N.UCL*1000, color = Region),
+  geom_errorbar(aes(ymin = Est.N.LCL*100, ymax = Est.N.UCL*100, color = Region),
                 width = .3, size = 1,
                 position = position_dodge(width = .5), show.legend = F) +
-  geom_point(aes(y = Est.N*1000, color = Region), shape = 19, size = 4,
+  geom_point(aes(y = Est.N*100, color = Region), shape = 19, size = 4,
              position = position_dodge(width = .5)) +
   geom_point(aes(y = Obs.N, group = Region), color = "black", shape = 17, size = 3,
              position = position_dodge(width = .5), show.legend = F) +
@@ -126,14 +130,14 @@ est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   theme(axis.title = element_blank(), legend.position = c(.9,.25))
 
 ggsave(est.check.N, filename = './Output/EstCheck - N.jpeg',
-       dpi = 300, width = 10 + (2016 - year.hold), height = 8)
+       dpi = 300, width = 10 + (year.hold - cutoff.y), height = 8)
 
 
 est.check.H <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
-  geom_errorbar(aes(ymin = Est.H.LCL*1000, ymax = Est.H.UCL*1000, color = Region),
+  geom_errorbar(aes(ymin = Est.H.LCL*100, ymax = Est.H.UCL*100, color = Region),
                 width = .3, size = 1,
                 position = position_dodge(width = .5), show.legend = F) +
-  geom_point(aes(y = Est.H*1000, color = Region), shape = 19, size = 4,
+  geom_point(aes(y = Est.H*100, color = Region), shape = 19, size = 4,
              position = position_dodge(width = .5)) +
   geom_point(aes(y = Obs.H, group = Region), color = "black", shape = 17, size = 3,
              position = position_dodge(width = .5), show.legend = F) +
@@ -144,7 +148,7 @@ est.check.H <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   theme(axis.title = element_blank(), legend.position = c(.9,.25))
 
 ggsave(est.check.H, filename = './Output/EstCheck - H.jpeg',
-       dpi = 300, width = 10 + (2016 - year.hold), height = 8)
+       dpi = 300, width = 10 + (year.hold - cutoff.y), height = 8)
 
 
 est.check.BPH <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
@@ -162,7 +166,7 @@ est.check.BPH <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   theme(axis.title = element_blank(), legend.position = c(.9,.25))
 
 ggsave(est.check.BPH, filename = './Output/EstCheck - BPH.jpeg',
-       dpi = 300, width = 10 + (2016 - year.hold), height = 8)
+       dpi = 300, width = 10 + (year.hold - cutoff.y), height = 8)
 
 
 

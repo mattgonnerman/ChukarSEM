@@ -46,12 +46,12 @@ code <- nimbleCode( {
   }
   
   #Winter Severity
+  beta.awssi ~ dnorm(0, sd = 5)
+  alpha.awssi ~ dnorm(0, sd = 5)
   for (r in 1:n.region) {
-    # beta.awssi[r] ~ dnorm(0, sd = 10)
-    mu.awssi[r] ~ dnorm(0, sd = 10)
     sig.awssi[r] ~ T(dt(0, pow(2.5, -2), 1), 0, )
     for (t in 1:n.year) {
-      awssi[t,r] ~ dnorm(mu.awssi[r], sd = sig.awssi[r])
+      awssi[t,r] ~ dnorm(alpha.awssi + (beta.awssi * era.awssi[t]), sd = sig.awssi[r])
     }
   }
   
@@ -65,11 +65,9 @@ code <- nimbleCode( {
   
   
   #Bobcat Productivity
-  beta.bob.t ~ dnorm(0, sd = 5)
-  alpha.bob ~ dnorm(0, sd = 5)
   sig.bob ~ T(dt(0, pow(2.5,-2), 1),0,)
   for(t in 1:n.year){
-    bobcat[t] ~ dnorm(mean = alpha.bob + beta.bob.t*t, sd = sig.bob)
+    bobcat[t] ~ dnorm(mean = 0, sd = sig.bob)
   }
   
   ################################################################################
@@ -82,7 +80,7 @@ code <- nimbleCode( {
   
   for(c in 1:n.counties){
     sig.H[c] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    alpha.hunt[c] ~ dnorm(5, sd = 12) #sd = 1)
+    alpha.hunt[c] ~ dnorm(0, sd = 5) #sd = 1)
     for(k in 1:K){
       beta.spl.hunt[c,k] ~ dnorm(0, sd = sig.spl.hunt[c])
     } #k
@@ -99,7 +97,7 @@ code <- nimbleCode( {
     } #t
     
     for(t in 1:(n.year-1)){
-      lambda.hunt[c,t] <- H[s,t+1,r]/H[c,t]
+      lambda.hunt[c,t] <- H[c,t+1]/H[c,t]
       log.r.hunt[c,t] <- log(lambda.hunt[c,t])
     } #t
   }#c
@@ -157,20 +155,20 @@ code <- nimbleCode( {
   for(c in 1:n.counties){
     beta.hunter.harv[c] ~ dnorm(mu.hunter.harv, sd = sig.hunter.harv)
     sig.N[c] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    alpha.harv[c] ~ dnorm(0, sd = 12)
+    alpha.harv[c] ~ dnorm(0, sd = 5)
     
     # Process Model
     for(t in 1:n.year){
       #Unlinked estimate of Hunter Numbers
       mu.harv[c,t] <- alpha.harv[c] + # intercepts
-        beta.hunter.harv[c] * latent.trend[s,t,r] + # Latent Hunter Trend
-        beta.wintsev.harv[reg.county[c]] * awssi[t,r]  + # Previous winter severity (Affecting Survival)
-        beta.pdsi.harv[reg.county[c]] * pdsi[t,r] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
+        beta.hunter.harv[c] * latent.trend[c,t] + # Latent Hunter Trend
+        beta.wintsev.harv[reg.county[c]] * awssi[t,reg.county[c]]  + # Previous winter severity (Affecting Survival)
+        beta.pdsi.harv[reg.county[c]] * pdsi[t,reg.county[c]] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
         beta.bbs.harv[reg.county[c]] * pred.bbs.prime[t] + # Latent predator index (Affecting Reproduction)
         beta.bobcat.harv[reg.county[c]] * bobcat[t]
       
       N[c,t] <- exp(harv.eps[c,t]) #Log Link
-      n.harv[s,t,r] ~ dnorm(N[s,t,r], sd = sig.N[s,r]) #Number of hunters follows Poisson
+      n.harv[c,t] ~ dnorm(N[c,t], sd = sig.N[c]) #Number of hunters follows Poisson
     } #t
     
     for(t in 1:(n.year-1)){
@@ -211,17 +209,17 @@ code <- nimbleCode( {
   
   ################################################################################
   ### Chukar Site Abundance ###
-  for(r in 1:n.region){
-    theta.chuk[r] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
-    mod.chuk[r] ~ dlogis(0,1)
-    mu.chuk[r] ~ dlogis(0,1)
+  for(c in 1:n.counties){
+    theta.chuk[c] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+    mod.chuk[c] ~ dlogis(0,1)
+    mu.chuk[c] ~ dlogis(0,1)
   }
   
   for(p in 1:n.site){
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
     
     for(t in 2:n.year.chuk){
-      log.r.chuk[p,t-1] <-  mu.chuk[county.site[p]] + mod.chuk[county.site[p]] * latent.trend[3, t+13, county.site[p]] #log.r.harv[t=13] is 1990-1991
+      log.r.chuk[p,t-1] <-  mu.chuk[county.site[p]] + mod.chuk[county.site[p]] * latent.trend[county.site[p], t]
       
       C.chuk[p,t] <- exp(log.r.chuk[p,t-1]) * C.chuk[p,t-1] #Equivalent of Poisson lambda
       
