@@ -110,28 +110,20 @@ Harv.reg.coef2 <- MCMCsummary(beta.output, 'beta.wintsev.harv') %>%
   merge(., expand.grid(Species = 1:n.species, Region = 1:2), by = "Species", all.x = T) %>%
   merge(Harv.reg.coef1, ., by = c("Species", "Region"), all =T)
 
-Harv.reg.coef3 <- MCMCsummary(beta.output, 'beta.pdsi.harv')%>%
-  mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
-  mutate(Species = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
-         ID = "b.PDSI") %>%
-  dplyr::select(Species, B.pdsi.harv = mean, B.pdsi.harv.sd = sd) %>%
-  merge(., expand.grid(Species = 1:n.species, Region = 1:2), by = "Species", all.x = T) %>%
-  merge(Harv.reg.coef2, ., by = c("Species", "Region"), all =T)
-
-Harv.reg.coef4 <- MCMCsummary(beta.output, 'beta.bbs.harv')%>%
+Harv.reg.coef3 <- MCMCsummary(beta.output, 'beta.bbs.harv')%>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
   mutate(Species = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
          ID = "b.BBS") %>%
   dplyr::select(Species, B.bbs.harv = mean, B.bbs.harv.sd = sd) %>%
   merge(., expand.grid(Species = 1:n.species, Region = 1:2), by = "Species", all.x = T) %>%
-  merge(Harv.reg.coef3, ., by = c("Species", "Region"), all =T)
+  merge(Harv.reg.coef2, ., by = c("Species", "Region"), all =T)
   
 appobject$N.reg <- Harv.reg.coef <- MCMCsummary(beta.output, 'beta.hunter.harv') %>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
   mutate(Species = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Region = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\])"))) %>%
   dplyr::select(Species, Region, B.hunter = mean, B.hunter.sd = sd) %>%
-  merge(Harv.reg.coef4, ., by = c("Species", "Region"), all =T) %>%
+  merge(Harv.reg.coef3, ., by = c("Species", "Region"), all =T) %>%
   group_split(Region, .keep = F)
 
 # appobject$N.reg <- Harv.reg.coef <- MCMCsummary(beta.output, 'beta.bobcat.harv') %>%

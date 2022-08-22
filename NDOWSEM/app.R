@@ -1,4 +1,5 @@
 library(shinyWidgets)
+library(shinydashboard)
 library(ggplot2)
 library(dplyr)
 library(mvtnorm)
@@ -13,6 +14,7 @@ library(DT)
 load("./www/NDOW_SEM_app_objects.R")
 load("./www/NDOW_ChukOnly_app_objects.R")
 lastyear <- ncol(appobject$N)
+lastyear.ch <- ncol(appobject.CH$N)
 
 #Fix for unaligned checkboxes
 tweaks <- tags$head(tags$style(HTML(
@@ -119,19 +121,15 @@ ui <- navbarPage( tweaks,
                                      sliderInput("awssi", HTML("Winter Severity (Low \u2192 High)"), min=-3, max=3, 
                                                  value = 0, sep="", step = 0.1)
                                    ),
-                                   conditionalPanel(
-                                     condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
-                                     
-                                     sliderInput("pdsi", HTML("Drought Severity (High \u2192 Low)"), min=-3, max=3, 
-                                                 value = 0, sep="", step = 0.1)
-                                   ),
                                    
                                    downloadButton("downloadData", "Download Displayed Estimates")
                       ),
                       
                       mainPanel(#Output Plot
-                        plotOutput("forecastplot", width = "800px", height = "710px"),
-                        DT::dataTableOutput('forecasttable')
+                        tabBox(
+                          tabPanel("Plot", plotOutput("forecastplot", width = "800px", height = "710px")),
+                          tabPanel("Table", DT::dataTableOutput('forecasttable'))
+                        )
                       )
                       
                     )
@@ -141,16 +139,59 @@ ui <- navbarPage( tweaks,
                   
                   ### Chukar-Only Model
                   tabPanel(
-                    title = "Chukar-Only Model",
-                    mainPanel(#Output Plot
-                      textOutput("tmptxt")
-                    ),
-                    tags$head(tags$style("#tmptxt{color: white;
-                                 font-size: 20px;
-                                 font-style: italic;
-                                 }"
-                                         )
-                              )
+                    title = "Chukar County-Level Model",
+                    
+                    sidebarLayout(
+                      sidebarPanel(selectInput("chuk.forecastset", "Which dataset would you like to see forcast?",
+                                               choices = c("Birds per Hunter" = "BPH", 
+                                                           "Total Harvest" = "N", 
+                                                           "Hunter Participation" = "H")),
+                                   
+                                   checkboxGroupInput("countyhighlight", "Counties:",
+                                                      choices = appobject.CH$county_order, 
+                                                      selected = c("Carson City"), inline = T),
+                                   
+                                   sliderInput("years.chuk.plot", "Years to Display", min =1990, max = (1989 + lastyear.ch),
+                                               value = c(2011,(1989 + lastyear.ch)), sep=""),
+                                   selectInput("c.conflevel", "Confidence Interval",
+                                               choices = c("95%" = .95, 
+                                                           "85%" = .85, 
+                                                           "50%" = .5, 
+                                                           "Hide Confidence Interval" = 0)),
+                                   
+                                   conditionalPanel(
+                                     condition = "input.forecastset == 'H'|input.forecastset == 'BPH'",
+                                     
+                                     sliderInput("econ", HTML("Economic Strength (Low \u2192 High)"), min=-3, max=3, 
+                                                 value = 0, sep="", step = 0.1)
+                                   ),
+                                   conditionalPanel(
+                                     condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
+                                     
+                                     sliderInput("bbs", HTML("Predator Abundance (Low \u2192 High)"), min=-3, max=3, 
+                                                 value = 0, sep="", step = 0.1)
+                                   ),
+                                   conditionalPanel(
+                                     condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
+                                     
+                                     sliderInput("awssi", HTML("Winter Severity (Low \u2192 High)"), min=-3, max=3, 
+                                                 value = 0, sep="", step = 0.1)
+                                   ),
+                                   
+                                   downloadButton("downloadData", "Download Displayed Estimates")
+                      ),
+                      
+                      mainPanel(
+                        tabBox(
+                          tabPanel("Plot", plotOutput("chukplot", width = "800px", height = "710px")),
+                          tabPanel("Map", "Map"),
+                          tabPanel("Table", DT::dataTableOutput('forecasttable'))
+                        )
+                      )
+                      
+                    )
+                    
+                    
                   )
 )
 
@@ -191,11 +232,6 @@ server <-  function(input,output,session){
     t <- max(sapply(find.na, function(x) max(which(!is.na(x)))))
     val <- as.numeric(find.na[t,3])
     updateSliderInput(session, "awssi", value = val)
-    
-    find.na <- as.data.frame(appobject$data.all$pdsi) %>% mutate(Mean = (Eastern + Western )/ 2)
-    t <- max(sapply(find.na, function(x) max(which(!is.na(x)))))
-    val <- as.numeric(find.na[t,3])
-    updateSliderInput(session, "pdsi", value = val)
   })
 
                               
@@ -208,7 +244,6 @@ server <-  function(input,output,session){
     econ.var <- input$econ
     winter.var <-  input$awssi
     predator.var <- input$bbs
-    drought.var <- input$pdsi
     
     d.start <- 1976
     f.start <- min(which(is.na(appobject$N.data[1,,1]))) + 1975
@@ -216,7 +251,7 @@ server <-  function(input,output,session){
     f.end <- ncol(appobject$N.data) + 1975
     y.b <- f.start-1976 #years of data before forecast
     n.year.f <- length(f.end:d.start) #If you want to show more than next year, use this as another dimension in array
-    n.samples <- 10000
+    n.samples <- 10
     
     
     #Function for formatting forecast graph inputs
@@ -279,7 +314,6 @@ server <-  function(input,output,session){
           mu.N[s,r,t,] <- rnorm(n.samples, N.reg[[r]]$A.harv[s], N.reg[[r]]$A.harv.sd[s]) +
             rnorm(n.samples, N.reg[[r]]$B.hunter[s], N.reg[[r]]$B.hunter.sd[s])*latent[s,r,t,]+
             winter.var * rnorm(n.samples, N.reg[[r]]$B.ws.harv[s], N.reg[[r]]$B.ws.harv.sd[s]) +
-            drought.var * rnorm(n.samples, N.reg[[r]]$B.pdsi.harv[s], N.reg[[r]]$B.pdsi.harv.sd[s]) +
             predator.var * rnorm(n.samples, N.reg[[r]]$B.bbs.harv[s], N.reg[[r]]$B.bbs.harv.sd[s])
           
           N.Est[s,r,t] <- round(1000*exp(quantile(mu.N[s,r,t,], c(.5))))
@@ -373,12 +407,9 @@ server <-  function(input,output,session){
     county_reg <- appobject.CH$county_reg
     n.counties <- nrow(c.H.reg)
     n.year.chuk <- ncol(appobject.CH$H.data)
-    # c.econ.var <- input$c.econ
-    # c.winter.var <-  input$c.awssi
-    # c.predator.var <- input$c.bbs
-    c.econ.var <- 1
-    c.winter.var <-  1
-    c.predator.var <- 1
+    c.econ.var <- input$c.econ
+    c.winter.var <-  input$c.awssi
+    c.predator.var <- input$c.bbs
     c.n.samples <- 100
     
     #Empty arrays to fill
@@ -400,8 +431,7 @@ server <-  function(input,output,session){
           c.econ.var*rnorm(c.n.samples, c.H.reg$B.econ.hunt[s], c.H.reg$B.econ.hunt.sd[s]) +
           c.latent[s,t,]
         
-        # c.CI <- (1-as.numeric(input$conflevel))/2
-        c.CI <- (1-as.numeric(.95))/2
+        c.CI <- (1-as.numeric(input$c.conflevel))/2
         
         c.H.Est[s,t] <- round(100*exp(quantile(c.mu.H[s,t,], c(.5))))
         c.H.LCL[s,t] <- 100*exp(quantile(c.mu.H[s,t,], c(c.CI)))
@@ -418,14 +448,7 @@ server <-  function(input,output,session){
         c.N.UCL[s,t] <- 100*exp(quantile(c.mu.N[s,t,], c(1-c.CI)))
       }
     }
-    
-    chuk_out_comb <- function(f.df){
-      as.data.frame(f.df) %>%
-        mutate(County = 1:n.counties) %>%
-        pivot_longer(cols = "County", names_to = "Year", names_prefix = "V") %>%
-        as.data.frame()
-    }
-    
+
     c.N.df1 <- as.data.frame(c.N.Est) %>% 
       mutate(County = 1:n.counties) %>%
       pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
@@ -492,10 +515,10 @@ server <-  function(input,output,session){
       arrange(County, Year)
     
     
-    if(input$forecastset == "BPH"){
+    if(input$chuk.forecastset == "BPH"){
       chuk.f.input <- c.BPH.df 
     }else{
-      if(input$forecastset == "H"){
+      if(input$chuk.forecastset == "H"){
         chuk.f.input <- c.H.df
       }else{
         chuk.f.input <- c.N.df
@@ -503,10 +526,10 @@ server <-  function(input,output,session){
     }
     
     ### Prepare Real Data
-    if(input$forecastset == "BPH"){
+    if(input$chuk.forecastset == "BPH"){
       chuk.input.df <- (100*appobject.CH$N.data)/(1+100*appobject.CH$H.data)
     }else{
-      if(input$forecastset == "H"){
+      if(input$chuk.forecastset == "H"){
         chuk.input.df <- 100*appobject.CH$H.data
       }else{
         chuk.input.df <- 100*appobject.CH$N.data
@@ -560,12 +583,28 @@ server <-  function(input,output,session){
       geom_ribbon(aes(ymin = UCL.use, ymax = LCL.use), alpha = .4, linetype = "dashed") +
       geom_line(aes(y = Graph.Y, color = Species), size = 1.4) +
       geom_vline(xintercept = vline.intercept(), size = 1.5, linetype = "dashed") +
-      # geom_text(aes(x=vline.intercept(), label="\n\nEstimated", y=linetext.pos()),
-      #           color = "black", angle=90, alpha = .5) +
-      # geom_text(aes(x=vline.intercept(), label="Observered\n\n", y=linetext.pos()),
-      #           color = "black", angle=90, alpha = .5) +
       geom_text(data = estrealtext(), aes(x = X, y = Y, label = Text),
                 color = "black", angle=90, alpha = .5) +
+      facet_wrap(vars(Region), scales = "free_y", nrow = 2) +
+      theme_classic(base_size = 18) + 
+      labs(y = ylabel.rec()) +
+      scale_x_continuous(breaks= pretty_breaks(n = 4)) +
+      scale_color_manual(values = colors()) +
+      scale_fill_manual(values = colors()) +
+      theme(legend.position = c(.15,.9),
+            plot.background = element_rect(colour = "#a4a9ac", fill=NA, size=2))+
+      guides(color=guide_legend(nrow=3, byrow=TRUE),
+             fill=guide_legend(nrow=3, byrow=TRUE)),
+    
+    height = 700,
+    width = 800
+  )
+  
+  output$chukplot <- renderPlot(
+    ggplot(data = CHUK.forecast.plot.input(), aes(x = Year, fill = County, color = County)) +
+      geom_ribbon(aes(ymin = LCL, ymax = UCL), alpha = .4, linetype = "dashed") +
+      geom_line(aes(y = Est, color = County), size = 1.4) +
+      geom_point(aes(y = Real)) +
       facet_wrap(vars(Region), scales = "free_y", nrow = 2) +
       theme_classic(base_size = 18) + 
       labs(y = ylabel.rec()) +
@@ -602,6 +641,24 @@ server <-  function(input,output,session){
     
   })
   
+  chuk.forecasttable <- reactive({
+    if(input$chuk.forecastset == "BPH"){
+      CHUK.forecast.plot.input() %>%
+        dplyr::select(Year, Value = Est, County) %>%
+        mutate(Value = round(Value, digits = 2)) %>%
+        pivot_wider(names_from = "Year", values_from = "Value") %>%
+        arrange(County)
+    }else{
+      CHUK.forecast.plot.input() %>%
+        dplyr::select(Year, Value = Est, County) %>%
+        mutate(Value = as.integer(Value)) %>%
+        mutate(Value = round(Value, digits = 2)) %>%
+        pivot_wider(names_from = "Year", values_from = "Value") %>%
+        arrange(County)
+    }
+    
+  })
+  
   output$forecasttable <- DT::renderDataTable(forecasttable(),
                                               options = list(
                                                 scrollY = T,
@@ -609,6 +666,14 @@ server <-  function(input,output,session){
                                                 columnDefs = list(list( targets = "_all", width = '15px'))
                                               )
                                       )
+  
+  output$chuk.forecasttable <- DT::renderDataTable(chuk.forecasttable(),
+                                              options = list(
+                                                scrollY = T,
+                                                scrollX = T,
+                                                columnDefs = list(list( targets = "_all", width = '15px'))
+                                              )
+  )
   
   ### "Download/Input Data"
   saveestimates <- reactive({forecast.plot.input() %>% 
