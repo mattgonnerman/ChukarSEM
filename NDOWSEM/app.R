@@ -9,6 +9,7 @@ library(lubridate)
 library(scales)
 library(plotly)
 library(DT)
+library(viridis)
 
 # Load Data from Model
 load("./www/NDOW_SEM_app_objects.R")
@@ -107,7 +108,7 @@ ui <- navbarPage( tweaks,
                                      condition = "input.forecastset == 'H'|input.forecastset == 'BPH'",
                                      
                                      sliderInput("econ", HTML("Economic Strength (Low \u2192 High)"), min=-3, max=3, 
-                                               value = 0, sep="", step = 0.1)
+                                                 value = 0, sep="", step = 0.1)
                                    ),
                                    conditionalPanel(
                                      condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
@@ -127,71 +128,67 @@ ui <- navbarPage( tweaks,
                       
                       mainPanel(#Output Plot
                         tabBox(
-                          tabPanel("Plot", plotOutput("forecastplot", width = "800px", height = "710px")),
-                          tabPanel("Table", DT::dataTableOutput('forecasttable'))
+                          tabPanel("Plot - Full Model", plotOutput("forecastplot", width = "800px", height = "710px")),
+                          tabPanel("Table - Full Model", DT::dataTableOutput('forecasttable'))
                         )
                       )
-                      
-                    )
-                    
-                    
+                    ) 
                   ),
                   
                   ### Chukar-Only Model
                   tabPanel(
                     title = "Chukar County-Level Model",
-                    
+
                     sidebarLayout(
-                      sidebarPanel(selectInput("chuk.forecastset", "Which dataset would you like to see forcast?",
-                                               choices = c("Birds per Hunter" = "BPH", 
-                                                           "Total Harvest" = "N", 
-                                                           "Hunter Participation" = "H")),
-                                   
-                                   checkboxGroupInput("countyhighlight", "Counties:",
-                                                      choices = appobject.CH$county_order, 
-                                                      selected = c("Carson City"), inline = T),
-                                   
-                                   sliderInput("years.chuk.plot", "Years to Display", min =1990, max = (1989 + lastyear.ch),
-                                               value = c(2011,(1989 + lastyear.ch)), sep=""),
-                                   selectInput("c.conflevel", "Confidence Interval",
-                                               choices = c("95%" = .95, 
-                                                           "85%" = .85, 
-                                                           "50%" = .5, 
-                                                           "Hide Confidence Interval" = 0)),
-                                   
-                                   conditionalPanel(
-                                     condition = "input.forecastset == 'H'|input.forecastset == 'BPH'",
-                                     
-                                     sliderInput("econ", HTML("Economic Strength (Low \u2192 High)"), min=-3, max=3, 
-                                                 value = 0, sep="", step = 0.1)
-                                   ),
-                                   conditionalPanel(
-                                     condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
-                                     
-                                     sliderInput("bbs", HTML("Predator Abundance (Low \u2192 High)"), min=-3, max=3, 
-                                                 value = 0, sep="", step = 0.1)
-                                   ),
-                                   conditionalPanel(
-                                     condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
-                                     
-                                     sliderInput("awssi", HTML("Winter Severity (Low \u2192 High)"), min=-3, max=3, 
-                                                 value = 0, sep="", step = 0.1)
-                                   ),
-                                   
-                                   downloadButton("downloadData", "Download Displayed Estimates")
+                      sidebarPanel(
+
+                        selectInput("chuk.forecastset", "Which dataset would you like to see forcast?",
+                                    choices = c("Birds per Hunter" = "BPH",
+                                                "Total Harvest" = "N",
+                                                "Hunter Participation" = "H")),
+                        
+                        checkboxGroupInput("countyhighlight", "Counties:",
+                                           choices = appobject.CH$county_order,
+                                           selected = c("Carson City"), inline = T),
+                        
+                        sliderInput("years.chuk.plot", "Years to Display", min =1990, max = (1989 + lastyear.ch),
+                                    value = c(2011,(1989 + lastyear.ch)), sep=""),
+                        selectInput("c.conflevel", "Confidence Interval",
+                                    choices = c("95%" = .95,
+                                                "85%" = .85,
+                                                "50%" = .5,
+                                                "Hide Confidence Interval" = 0)),
+                        
+                        conditionalPanel(
+                          condition = "input.forecastset == 'H'|input.forecastset == 'BPH'",
+                          
+                          sliderInput("c.econ", HTML("Economic Strength (Low \u2192 High)"), min=-3, max=3,
+                                      value = 0, sep="", step = 0.1)
+                        ),
+                        conditionalPanel(
+                          condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
+                          
+                          sliderInput("c.bbs", HTML("Predator Abundance (Low \u2192 High)"), min=-3, max=3,
+                                      value = 0, sep="", step = 0.1)
+                        ),
+                        conditionalPanel(
+                          condition = "input.forecastset == 'N'|input.forecastset == 'BPH'",
+                          
+                          sliderInput("c.awssi", HTML("Winter Severity (Low \u2192 High)"), min=-3, max=3,
+                                      value = 0, sep="", step = 0.1)
+                        ),
+                        
+                        downloadButton("downloadData.c", "Download Displayed Estimates")
                       ),
-                      
+
                       mainPanel(
                         tabBox(
-                          tabPanel("Plot", plotOutput("chukplot", width = "800px", height = "710px")),
-                          tabPanel("Map", "Map"),
-                          tabPanel("Table", DT::dataTableOutput('forecasttable'))
+                          tabPanel("Plot - Chukar County", plotOutput("chukplot", width = "800px", height = "710px")),
+                          tabPanel("Map - Chukar County", "Map"),
+                          tabPanel("Table - Chukar County", DT::dataTableOutput('chuk.forecasttable'))
                         )
                       )
-                      
                     )
-                    
-                    
                   )
 )
 
@@ -205,6 +202,10 @@ server <-  function(input,output,session){
   colors.constant <- c("#E8A323","#23E8A3","#A323E8","#074A36","#36074A", "#4A3607")
   colors <- reactive(setNames(colors.constant[which(species.constant %in% forecast.plot.input()$Species)],
                               species.constant[which(species.constant %in% forecast.plot.input()$Species)]))
+  
+  colors.codes.chuk <- viridis(length(appobject.CH$county_order))
+  colors.chuk <- reactive(setNames(colors.codes.chuk[which(appobject.CH$county_order %in% CHUK.forecast.plot.input()$County)],
+                                   appobject.CH$county_order[which(appobject.CH$county_order %in% CHUK.forecast.plot.input()$County)]))
   
   output$tmptxt <- renderText({"Under Construction"})
   
@@ -411,81 +412,81 @@ server <-  function(input,output,session){
     c.winter.var <-  input$c.awssi
     c.predator.var <- input$c.bbs
     c.n.samples <- 100
-    
+
     #Empty arrays to fill
     c.latent <- c.mu.N <- c.mu.H <- array(NA, dim = c(n.counties, n.year.chuk, c.n.samples))
     c.BPH.Est <- c.BPH.LCL <- c.BPH.UCL <- c.N.Est <- c.N.LCL <- c.N.UCL <- c.H.Est <- c.H.LCL <- c.H.UCL <- matrix(NA, nrow = n.counties, ncol = n.year.chuk)
-    
+
     c.Latent.mean <- c.Latent %>% dplyr::select(County, Year, Latent) %>%
       pivot_wider(names_from = Year, values_from = Latent) %>% dplyr::select(-County)
     c.Latent.sd <- c.Latent %>% dplyr::select(County, Year, Latent.sd) %>%
       pivot_wider(names_from = Year, values_from = Latent.sd) %>% dplyr::select(-County)
-    
+
     for(s in 1:n.counties){
       for(t in 1:n.year.chuk){
         #Latent time trend
         c.latent[s,t,] <- rnorm(c.n.samples, as.numeric(c.Latent.mean[s,t]), as.numeric(c.Latent.sd[s,t]))
-        
+
         #Hunter Effort
         c.mu.H[s,t,] <- rnorm(c.n.samples, c.H.reg$A.hunt[s], c.H.reg$A.hunt.sd[s]) +
           c.econ.var*rnorm(c.n.samples, c.H.reg$B.econ.hunt[s], c.H.reg$B.econ.hunt.sd[s]) +
           c.latent[s,t,]
-        
+
         c.CI <- (1-as.numeric(input$c.conflevel))/2
-        
+
         c.H.Est[s,t] <- round(100*exp(quantile(c.mu.H[s,t,], c(.5))))
         c.H.LCL[s,t] <- 100*exp(quantile(c.mu.H[s,t,], c(c.CI)))
         c.H.UCL[s,t] <- 100*exp(quantile(c.mu.H[s,t,], c(1-c.CI)))
-        
+
         # Total Harvest
         c.mu.N[s,t,] <- rnorm(c.n.samples, c.N.reg$A.harv[s], c.N.reg$A.harv.sd[s]) +
           rnorm(c.n.samples, c.N.reg$B.hunter[s], c.N.reg$B.hunter.sd[s])*c.latent[s,t,]+
           c.winter.var * rnorm(c.n.samples, c.N.reg$B.ws.harv[s], c.N.reg$B.ws.harv.sd[s]) +
           c.predator.var * rnorm(c.n.samples, c.N.reg$B.bbs.harv[s], c.N.reg$B.bbs.harv.sd[s])
-        
+
         c.N.Est[s,t] <- round(100*exp(quantile(c.mu.N[s,t,], c(.5))))
         c.N.LCL[s,t] <- 100*exp(quantile(c.mu.N[s,t,], c(c.CI)))
         c.N.UCL[s,t] <- 100*exp(quantile(c.mu.N[s,t,], c(1-c.CI)))
       }
     }
 
-    c.N.df1 <- as.data.frame(c.N.Est) %>% 
+    c.N.df1 <- as.data.frame(c.N.Est) %>%
       mutate(County = 1:n.counties) %>%
       pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
       dplyr::rename(Est = value)
-    c.N.df2 <- as.data.frame(c.N.LCL) %>% 
+    c.N.df2 <- as.data.frame(c.N.LCL) %>%
       mutate(County = 1:n.counties) %>%
       pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
       dplyr::rename(LCL = value) %>%
       merge(c.N.df1, ., by = c("County", "Year"))
-    c.N.df <- as.data.frame(c.N.UCL) %>% 
+    c.N.df <- as.data.frame(c.N.UCL) %>%
       mutate(County = 1:n.counties) %>%
       pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
       dplyr::rename(UCL = value) %>%
-      merge(c.N.df2, ., by = c("County", "Year")) %>% 
+      merge(c.N.df2, ., by = c("County", "Year")) %>%
       mutate(County = factor(County, levels = 1:n.counties, labels = county_order)) %>%
       mutate(Year = 1989 + as.numeric(as.character(Year))) %>%
       arrange(County, Year)
-    
-    c.H.df1 <- as.data.frame(c.H.Est) %>% 
+
+    c.H.df1 <- as.data.frame(c.H.Est) %>%
       mutate(County = 1:n.counties) %>%
       pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
       dplyr::rename(Est = value)
-    c.H.df2 <- as.data.frame(c.H.LCL) %>% 
+    c.H.df2 <- as.data.frame(c.H.LCL) %>%
       mutate(County = 1:n.counties) %>%
       pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
       dplyr::rename(LCL = value) %>%
       merge(c.H.df1, ., by = c("County", "Year"))
-    c.H.df <- as.data.frame(c.H.UCL) %>% 
+    c.H.df <- as.data.frame(c.H.UCL) %>%
       mutate(County = 1:n.counties) %>%
       pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
       dplyr::rename(UCL = value) %>%
-      merge(c.H.df2, ., by = c("County", "Year")) %>% 
+      merge(c.H.df2, ., by = c("County", "Year")) %>%
       mutate(County = factor(County, levels = 1:n.counties, labels = county_order)) %>%
       mutate(Year = 1989 + as.numeric(as.character(Year))) %>%
       arrange(County, Year)
-    
-    
+
+
     #Birds Per Hunter
     c.mu.BPH <- exp(c.mu.N - c.mu.H)
     for(s in 1:n.counties){
@@ -495,28 +496,28 @@ server <-  function(input,output,session){
         c.BPH.UCL[s,t] <- quantile(c.mu.BPH[s,t,], c(1-c.CI))
       }
     }
-    
-    c.BPH.df1 <- as.data.frame(c.BPH.Est) %>% 
+
+    c.BPH.df1 <- as.data.frame(c.BPH.Est) %>%
       mutate(County = 1:n.counties) %>%
       pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
       dplyr::rename(Est = value)
-    c.BPH.df2 <- as.data.frame(c.BPH.LCL) %>% 
+    c.BPH.df2 <- as.data.frame(c.BPH.LCL) %>%
       mutate(County = 1:n.counties) %>%
       pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
       dplyr::rename(LCL = value) %>%
       merge(c.BPH.df1, ., by = c("County", "Year"))
-    c.BPH.df <- as.data.frame(c.BPH.UCL) %>% 
+    c.BPH.df <- as.data.frame(c.BPH.UCL) %>%
       mutate(County = 1:n.counties) %>%
       pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
       dplyr::rename(UCL = value) %>%
-      merge(c.BPH.df2, ., by = c("County", "Year")) %>% 
+      merge(c.BPH.df2, ., by = c("County", "Year")) %>%
       mutate(County = factor(County, levels = 1:n.counties, labels = county_order)) %>%
       mutate(Year = 1989 + as.numeric(as.character(Year))) %>%
       arrange(County, Year)
-    
-    
+
+
     if(input$chuk.forecastset == "BPH"){
-      chuk.f.input <- c.BPH.df 
+      chuk.f.input <- c.BPH.df
     }else{
       if(input$chuk.forecastset == "H"){
         chuk.f.input <- c.H.df
@@ -524,7 +525,7 @@ server <-  function(input,output,session){
         chuk.f.input <- c.N.df
       }
     }
-    
+
     ### Prepare Real Data
     if(input$chuk.forecastset == "BPH"){
       chuk.input.df <- (100*appobject.CH$N.data)/(1+100*appobject.CH$H.data)
@@ -535,19 +536,19 @@ server <-  function(input,output,session){
         chuk.input.df <- 100*appobject.CH$N.data
       }
     }
-    
-    chuk.d.input <- as.data.frame(chuk.input.df) %>% 
+
+    chuk.d.input <- as.data.frame(chuk.input.df) %>%
       mutate(County = 1:n.counties, ) %>%
       pivot_longer(names_to = "Year", cols = 1:ncol(chuk.input.df), values_to = "Real") %>%
       filter(!is.na(Real)) %>%
       mutate(Year = as.numeric(Year),
-             County = as.numeric(County)) %>% 
+             County = as.numeric(County)) %>%
       mutate(County = factor(County, levels = 1:n.counties, labels = county_order))
-    
-    
+
+
     ### Merge Real Values and Estimates
     merge(chuk.f.input, chuk.d.input, by = c("County","Year"), all = T) %>%
-      filter(Year %in% input$years.chuk.plot[1]:input$years.chuk.plot[2]) %>% 
+      filter(Year %in% input$years.chuk.plot[1]:input$years.chuk.plot[2]) %>%
       filter(County %in% input$countyhighlight)
   })
   
@@ -600,22 +601,27 @@ server <-  function(input,output,session){
     width = 800
   )
   
+  
+  c.ylabel.rec <- reactive({
+    ifelse(input$chuk.forecastset == "BPH", "Birds Per Hunter",
+           ifelse(input$chuk.forecastset == "N", "Total Harvest", "Hunter Participation"))
+  })
+
   output$chukplot <- renderPlot(
     ggplot(data = CHUK.forecast.plot.input(), aes(x = Year, fill = County, color = County)) +
       geom_ribbon(aes(ymin = LCL, ymax = UCL), alpha = .4, linetype = "dashed") +
       geom_line(aes(y = Est, color = County), size = 1.4) +
       geom_point(aes(y = Real)) +
-      facet_wrap(vars(Region), scales = "free_y", nrow = 2) +
-      theme_classic(base_size = 18) + 
-      labs(y = ylabel.rec()) +
+      theme_classic(base_size = 18) +
+      labs(y = c.ylabel.rec()) +
       scale_x_continuous(breaks= pretty_breaks(n = 4)) +
-      scale_color_manual(values = colors()) +
-      scale_fill_manual(values = colors()) +
+      scale_color_manual(values = colors.chuk()) +
+      scale_fill_manual(values = colors.chuk()) +
       theme(legend.position = c(.15,.9),
             plot.background = element_rect(colour = "#a4a9ac", fill=NA, size=2))+
       guides(color=guide_legend(nrow=3, byrow=TRUE),
              fill=guide_legend(nrow=3, byrow=TRUE)),
-    
+
     height = 700,
     width = 800
   )
@@ -656,7 +662,7 @@ server <-  function(input,output,session){
         pivot_wider(names_from = "Year", values_from = "Value") %>%
         arrange(County)
     }
-    
+
   })
   
   output$forecasttable <- DT::renderDataTable(forecasttable(),
@@ -674,7 +680,7 @@ server <-  function(input,output,session){
                                                 columnDefs = list(list( targets = "_all", width = '15px'))
                                               )
   )
-  
+
   ### "Download/Input Data"
   saveestimates <- reactive({forecast.plot.input() %>% 
       dplyr::select(-LCL.use, -UCL.use, -Graph.Y)
