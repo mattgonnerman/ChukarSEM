@@ -57,7 +57,7 @@ chukharv_data <- read.csv('./Data/ChukarHarvestData.csv') %>%
 
 est.check.df <- merge(est.check.df, chukharv_data, by = c("County", "Year"), all = T) %>%
   arrange(County, Year)
-pred.only.df <- est.check.df %>% filter(Year >= cutoff.y) %>%
+pred.only.df <- est.check.df %>% filter(Year < 2018 & Year >= cutoff.y) %>%
   mutate(Year = as.factor(Year))
 
 est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = County)) +
@@ -70,7 +70,7 @@ est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = County)) +
              position = position_dodge(width = .5), show.legend = F) +
   theme_classic(base_size = 18) +
   labs(title = "Total Harvest" ) +
-  theme(axis.title = element_blank(), legend.position = c(.9,.25))
+  theme(axis.title = element_blank(), legend.position = "right")
 
 est.check.H <- ggplot(data = pred.only.df, aes(x = Year, group = County)) +
   geom_errorbar(aes(ymin = Est.H.LCL*100, ymax = Est.H.UCL*100, color = County),
@@ -82,7 +82,7 @@ est.check.H <- ggplot(data = pred.only.df, aes(x = Year, group = County)) +
              position = position_dodge(width = .5), show.legend = F) +
   theme_classic(base_size = 18) +
   labs(title = "Hunter Effort" ) +
-  theme(axis.title = element_blank(), legend.position = c(.9,.25))
+  theme(axis.title = element_blank(), legend.position = "right")
 
 est.check.BPH <- ggplot(data = pred.only.df, aes(x = Year, group = County)) +
   geom_errorbar(aes(ymin = Est.BPH.LCL, ymax = Est.BPH.UCL, color = County),
@@ -94,7 +94,7 @@ est.check.BPH <- ggplot(data = pred.only.df, aes(x = Year, group = County)) +
              position = position_dodge(width = .5), show.legend = F) +
   theme_classic(base_size = 18) +
   labs(title = "Birds per Hunter" ) +
-  theme(axis.title = element_blank(), legend.position = c(.9,.25))
+  theme(axis.title = element_blank(), legend.position = "right")
 
 ggsave(est.check.N, filename = './Output/EstCheck - ChukOnly - N.jpeg',
        dpi = 300, width = 10 + (year.hold - cutoff.y), height = 8)

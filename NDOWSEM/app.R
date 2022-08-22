@@ -11,6 +11,7 @@ library(DT)
 
 # Load Data from Model
 load("./www/NDOW_SEM_app_objects.R")
+load("./www/NDOW_ChukOnly_app_objects.R")
 lastyear <- ncol(appobject$N)
 
 #Fix for unaligned checkboxes
@@ -361,6 +362,170 @@ server <-  function(input,output,session){
              UCL.use = ifelse(Year == vline.intercept(), Real, UCL.use)) %>%
       filter(Year %in% input$years.f.plot[1]:input$years.f.plot[2]) %>% 
       filter(Species %in% input$spphighlight)
+  })
+  
+  CHUK.forecast.plot.input <- reactive({
+    #Prep Inputs
+    c.H.reg <- appobject.CH$H.reg
+    c.N.reg <- appobject.CH$N.reg
+    c.Latent <- appobject.CH$latent.trend
+    county_order <- appobject.CH$county_order
+    county_reg <- appobject.CH$county_reg
+    n.counties <- nrow(c.H.reg)
+    n.year.chuk <- ncol(appobject.CH$H.data)
+    # c.econ.var <- input$c.econ
+    # c.winter.var <-  input$c.awssi
+    # c.predator.var <- input$c.bbs
+    c.econ.var <- 1
+    c.winter.var <-  1
+    c.predator.var <- 1
+    c.n.samples <- 100
+    
+    #Empty arrays to fill
+    c.latent <- c.mu.N <- c.mu.H <- array(NA, dim = c(n.counties, n.year.chuk, c.n.samples))
+    c.BPH.Est <- c.BPH.LCL <- c.BPH.UCL <- c.N.Est <- c.N.LCL <- c.N.UCL <- c.H.Est <- c.H.LCL <- c.H.UCL <- matrix(NA, nrow = n.counties, ncol = n.year.chuk)
+    
+    c.Latent.mean <- c.Latent %>% dplyr::select(County, Year, Latent) %>%
+      pivot_wider(names_from = Year, values_from = Latent) %>% dplyr::select(-County)
+    c.Latent.sd <- c.Latent %>% dplyr::select(County, Year, Latent.sd) %>%
+      pivot_wider(names_from = Year, values_from = Latent.sd) %>% dplyr::select(-County)
+    
+    for(s in 1:n.counties){
+      for(t in 1:n.year.chuk){
+        #Latent time trend
+        c.latent[s,t,] <- rnorm(c.n.samples, as.numeric(c.Latent.mean[s,t]), as.numeric(c.Latent.sd[s,t]))
+        
+        #Hunter Effort
+        c.mu.H[s,t,] <- rnorm(c.n.samples, c.H.reg$A.hunt[s], c.H.reg$A.hunt.sd[s]) +
+          c.econ.var*rnorm(c.n.samples, c.H.reg$B.econ.hunt[s], c.H.reg$B.econ.hunt.sd[s]) +
+          c.latent[s,t,]
+        
+        # c.CI <- (1-as.numeric(input$conflevel))/2
+        c.CI <- (1-as.numeric(.95))/2
+        
+        c.H.Est[s,t] <- round(100*exp(quantile(c.mu.H[s,t,], c(.5))))
+        c.H.LCL[s,t] <- 100*exp(quantile(c.mu.H[s,t,], c(c.CI)))
+        c.H.UCL[s,t] <- 100*exp(quantile(c.mu.H[s,t,], c(1-c.CI)))
+        
+        # Total Harvest
+        c.mu.N[s,t,] <- rnorm(c.n.samples, c.N.reg$A.harv[s], c.N.reg$A.harv.sd[s]) +
+          rnorm(c.n.samples, c.N.reg$B.hunter[s], c.N.reg$B.hunter.sd[s])*c.latent[s,t,]+
+          c.winter.var * rnorm(c.n.samples, c.N.reg$B.ws.harv[s], c.N.reg$B.ws.harv.sd[s]) +
+          c.predator.var * rnorm(c.n.samples, c.N.reg$B.bbs.harv[s], c.N.reg$B.bbs.harv.sd[s])
+        
+        c.N.Est[s,t] <- round(100*exp(quantile(c.mu.N[s,t,], c(.5))))
+        c.N.LCL[s,t] <- 100*exp(quantile(c.mu.N[s,t,], c(c.CI)))
+        c.N.UCL[s,t] <- 100*exp(quantile(c.mu.N[s,t,], c(1-c.CI)))
+      }
+    }
+    
+    chuk_out_comb <- function(f.df){
+      as.data.frame(f.df) %>%
+        mutate(County = 1:n.counties) %>%
+        pivot_longer(cols = "County", names_to = "Year", names_prefix = "V") %>%
+        as.data.frame()
+    }
+    
+    c.N.df1 <- as.data.frame(c.N.Est) %>% 
+      mutate(County = 1:n.counties) %>%
+      pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
+      dplyr::rename(Est = value)
+    c.N.df2 <- as.data.frame(c.N.LCL) %>% 
+      mutate(County = 1:n.counties) %>%
+      pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
+      dplyr::rename(LCL = value) %>%
+      merge(c.N.df1, ., by = c("County", "Year"))
+    c.N.df <- as.data.frame(c.N.UCL) %>% 
+      mutate(County = 1:n.counties) %>%
+      pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
+      dplyr::rename(UCL = value) %>%
+      merge(c.N.df2, ., by = c("County", "Year")) %>% 
+      mutate(County = factor(County, levels = 1:n.counties, labels = county_order)) %>%
+      mutate(Year = 1989 + as.numeric(as.character(Year))) %>%
+      arrange(County, Year)
+    
+    c.H.df1 <- as.data.frame(c.H.Est) %>% 
+      mutate(County = 1:n.counties) %>%
+      pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
+      dplyr::rename(Est = value)
+    c.H.df2 <- as.data.frame(c.H.LCL) %>% 
+      mutate(County = 1:n.counties) %>%
+      pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
+      dplyr::rename(LCL = value) %>%
+      merge(c.H.df1, ., by = c("County", "Year"))
+    c.H.df <- as.data.frame(c.H.UCL) %>% 
+      mutate(County = 1:n.counties) %>%
+      pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
+      dplyr::rename(UCL = value) %>%
+      merge(c.H.df2, ., by = c("County", "Year")) %>% 
+      mutate(County = factor(County, levels = 1:n.counties, labels = county_order)) %>%
+      mutate(Year = 1989 + as.numeric(as.character(Year))) %>%
+      arrange(County, Year)
+    
+    
+    #Birds Per Hunter
+    c.mu.BPH <- exp(c.mu.N - c.mu.H)
+    for(s in 1:n.counties){
+      for(t in 1:n.year.chuk){
+        c.BPH.Est[s,t] <- quantile(c.mu.BPH[s,t,], c(.5))
+        c.BPH.LCL[s,t] <- quantile(c.mu.BPH[s,t,], c(c.CI))
+        c.BPH.UCL[s,t] <- quantile(c.mu.BPH[s,t,], c(1-c.CI))
+      }
+    }
+    
+    c.BPH.df1 <- as.data.frame(c.BPH.Est) %>% 
+      mutate(County = 1:n.counties) %>%
+      pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
+      dplyr::rename(Est = value)
+    c.BPH.df2 <- as.data.frame(c.BPH.LCL) %>% 
+      mutate(County = 1:n.counties) %>%
+      pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
+      dplyr::rename(LCL = value) %>%
+      merge(c.BPH.df1, ., by = c("County", "Year"))
+    c.BPH.df <- as.data.frame(c.BPH.UCL) %>% 
+      mutate(County = 1:n.counties) %>%
+      pivot_longer(cols = 1:n.year.chuk, names_to = "Year", names_prefix = "V") %>%
+      dplyr::rename(UCL = value) %>%
+      merge(c.BPH.df2, ., by = c("County", "Year")) %>% 
+      mutate(County = factor(County, levels = 1:n.counties, labels = county_order)) %>%
+      mutate(Year = 1989 + as.numeric(as.character(Year))) %>%
+      arrange(County, Year)
+    
+    
+    if(input$forecastset == "BPH"){
+      chuk.f.input <- c.BPH.df 
+    }else{
+      if(input$forecastset == "H"){
+        chuk.f.input <- c.H.df
+      }else{
+        chuk.f.input <- c.N.df
+      }
+    }
+    
+    ### Prepare Real Data
+    if(input$forecastset == "BPH"){
+      chuk.input.df <- (100*appobject.CH$N.data)/(1+100*appobject.CH$H.data)
+    }else{
+      if(input$forecastset == "H"){
+        chuk.input.df <- 100*appobject.CH$H.data
+      }else{
+        chuk.input.df <- 100*appobject.CH$N.data
+      }
+    }
+    
+    chuk.d.input <- as.data.frame(chuk.input.df) %>% 
+      mutate(County = 1:n.counties, ) %>%
+      pivot_longer(names_to = "Year", cols = 1:ncol(chuk.input.df), values_to = "Real") %>%
+      filter(!is.na(Real)) %>%
+      mutate(Year = as.numeric(Year),
+             County = as.numeric(County)) %>% 
+      mutate(County = factor(County, levels = 1:n.counties, labels = county_order))
+    
+    
+    ### Merge Real Values and Estimates
+    merge(chuk.f.input, chuk.d.input, by = c("County","Year"), all = T) %>%
+      filter(Year %in% input$years.chuk.plot[1]:input$years.chuk.plot[2]) %>% 
+      filter(County %in% input$countyhighlight)
   })
   
   vline.intercept <- reactive({

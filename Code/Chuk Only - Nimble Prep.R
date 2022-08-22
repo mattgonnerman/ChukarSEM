@@ -270,7 +270,7 @@ samples2 <- list(chain1 =  out.full.predict[[1]]$samples2,
 mcmcList2 <- as.mcmc.list(lapply(samples2, mcmc))
 
 #Save Outputs as file
-files <- list(mcmcList1, mcmcList2, code, data, county_order)
+files <- list(mcmcList1, mcmcList2, code, data, county_order, county_reg)
 save(files, file = "./Output/NDOW_ChukOnly_SEM_output.rdata")
 
 #Traceplots

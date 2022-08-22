@@ -3,94 +3,77 @@ lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr", "tidyr", "mvtnorm", "
 
 #Load model outputs to get beta and sigma estimates
 load(file = "./Output/NDOW_ChukOnly_SEM_output.rdata")
-beta.output <- files[[2]]
-rho.output <- files[[1]]
-data.input <- files[[4]]
+mcmcList1 <- files[[1]]
+mcmcList2 <- files[[2]]
+code <- files[[3]]
+data <- files[[4]]
 
-appobject <- list()
+appobject.CH <- list()
 
-appobject$N.data <- data.input$n.harv
-appobject$H.data <- data.input$n.hunt
-appobject$data.all <- data.input
+appobject.CH$county_order <- county_order <- files[[5]]
+appobject.CH$county_reg <- county_reg <- files[[6]]
+appobject.CH$N.data <- data$n.harv
+appobject.CH$H.data <- data$n.hunt
+appobject.CH$data.all <- data
 
-n.counties<- dim(data.input$n.hunt)[1]
+n.counties<- dim(data$n.hunt)[1]
 
 ### Observed Hunter and Harvest Data For Graphs
-appobject$H <- H.input <- data.input$n.hunt
-appobject$N <- N.input <- data.input$n.harv
+appobject.CH$H <- H.input <- data$n.hunt
+appobject.CH$N <- N.input <- data$n.harv
 
 
 ### Hunter Effort Regression Coefficients
-Hunt.reg.coef1 <- MCMCsummary(beta.output, 'alpha.hunt') %>%
+Hunt.reg.coef1 <- MCMCsummary(mcmcList2, 'alpha.hunt') %>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
   mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")))%>%
   mutate(ID = "b.0") %>%
   dplyr::select(County, A.hunt = mean, A.hunt.sd = sd) 
-appobject$H.reg <- Hunt.reg.coef <- MCMCsummary(beta.output, 'beta.econ.hunt') %>%
+appobject.CH$H.reg <- Hunt.reg.coef <- MCMCsummary(mcmcList2, 'beta.econ.hunt') %>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
-  mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
+  mutate(Region = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
          ID = "b.ECON") %>%
-  dplyr::select(County, B.econ.hunt = mean, B.econ.hunt.sd = sd) %>%
+  dplyr::select(Region, B.econ.hunt = mean, B.econ.hunt.sd = sd) %>%
+  merge(., data.frame(Region = county_reg, County = 1:length(county_reg))) %>%
   merge(Hunt.reg.coef1, ., by = c("County"), all =T)
 
-latent.trend <-list()
-latent.trend$mean <- MCMCsummary(beta.output, 'latent.trend') %>%
+appobject.CH$latent.trend <- latent.trend <- MCMCsummary(mcmcList2, 'latent.trend') %>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
   mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
          Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\])"))) %>%
-  mutate(ID = "Latent") %>%
-  dplyr::select(County, Year, mean)
-latent.trend$sd <- MCMCsummary(beta.output, 'latent.trend') %>%
-  mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
-  mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Year = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\])"))) %>%
-  mutate(ID = "Latent") %>%
-  dplyr::select(County,Year, sd) 
-appobject$latent.trend <- latent.trend
+  dplyr::select(County, Year, Latent = mean, Latent.sd = sd)
 
 
 ### Total Harvest Regression Coefficients
-Harv.reg.coef1 <- MCMCsummary(beta.output, 'alpha.harv') %>%
+Harv.reg.coef1 <- MCMCsummary(mcmcList2, 'alpha.harv') %>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
-  mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Region = sub('.*\\,', '', RowID)) %>%
-  mutate(Region = as.numeric(str_sub(Region,1,nchar(Region)-1)),
-         ID = "alpha.harv") %>%
-  dplyr::select(County, Region, A.harv = mean, A.harv.sd = sd) 
+  mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])"))) %>%
+  mutate(ID = "alpha.harv") %>%
+  dplyr::select(County, A.harv = mean, A.harv.sd = sd) 
   
-Harv.reg.coef2 <- MCMCsummary(beta.output, 'beta.wintsev.harv') %>%
+Harv.reg.coef2 <- MCMCsummary(mcmcList2, 'beta.wintsev.harv') %>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
-  mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
+  mutate(Region = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
          ID = "b.WINT") %>%
-  dplyr::select(County, B.ws.harv = mean, B.ws.harv.sd = sd) %>%
-  merge(., expand.grid(County = 1:n.counties, Region = 1:2), by = "County", all.x = T) %>%
-  merge(Harv.reg.coef1, ., by = c("County", "Region"), all =T)
+  dplyr::select(Region, B.ws.harv = mean, B.ws.harv.sd = sd) %>%
+  merge(., data.frame(Region = county_reg, County = 1:length(county_reg))) %>%
+  merge(Harv.reg.coef1, ., by = c("County"), all =T)
 
-Harv.reg.coef3 <- MCMCsummary(beta.output, 'beta.pdsi.harv')%>%
+Harv.reg.coef3 <- MCMCsummary(mcmcList2, 'beta.bbs.harv') %>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
-  mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
-         ID = "b.PDSI") %>%
-  dplyr::select(County, B.pdsi.harv = mean, B.pdsi.harv.sd = sd) %>%
-  merge(., expand.grid(County = 1:n.counties, Region = 1:2), by = "County", all.x = T) %>%
-  merge(Harv.reg.coef2, ., by = c("County", "Region"), all =T)
-
-Harv.reg.coef4 <- MCMCsummary(beta.output, 'beta.bbs.harv')%>%
-  mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
-  mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
+  mutate(Region = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
          ID = "b.BBS") %>%
-  dplyr::select(County, B.bbs.harv = mean, B.bbs.harv.sd = sd) %>%
-  merge(., expand.grid(County = 1:n.counties, Region = 1:2), by = "County", all.x = T) %>%
-  merge(Harv.reg.coef3, ., by = c("County", "Region"), all =T)
+  dplyr::select(Region, B.bbs.harv = mean, B.bbs.harv.sd = sd) %>%
+  merge(., data.frame(Region = county_reg, County = 1:length(county_reg))) %>%
+  merge(Harv.reg.coef2, ., by = c("County", "Region"), all =T)
   
-appobject$N.reg <- Harv.reg.coef <- MCMCsummary(beta.output, 'beta.hunter.harv') %>%
+appobject.CH$N.reg <- Harv.reg.coef <- MCMCsummary(mcmcList2, 'beta.hunter.harv') %>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
-  mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
-         Region = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\])"))) %>%
-  dplyr::select(County, Region, B.hunter = mean, B.hunter.sd = sd) %>%
-  merge(Harv.reg.coef4, ., by = c("County", "Region"), all =T) %>%
-  group_split(Region, .keep = F)
+  mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])"))) %>%
+  dplyr::select(County, B.hunter = mean, B.hunter.sd = sd) %>%
+  merge(Harv.reg.coef3, ., by = c("County"), all =T)
 
-# appobject$N.reg <- Harv.reg.coef <- MCMCsummary(beta.output, 'beta.bobcat.harv') %>%
+# appobject.CH$N.reg <- Harv.reg.coef <- MCMCsummary(mcmcList2, 'beta.bobcat.harv') %>%
 #   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
 #   mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])"))) %>%
 #   dplyr::select(County, B.bobcat = mean, B.bobcat.sd = sd) %>%
@@ -99,12 +82,12 @@ appobject$N.reg <- Harv.reg.coef <- MCMCsummary(beta.output, 'beta.hunter.harv')
 
 
 ### SEM Predictor Values
-appobject$pred.econ <- MCMCsummary(beta.output, 'pred.econ.prime')%>%
+appobject.CH$pred.econ <- MCMCsummary(mcmcList2, 'pred.econ.prime')%>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
   mutate(Year = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
          ID = "econ.input") %>%
   dplyr::select(Year, Pred.Econ = mean, Pred.Econ.sd = sd)
-appobject$pred.bbs <- MCMCsummary(beta.output, 'pred.bbs.prime')%>%
+appobject.CH$pred.bbs <- MCMCsummary(mcmcList2, 'pred.bbs.prime')%>%
   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
   mutate(Year = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])")),
          ID = "econ.input") %>%
@@ -112,4 +95,4 @@ appobject$pred.bbs <- MCMCsummary(beta.output, 'pred.bbs.prime')%>%
 
 
 
-save(appobject, file = "./NDOWSEM/www/NDOW_ChukOnly_app_objects.R")
+save(appobject.CH, file = "./NDOWSEM/www/NDOW_ChukOnly_app_objects.R")
