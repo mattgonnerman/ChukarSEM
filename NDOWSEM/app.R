@@ -10,6 +10,8 @@ library(scales)
 library(plotly)
 library(DT)
 library(viridis)
+library(leaflet)
+library(sf)
 
 # Load Data from Model
 load("./www/NDOW_SEM_app_objects.R")
@@ -128,8 +130,9 @@ ui <- navbarPage( tweaks,
                       
                       mainPanel(#Output Plot
                         tabBox(
-                          tabPanel("Plot - Full Model", plotOutput("forecastplot", width = "800px", height = "710px")),
-                          tabPanel("Table - Full Model", DT::dataTableOutput('forecasttable'))
+                          tabPanel("Plot - Full Model", plotOutput("forecastplot")),
+                          tabPanel("Table - Full Model", DT::dataTableOutput('forecasttable')),
+                          width = "800px", height = "710px"
                         )
                       )
                     ) 
@@ -149,10 +152,12 @@ ui <- navbarPage( tweaks,
                         
                         checkboxGroupInput("countyhighlight", "Counties:",
                                            choices = appobject.CH$county_order,
-                                           selected = c("Carson City"), inline = T),
+                                           selected = appobject.CH$county_order, inline = T),
                         
-                        sliderInput("years.chuk.plot", "Years to Display", min =1990, max = (1989 + lastyear.ch),
+                        sliderInput("years.chuk.plot", "Years to Display (Plot)", min =1990, max = (1989 + lastyear.ch),
                                     value = c(2011,(1989 + lastyear.ch)), sep=""),
+                        sliderInput("years.chuk.map", "Year to Display (Map)", min =1990, max = (1989 + lastyear.ch),
+                                    value = (1989 + lastyear.ch), sep=""),
                         selectInput("c.conflevel", "Confidence Interval",
                                     choices = c("95%" = .95,
                                                 "85%" = .85,
@@ -183,11 +188,11 @@ ui <- navbarPage( tweaks,
 
                       mainPanel(
                         tabBox(
-                          tabPanel("Plot - Chukar County", plotOutput("chukplot", width = "800px", height = "710px")),
-                          tabPanel("Map - Chukar County", "Map"),
+                          tabPanel("Plot - Chukar County", plotOutput("chukplot", height = "710px", width = "800px")),
+                          tabPanel("Map - Chukar County", leafletOutput("chukmap", height = "600px", width = "600px")),
                           tabPanel("Table - Chukar County", DT::dataTableOutput('chuk.forecasttable'))
                         )
-                      )
+                        , width = "800px")
                     )
                   )
 )
@@ -252,7 +257,7 @@ server <-  function(input,output,session){
     f.end <- ncol(appobject$N.data) + 1975
     y.b <- f.start-1976 #years of data before forecast
     n.year.f <- length(f.end:d.start) #If you want to show more than next year, use this as another dimension in array
-    n.samples <- 10
+    n.samples <- 10000
     
     
     #Function for formatting forecast graph inputs
@@ -411,7 +416,7 @@ server <-  function(input,output,session){
     c.econ.var <- input$c.econ
     c.winter.var <-  input$c.awssi
     c.predator.var <- input$c.bbs
-    c.n.samples <- 100
+    c.n.samples <- 10000
 
     #Empty arrays to fill
     c.latent <- c.mu.N <- c.mu.H <- array(NA, dim = c(n.counties, n.year.chuk, c.n.samples))
@@ -592,13 +597,13 @@ server <-  function(input,output,session){
       scale_x_continuous(breaks= pretty_breaks(n = 4)) +
       scale_color_manual(values = colors()) +
       scale_fill_manual(values = colors()) +
-      theme(legend.position = c(.15,.9),
+      theme(legend.position = "right",
             plot.background = element_rect(colour = "#a4a9ac", fill=NA, size=2))+
-      guides(color=guide_legend(nrow=3, byrow=TRUE),
-             fill=guide_legend(nrow=3, byrow=TRUE)),
+      guides(color=guide_legend(nrow=6, byrow=TRUE),
+             fill=guide_legend(nrow=6, byrow=TRUE)),
     
     height = 700,
-    width = 800
+    width = 850
   )
   
   
@@ -617,10 +622,10 @@ server <-  function(input,output,session){
       scale_x_continuous(breaks= pretty_breaks(n = 4)) +
       scale_color_manual(values = colors.chuk()) +
       scale_fill_manual(values = colors.chuk()) +
-      theme(legend.position = c(.15,.9),
+      theme(legend.position = "right",
             plot.background = element_rect(colour = "#a4a9ac", fill=NA, size=2))+
-      guides(color=guide_legend(nrow=3, byrow=TRUE),
-             fill=guide_legend(nrow=3, byrow=TRUE)),
+      guides(color=guide_legend(nrow=7, byrow=TRUE),
+             fill=guide_legend(nrow=7, byrow=TRUE)),
 
     height = 700,
     width = 800
@@ -680,6 +685,34 @@ server <-  function(input,output,session){
                                                 columnDefs = list(list( targets = "_all", width = '15px'))
                                               )
   )
+  
+  ### CHUKAR MAP
+  chuk.county.sf <- reactive({
+    st_read("./www/nv_county.shp") %>% 
+      dplyr::select(County = NAME, geometry) %>%
+      filter(County %in% appobject.CH$county_order) %>%
+      arrange(County) %>%
+      merge(., CHUK.forecast.plot.input() %>% filter(Year == input$years.chuk.map), by = "County") %>%
+      st_transform(4326) %>%
+      mutate(Est = round(Est, 3))
+  })
+  
+  output$chukmap <- renderLeaflet({
+    pal <- colorNumeric(
+      palette = "magma",
+      domain = CHUK.forecast.plot.input()$Est)
+    
+    
+    
+   leaflet(chuk.county.sf()) %>%
+      setView(lng=-117.224121, lat=38.376019 , zoom=6)%>%
+      addTiles() %>%
+      addPolygons(stroke = F, smoothFactor = .2, fillOpacity = .8,
+                  color = ~pal(Est), label = ~Est) %>%
+     addLegend("bottomright", pal = pal, values = ~Est,
+               title = input$chuk.forecastset,
+               opacity = 1)
+  })
 
   ### "Download/Input Data"
   saveestimates <- reactive({forecast.plot.input() %>% 
