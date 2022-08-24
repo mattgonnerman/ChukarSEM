@@ -61,10 +61,10 @@ pred.only.df <- est.check.df %>% filter(Year < 2018 & Year >= cutoff.y) %>%
   mutate(Year = as.factor(Year))
 
 est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = County)) +
-  geom_errorbar(aes(ymin = Est.N.LCL*100, ymax = Est.N.UCL*100, color = County),
+  geom_errorbar(aes(ymin = Est.N.LCL*1000, ymax = Est.N.UCL*1000, color = County),
                 width = .3, size = 1,
                 position = position_dodge(width = .5), show.legend = F) +
-  geom_point(aes(y = Est.N*100, color = County), shape = 19, size = 4,
+  geom_point(aes(y = Est.N*1000, color = County), shape = 19, size = 4,
              position = position_dodge(width = .5)) +
   geom_point(aes(y = N.obs, group = County), color = "black", shape = 17, size = 3,
              position = position_dodge(width = .5), show.legend = F) +
@@ -73,10 +73,10 @@ est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = County)) +
   theme(axis.title = element_blank(), legend.position = "right")
 
 est.check.H <- ggplot(data = pred.only.df, aes(x = Year, group = County)) +
-  geom_errorbar(aes(ymin = Est.H.LCL*100, ymax = Est.H.UCL*100, color = County),
+  geom_errorbar(aes(ymin = Est.H.LCL*1000, ymax = Est.H.UCL*1000, color = County),
                 width = .3, size = 1,
                 position = position_dodge(width = .5), show.legend = F) +
-  geom_point(aes(y = Est.H*100, color = County), shape = 19, size = 4,
+  geom_point(aes(y = Est.H*1000, color = County), shape = 19, size = 4,
              position = position_dodge(width = .5)) +
   geom_point(aes(y = H.obs, group = County), color = "black", shape = 17, size = 3,
              position = position_dodge(width = .5), show.legend = F) +

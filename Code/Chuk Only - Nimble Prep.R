@@ -11,16 +11,16 @@ data <- list(
   res = econ_data[,3], #Resident Licenses
   pdi = econ_data[,4], #Personal Disposable Income
   gas = econ_data[,1], #Gas Prices in May
-  pdsi = pdsi_df,
-  bobcat = bobcat.df[,2],
+  # pdsi = pdsi_df,
+  # bobcat = bobcat.df[,2],
   
   ### Hunter Effort
-  n.hunt = chuk_hunt/100, #Observed number of hunters for each species each year
+  n.hunt = chuk_hunt/1000, #Observed number of hunters for each species each year
   basis = B, #Spline Base
   I.hunt = I,
   
   ### Total Harvest
-  n.harv = chuk_harv/100,
+  n.harv = chuk_harv/1000,
   I.harv = I2,
   
   ### Chukar Site Abundance
@@ -60,8 +60,8 @@ initsFunction <- function() list(
   nharr = bbs.inits$nharrier,
   pfal = bbs.inits$pfalcon,
   awssi = awssi.inits,
-  pdsi = pdsi.inits,
-  bobcat = bobcat.inits,
+  # pdsi = pdsi.inits,
+  # bobcat = bobcat.inits,
   sig.econ.pred = rep(1,4),
   mu.econ.p = rep(0,4),
   zeta.econ = rep(1,ncol(econ_data)),
@@ -75,35 +75,33 @@ initsFunction <- function() list(
   beta.awssi = 0,
   alpha.awssi = 0,
   sig.awssi = rep(1,2),
-  sig.drought = rep(1,2),
-  sig.bob = 1,
+  # sig.drought = rep(1,2),
+  # sig.bob = 1,
   
   ### Covariates
-  mu.econ = 0,
+  # mu.econ = 0,
   sig.econ = 1,
-  beta.econ.hunt = rep(0, max(county_reg)),
+  beta.econ.hunt = 0,
+  # beta.econ.hunt = rep(0, n_county),
   beta.spl.hunt = matrix(0, nrow = n_county, ncol = dim(B)[2]),
   sig.spl.hunt = rep(1, n_county),
   
-  mu.wintsev.harv = 0,
+  # mu.wintsev.harv = 0,
   sig.wintsev.harv = 1,
-  beta.wintsev.harv = rep(0, max(county_reg)),
-  mu.bbs = 0,
+  # beta.wintsev.harv = rep(0, n_county),
+  beta.wintsev.harv = 0,
+  # mu.bbs = 0,
   sig.bbs = 1,
-  beta.bbs.harv = rep(0, max(county_reg)),
-  mu.bobcat = 0,
-  sig.bobcat = 1,
-  beta.bobcat.harv = rep(0, max(county_reg)),
-  mu.pdsi = 0,
-  sig.pdsi = 1,
-  beta.pdsi.harv = rep(0, max(county_reg)),
-  mu.hunter.harv = 0,
+  # beta.bbs.harv = rep(0, n_county),
+  beta.bbs.harv = 0,
+  # mu.hunter.harv = 0,
   sig.hunter.harv = 1,
-  beta.hunter.harv = rep(0, n_county),
+  # beta.hunter.harv = rep(0, n_county),
+  beta.hunter.harv = 0,
   
   ### Hunter Effort
   sig.H =  rep(1, n_county),
-  n.hunt = n.hunt.i/100,
+  n.hunt = n.hunt.i/1000,
   Q.hunt = Q,
   P.hunt = P,
   Lambda.hunt = diag(n_county),
@@ -114,7 +112,7 @@ initsFunction <- function() list(
   
   ### Total Harvest
   sig.N =  rep(1, n_county),
-  n.harv = n.harv.i/100,
+  n.harv = n.harv.i/1000,
   Q.harv = Q2,
   P.harv = P2,
   Lambda.harv = diag(n_county),
@@ -128,6 +126,7 @@ initsFunction <- function() list(
   ### Chukar Site Abundance
   theta.chuk = rep(1,n_county),
   mod.chuk = rep(1,n_county),
+  mu.site.chuk = rep(0, nrow(chuk_hunt)),
   n.chuk = as.matrix(chukar_na),
   log.r.chuk = r.chuk.init
 )
@@ -185,7 +184,8 @@ coefficients <- c(
   # "beta.pdsi.harv",
   
   ### Chukar Site Abundance
-  'mod.chuk'
+  'mod.chuk',
+  'mu.site.chuk'
 )
 
 predictors <- c(
@@ -199,11 +199,11 @@ predictors <- c(
   'zeta.bbs',
   
   'alpha.awssi', 
-  'beta.awssi',
+  'beta.awssi'
   
-  'sig.drought',
+  # 'sig.drought',
   
-  'sig.bob'
+  # 'sig.bob'
 )
 
 

@@ -241,7 +241,7 @@ server <-  function(input,output,session){
   })
 
                               
-  forecast.plot.input <- reactive({
+  forecast.plot.input.nodelay <- reactive({
     #Prep Inputs
     H.reg <- appobject$H.reg
     N.reg <- appobject$N.reg
@@ -404,7 +404,9 @@ server <-  function(input,output,session){
       filter(Species %in% input$spphighlight)
   })
   
-  CHUK.forecast.plot.input <- reactive({
+  forecast.plot.input <- forecast.plot.input.nodelay %>% debounce(100)
+  
+  CHUK.forecast.plot.input.nodelay <- reactive({
     #Prep Inputs
     c.H.reg <- appobject.CH$H.reg
     c.N.reg <- appobject.CH$N.reg
@@ -439,9 +441,9 @@ server <-  function(input,output,session){
 
         c.CI <- (1-as.numeric(input$c.conflevel))/2
 
-        c.H.Est[s,t] <- round(100*exp(quantile(c.mu.H[s,t,], c(.5))))
-        c.H.LCL[s,t] <- 100*exp(quantile(c.mu.H[s,t,], c(c.CI)))
-        c.H.UCL[s,t] <- 100*exp(quantile(c.mu.H[s,t,], c(1-c.CI)))
+        c.H.Est[s,t] <- round(1000*exp(quantile(c.mu.H[s,t,], c(.5))))
+        c.H.LCL[s,t] <- 1000*exp(quantile(c.mu.H[s,t,], c(c.CI)))
+        c.H.UCL[s,t] <- 1000*exp(quantile(c.mu.H[s,t,], c(1-c.CI)))
 
         # Total Harvest
         c.mu.N[s,t,] <- rnorm(c.n.samples, c.N.reg$A.harv[s], c.N.reg$A.harv.sd[s]) +
@@ -449,9 +451,9 @@ server <-  function(input,output,session){
           c.winter.var * rnorm(c.n.samples, c.N.reg$B.ws.harv[s], c.N.reg$B.ws.harv.sd[s]) +
           c.predator.var * rnorm(c.n.samples, c.N.reg$B.bbs.harv[s], c.N.reg$B.bbs.harv.sd[s])
 
-        c.N.Est[s,t] <- round(100*exp(quantile(c.mu.N[s,t,], c(.5))))
-        c.N.LCL[s,t] <- 100*exp(quantile(c.mu.N[s,t,], c(c.CI)))
-        c.N.UCL[s,t] <- 100*exp(quantile(c.mu.N[s,t,], c(1-c.CI)))
+        c.N.Est[s,t] <- round(1000*exp(quantile(c.mu.N[s,t,], c(.5))))
+        c.N.LCL[s,t] <- 1000*exp(quantile(c.mu.N[s,t,], c(c.CI)))
+        c.N.UCL[s,t] <- 1000*exp(quantile(c.mu.N[s,t,], c(1-c.CI)))
       }
     }
 
@@ -533,17 +535,17 @@ server <-  function(input,output,session){
 
     ### Prepare Real Data
     if(input$chuk.forecastset == "BPH"){
-      chuk.input.df <- (100*appobject.CH$N.data)/(1+100*appobject.CH$H.data)
+      chuk.input.df <- (1000*appobject.CH$N.data)/(1+1000*appobject.CH$H.data)
     }else{
       if(input$chuk.forecastset == "H"){
-        chuk.input.df <- 100*appobject.CH$H.data
+        chuk.input.df <- 1000*appobject.CH$H.data
       }else{
-        chuk.input.df <- 100*appobject.CH$N.data
+        chuk.input.df <- 1000*appobject.CH$N.data
       }
     }
 
     chuk.d.input <- as.data.frame(chuk.input.df) %>%
-      mutate(County = 1:n.counties, ) %>%
+      mutate(County = 1:n.counties) %>%
       pivot_longer(names_to = "Year", cols = 1:ncol(chuk.input.df), values_to = "Real") %>%
       filter(!is.na(Real)) %>%
       mutate(Year = as.numeric(Year),
@@ -556,6 +558,8 @@ server <-  function(input,output,session){
       filter(Year %in% input$years.chuk.plot[1]:input$years.chuk.plot[2]) %>%
       filter(County %in% input$countyhighlight)
   })
+  
+  CHUK.forecast.plot.input <- CHUK.forecast.plot.input.nodelay %>% debounce(100)
   
   vline.intercept <- reactive({
     1975 + min(which(is.na(appobject$N.data[1,,1]))) - 1
@@ -707,7 +711,7 @@ server <-  function(input,output,session){
    leaflet(chuk.county.sf()) %>%
       setView(lng=-117.224121, lat=38.376019 , zoom=6)%>%
       addTiles() %>%
-      addPolygons(stroke = F, smoothFactor = .2, fillOpacity = .8,
+      addPolygons(stroke = F, smoothFactor = .8, fillOpacity = .8,
                   color = ~pal(Est), label = ~Est) %>%
      addLegend("bottomright", pal = pal, values = ~Est,
                title = input$chuk.forecastset,
