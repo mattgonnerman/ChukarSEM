@@ -29,16 +29,31 @@ tweaks <- tags$head(tags$style(HTML(
                     margin-left: 0px;
                     margin-right: 10px;
           }"),
+  
   setBackgroundColor(color = "#12263f")),
   
-  setSliderColor(rep("#12263f",5),c(1:5)),
+  setSliderColor(rep("#12263f",10),c(1:10)), # Slider Colors, numbers correspond to number of sliders. Just put more than you need
   
   chooseSliderSkin("Flat"),
+  
+  tags$head(tags$style(HTML(".nav-tabs {background-color: white}"))), #Set background color of tabs to improve readability
+
   tags$head(tags$style("#forecasttable table {background-color: white;
                        border: 1px solid '#12263f';
                        border-collapse: collapse;
                        }",
-                       media="screen", type="text/css"))
+                       media="screen", type="text/css")),
+  
+  tags$head(tags$style("#chuk.forecasttable table {background-color: white;
+                       border: 1px solid '#12263f';
+                       border-collapse: collapse;
+                       }",
+                       media="screen", type="text/css")),
+  
+  tags$style(type = 'text/css', ".tab-panel{ background-color: white}")
+  
+  
+  
   )
 
 
@@ -52,7 +67,7 @@ ui <- navbarPage( tweaks,
                   tabPanel(
                     title = "Instructions",
                     
-                    textOutput("appinstrhead"),
+                    sidebarPanel(textOutput("appinstrhead"),
                     tags$div(tags$ul(
                       tags$li("ENSURE MODEL IS UP TO DATE [SEE BELOW]"),
                       tags$li("FORECAST ESTIMATES"),
@@ -75,7 +90,12 @@ ui <- navbarPage( tweaks,
                     tags$head(tags$style("#datainsthead{color: white;
                                  font-size: 20px;
                                  font-style: bold;
-                                 "))
+                                 "))),
+                    
+                    mainPanel(
+                      img(src='exampleimage.jpg', height= 700),
+                      ### the rest of your code
+                    )
                   ),
                   
                   
@@ -130,10 +150,10 @@ ui <- navbarPage( tweaks,
                       
                       mainPanel(#Output Plot
                         tabBox(
-                          tabPanel("Plot - Full Model", plotOutput("forecastplot")),
-                          tabPanel("Table - Full Model", DT::dataTableOutput('forecasttable')),
-                          width = "800px", height = "710px"
+                          tabPanel(id = "plot.full", title = "Plot", plotOutput("forecastplot")),
+                          tabPanel(id = "table.full", title = "Table", DT::dataTableOutput('forecasttable')),
                         )
+                        , width = "800px"
                       )
                     ) 
                   ),
@@ -154,15 +174,20 @@ ui <- navbarPage( tweaks,
                                            choices = appobject.CH$county_order,
                                            selected = appobject.CH$county_order, inline = T),
                         
-                        sliderInput("years.chuk.plot", "Years to Display (Plot)", min =1990, max = (1989 + lastyear.ch),
-                                    value = c(2011,(1989 + lastyear.ch)), sep=""),
-                        sliderInput("years.chuk.map", "Year to Display (Map)", min =1990, max = (1989 + lastyear.ch),
-                                    value = (1989 + lastyear.ch), sep=""),
-                        selectInput("c.conflevel", "Confidence Interval",
-                                    choices = c("95%" = .95,
-                                                "85%" = .85,
-                                                "50%" = .5,
-                                                "Hide Confidence Interval" = 0)),
+                        conditionalPanel(condition="input.chuktabs == 'Plot'|input.chuktabs == 'Table'",
+                                         sliderInput("years.chuk.plot", "Years to Display", min =1990, max = (1989 + lastyear.ch),
+                                                     value = c(2011,(1989 + lastyear.ch)), sep=""),
+                                         selectInput("c.conflevel", "Confidence Interval",
+                                                     choices = c("95%" = .95,
+                                                                 "85%" = .85,
+                                                                 "50%" = .5,
+                                                                 "Hide Confidence Interval" = 0))
+                        ),
+                        
+                        conditionalPanel(condition="input.chuktabs == 'Map'",
+                                         sliderInput("years.chuk.map", "Year to Display", min =1990, max = (1989 + lastyear.ch),
+                                                     value = (1989 + lastyear.ch), sep="")
+                        ),
                         
                         conditionalPanel(
                           condition = "input.forecastset == 'H'|input.forecastset == 'BPH'",
@@ -187,10 +212,10 @@ ui <- navbarPage( tweaks,
                       ),
 
                       mainPanel(
-                        tabBox(
-                          tabPanel("Plot - Chukar County", plotOutput("chukplot", height = "710px", width = "800px")),
-                          tabPanel("Map - Chukar County", leafletOutput("chukmap", height = "600px", width = "600px")),
-                          tabPanel("Table - Chukar County", DT::dataTableOutput('chuk.forecasttable'))
+                        tabBox(id = "chuktabs",
+                          tabPanel(id = "plot.chuk", title = "Plot", plotOutput("chukplot", height = "710px", width = "800px")),
+                          tabPanel(id = "map.chuk", title = "Map", leafletOutput("chukmap", height = "600px", width = "600px")),
+                          tabPanel(id = "table.chuk", title = "Table", DT::dataTableOutput('chuk.forecasttable'))
                         )
                         , width = "800px")
                     )
@@ -238,6 +263,28 @@ server <-  function(input,output,session){
     t <- max(sapply(find.na, function(x) max(which(!is.na(x)))))
     val <- as.numeric(find.na[t,3])
     updateSliderInput(session, "awssi", value = val)
+    
+
+    find.na <- data.frame(A = appobject.CH$data.all$une,
+                          B = appobject.CH$data.all$gas,
+                          C = appobject.CH$data.all$pdi,
+                          D = appobject.CH$data.all$res)
+    t <- max(sapply(find.na, function(x) max(which(!is.na(x)))))
+    val <- as.numeric(appobject.CH$pred.econ[t,2])
+    updateSliderInput(session, "c.econ", value = val)
+    
+    find.na <- data.frame(A = appobject.CH$data.all$ravens,
+                          B = appobject.CH$data.all$rthawk,
+                          C = appobject.CH$data.all$nharr,
+                          D = appobject.CH$data.all$pfal)
+    t <- max(sapply(find.na, function(x) max(which(!is.na(x)))))
+    val <- as.numeric(appobject.CH$pred.bbs[t,2])
+    updateSliderInput(session, "c.bbs", value = val)
+    
+    find.na <- as.data.frame(appobject.CH$data.all$awssi) %>% mutate(Mean = (Eastern + Western )/ 2)
+    t <- max(sapply(find.na, function(x) max(which(!is.na(x)))))
+    val <- as.numeric(find.na[t,3])
+    updateSliderInput(session, "c.awssi", value = val)
   })
 
                               
@@ -257,7 +304,7 @@ server <-  function(input,output,session){
     f.end <- ncol(appobject$N.data) + 1975
     y.b <- f.start-1976 #years of data before forecast
     n.year.f <- length(f.end:d.start) #If you want to show more than next year, use this as another dimension in array
-    n.samples <- 10000
+    n.samples <- 10
     
     
     #Function for formatting forecast graph inputs
@@ -406,7 +453,7 @@ server <-  function(input,output,session){
   
   forecast.plot.input <- forecast.plot.input.nodelay %>% debounce(100)
   
-  CHUK.forecast.plot.input.nodelay <- reactive({
+  CHUK.forecast.plot.input.nodelay1 <- reactive({
     #Prep Inputs
     c.H.reg <- appobject.CH$H.reg
     c.N.reg <- appobject.CH$N.reg
@@ -418,7 +465,7 @@ server <-  function(input,output,session){
     c.econ.var <- input$c.econ
     c.winter.var <-  input$c.awssi
     c.predator.var <- input$c.bbs
-    c.n.samples <- 10000
+    c.n.samples <- 10
 
     #Empty arrays to fill
     c.latent <- c.mu.N <- c.mu.H <- array(NA, dim = c(n.counties, n.year.chuk, c.n.samples))
@@ -554,10 +601,12 @@ server <-  function(input,output,session){
 
 
     ### Merge Real Values and Estimates
-    merge(chuk.f.input, chuk.d.input, by = c("County","Year"), all = T) %>%
-      filter(Year %in% input$years.chuk.plot[1]:input$years.chuk.plot[2]) %>%
+    merge(chuk.f.input, chuk.d.input, by = c("County","Year"), all = T)  %>%
       filter(County %in% input$countyhighlight)
   })
+  
+  CHUK.forecast.plot.input.nodelay <- reactive({CHUK.forecast.plot.input.nodelay1() %>%
+    filter(Year %in% input$years.chuk.plot[1]:input$years.chuk.plot[2])})
   
   CHUK.forecast.plot.input <- CHUK.forecast.plot.input.nodelay %>% debounce(100)
   
@@ -607,7 +656,7 @@ server <-  function(input,output,session){
              fill=guide_legend(nrow=6, byrow=TRUE)),
     
     height = 700,
-    width = 850
+    width = 800
   )
   
   
@@ -696,7 +745,7 @@ server <-  function(input,output,session){
       dplyr::select(County = NAME, geometry) %>%
       filter(County %in% appobject.CH$county_order) %>%
       arrange(County) %>%
-      merge(., CHUK.forecast.plot.input() %>% filter(Year == input$years.chuk.map), by = "County") %>%
+      merge(., CHUK.forecast.plot.input.nodelay1() %>% filter(Year == input$years.chuk.map), by = "County") %>%
       st_transform(4326) %>%
       mutate(Est = round(Est, 3))
   })

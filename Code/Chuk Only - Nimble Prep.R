@@ -124,9 +124,9 @@ initsFunction <- function() list(
   N = Ni,
   
   ### Chukar Site Abundance
-  theta.chuk = rep(1,n_county),
+  theta.chuk = rep(1, n_county),
   mod.chuk = rep(1,n_county),
-  mu.site.chuk = rep(0, nrow(chuk_hunt)),
+  mu.site.chuk = rep(0, nrow(chuk_harv)),
   n.chuk = as.matrix(chukar_na),
   log.r.chuk = r.chuk.init
 )
@@ -184,6 +184,7 @@ coefficients <- c(
   # "beta.pdsi.harv",
   
   ### Chukar Site Abundance
+  'theta.chuk',
   'mod.chuk',
   'mu.site.chuk'
 )

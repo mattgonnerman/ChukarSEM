@@ -148,7 +148,7 @@ code <- nimbleCode( {
     # beta.bbs.harv[c] ~ dnorm(mu.bbs, sd  = sig.bbs)
     # beta.hunter.harv[c] ~ dnorm(mu.hunter.harv, sd = sig.hunter.harv)
     sig.N[c] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    alpha.harv[c] ~ dnorm(0, sd = 5)
+    alpha.harv[c] ~ dnorm(0, sd = 8)
     
     # Process Model
     for(t in 1:n.year){
@@ -203,21 +203,24 @@ code <- nimbleCode( {
   ################################################################################
   ### Chukar Site Abundance ###
   for(c in 1:n.counties){
-    theta.chuk[c] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+    # theta.chuk[c] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     mod.chuk[c] ~ dlogis(0,1)
   }
   
   for(p in 1:n.site){
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
     mu.site.chuk[p] ~ dlogis(0,1)
+    theta.chuk[p] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+    # mod.chuk[p] ~ dlogis(0,1)
     for(t in 1:(n.year.chuk-1)){
+      # log.r.chuk[p,t] <-  mu.site.chuk[t] + mod.chuk[p] * log.r.harv[county.site[p], t]
       log.r.chuk[p,t] <-  mu.site.chuk[p] + mod.chuk[county.site[p]] * log.r.harv[county.site[p], t]
       C.chuk[p,t+1] <- exp(log.r.chuk[p,t]) * C.chuk[p,t] #Equivalent of Poisson lambda
     }
      
     for(t in 2:n.year.chuk){ 
-      rate.chuk[p,t-1] <- theta.chuk[county.site[p]]/(theta.chuk[county.site[p]] + C.chuk[p,t]) #NB success parameter
-      n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[county.site[p]]) #obs. # of chukars follow neg-bin
+      rate.chuk[p,t-1] <- theta.chuk[p]/(theta.chuk[p] + C.chuk[p,t]) #NB success parameter
+      n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[p]) #obs. # of chukars follow neg-bin
     } #t
   } #p
   
