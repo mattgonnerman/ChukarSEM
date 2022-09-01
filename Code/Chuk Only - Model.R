@@ -57,14 +57,14 @@ code <- nimbleCode( {
   
   ################################################################################
   ### Hunter Effort ###
-  mu.econ ~ dnorm(0, sd = 10)
+  # mu.econ ~ dnorm(0, sd = 10)
   sig.econ ~ T(dt(0, pow(2.5, -2), 1), 0, )
-  # beta.econ.hunt ~ dnorm(0, sd = sig.econ)
+  beta.econ.hunt ~ dnorm(0, sd = sig.econ)
   
   for(c in 1:n.counties){
     sig.H[c] ~ T(dt(0, pow(2.5,-2), 1),0,)
     alpha.hunt[c] ~ dnorm(0, sd = 5)
-    beta.econ.hunt[c] ~ dnorm(mu.econ, sd = sig.econ)
+    # beta.econ.hunt[c] ~ dnorm(mu.econ, sd = sig.econ)
     for(k in 1:K){
       beta.spl.hunt[c,k] ~ dnorm(0, sd = sig.spl.hunt[c])
     } #k
@@ -74,7 +74,7 @@ code <- nimbleCode( {
       latent.trend[c,t] <- inprod(beta.spl.hunt[c,1:K], basis[t,1:K]) #spline smoothing
       #Unlinked estimate of Hunter Numbers
       mu.hunt[c,t] <- alpha.hunt[c] + #intercept
-        beta.econ.hunt[c] * pred.econ.prime[t] + #SEM economic indicator
+        beta.econ.hunt * pred.econ.prime[t] + #SEM economic indicator
         latent.trend[c,t]
       H[c,t] <- exp(hunt.eps[c,t]) #Log Link
       n.hunt[c,t] ~ dnorm(H[c,t], sd = sig.H[c]) #Number of hunters follows Poisson
@@ -119,31 +119,29 @@ code <- nimbleCode( {
   ################################################################################
   ### Total Harvest ###
   # mu.wintsev.harv ~ dnorm(0, 0.01)
-  sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   # mu.bbs ~ dnorm(0, 0.01)
+  # mu.hunter.harv ~ dnorm(0, 0.01)
+  sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   sig.bbs ~ T(dt(0, pow(2.5,-2), 1),0,)
+  sig.hunter.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   beta.wintsev.harv ~ dnorm(0, sd  = sig.wintsev.harv)
   beta.bbs.harv ~ dnorm(0, sd  = sig.bbs)
-  # beta.hunter.harv ~ dnorm(0, sd = sig.hunter.harv)
-  mu.hunter.harv ~ dnorm(0, 0.01)
-  sig.hunter.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
+  beta.hunter.harv ~ dnorm(0, sd = sig.hunter.harv)
   
   for(c in 1:n.counties){
     # beta.wintsev.harv[c] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
     # beta.bbs.harv[c] ~ dnorm(mu.bbs, sd  = sig.bbs)
-    beta.hunter.harv[c] ~ dnorm(mu.hunter.harv, sd = sig.hunter.harv)
+    # beta.hunter.harv[c] ~ dnorm(mu.hunter.harv, sd = sig.hunter.harv)
     sig.N[c] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    alpha.harv[c] ~ dnorm(0, sd = 7)
+    alpha.harv[c] ~ dnorm(0, sd = 5)
     
     # Process Model
     for(t in 1:n.year){
       #Unlinked estimate of Hunter Numbers
       mu.harv[c,t] <- alpha.harv[c] + # intercepts
-        beta.hunter.harv[c] * latent.trend[c,t] + # Latent Hunter Trend
+        beta.hunter.harv * latent.trend[c,t] + # Latent Hunter Trend
         beta.wintsev.harv * awssi[t,reg.county[c]]  + # Previous winter severity (Affecting Survival)
-        # beta.pdsi.harv[reg.county[c]] * pdsi[t,reg.county[c]] + # Same year, spring/summer drought (Affecting Survival/Reproduction)
-        beta.bbs.harv * pred.bbs.prime[t] #+ # Latent predator index (Affecting Reproduction)
-        # beta.bobcat.harv[reg.county[c]] * bobcat[t]
+        beta.bbs.harv * pred.bbs.prime[t]
       
       N[c,t] <- exp(harv.eps[c,t]) #Log Link
       n.harv[c,t] ~ dnorm(N[c,t], sd = sig.N[c]) #Number of hunters follows Poisson
@@ -187,26 +185,27 @@ code <- nimbleCode( {
   
   ################################################################################
   ### Chukar Site Abundance ###
+  # theta.chuk ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
   for(c in 1:n.counties){
-    # theta.chuk[c] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+    theta.chuk[c] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     mod.chuk[c] ~ dlogis(0,1)
   }
   
   for(p in 1:n.site){
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
     # mu.site.chuk[p] ~ dlogis(0,1)
-    theta.chuk[p] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+    # theta.chuk[p] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     # mod.chuk[p] ~ dlogis(0,1)
     for(t in 1:(n.year.chuk-1)){
       # log.r.chuk[p,t] <-  mu.site.chuk[t] + mod.chuk[p] * log.r.harv[county.site[p], t]
-      # log.r.chuk[p,t] <-  mu.site.chuk[p] + mod.chuk[county.site[p]] * log.r.harv[county.site[p], t]
-      log.r.chuk[p,t] <-  mod.chuk[county.site[p]] * log.r.harv[county.site[p], t]
+      log.r.chuk[p,t] <-  mu.site.chuk[p] + mod.chuk[county.site[p]] * log.r.harv[county.site[p], t]
+      # log.r.chuk[p,t] <-  mod.chuk[county.site[p]] * log.r.harv[county.site[p], t]
       C.chuk[p,t+1] <- exp(log.r.chuk[p,t]) * C.chuk[p,t] #Equivalent of Poisson lambda
     }
      
     for(t in 2:n.year.chuk){ 
-      rate.chuk[p,t-1] <- theta.chuk[p]/(theta.chuk[p] + C.chuk[p,t]) #NB success parameter
-      n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[p]) #obs. # of chukars follow neg-bin
+      rate.chuk[p,t-1] <- theta.chuk[county.site[p]]/(theta.chuk[county.site[p]] + C.chuk[p,t]) #NB success parameter
+      n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[county.site[p]]) #obs. # of chukars follow neg-bin
     } #t
   } #p
   

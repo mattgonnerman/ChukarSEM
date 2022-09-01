@@ -15,12 +15,12 @@ data <- list(
   # bobcat = bobcat.df[,2],
   
   ### Hunter Effort
-  n.hunt = chuk_hunt/1, #Observed number of hunters for each species each year
+  n.hunt = chuk_hunt/1000, #Observed number of hunters for each species each year
   basis = B, #Spline Base
   I.hunt = I,
   
   ### Total Harvest
-  n.harv = chuk_harv/1,
+  n.harv = chuk_harv/1000,
   I.harv = I2,
   
   ### Chukar Site Abundance
@@ -79,10 +79,10 @@ initsFunction <- function() list(
   # sig.bob = 1,
   
   ### Covariates
-  mu.econ = 0,
+  # mu.econ = 0,
   sig.econ = 1,
-  # beta.econ.hunt = 0,
-  beta.econ.hunt = rep(0, n_county),
+  beta.econ.hunt = 0,
+  # beta.econ.hunt = rep(0, n_county),
   beta.spl.hunt = matrix(0, nrow = n_county, ncol = dim(B)[2]),
   sig.spl.hunt = rep(1, n_county),
   
@@ -94,14 +94,14 @@ initsFunction <- function() list(
   sig.bbs = 1,
   # beta.bbs.harv = rep(0, n_county),
   beta.bbs.harv = 0,
-  mu.hunter.harv = 0,
+  # mu.hunter.harv = 0,
   sig.hunter.harv = 1,
-  beta.hunter.harv = rep(0, n_county),
-  # beta.hunter.harv = 0,
+  # beta.hunter.harv = rep(0, n_county),
+  beta.hunter.harv = 0,
   
   ### Hunter Effort
   sig.H =  rep(1, n_county),
-  n.hunt = n.hunt.i/1,
+  n.hunt = n.hunt.i/1000,
   Q.hunt = Q,
   P.hunt = P,
   Lambda.hunt = diag(n_county),
@@ -112,7 +112,7 @@ initsFunction <- function() list(
   
   ### Total Harvest
   sig.N =  rep(1, n_county),
-  n.harv = n.harv.i/1,
+  n.harv = n.harv.i/1000,
   Q.harv = Q2,
   P.harv = P2,
   Lambda.harv = diag(n_county),
@@ -124,9 +124,11 @@ initsFunction <- function() list(
   N = Ni,
   
   ### Chukar Site Abundance
-  theta.chuk = rep(1, nrow(chuk_harv)),
+  theta.chuk = rep(1, n_county),
+  # theta.chuk = 1,
   mod.chuk = rep(1,n_county),
-  # mu.site.chuk = rep(0, nrow(chuk_harv)),
+  # mod.chuk = rep(1,n_county),
+  mu.site.chuk = rep(0, nrow(chuk_harv)),
   n.chuk = as.matrix(chukar_na),
   log.r.chuk = r.chuk.init
 )
