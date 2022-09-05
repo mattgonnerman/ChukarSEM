@@ -74,7 +74,7 @@ code <- nimbleCode( {
       latent.trend[c,t] <- inprod(beta.spl.hunt[c,1:K], basis[t,1:K]) #spline smoothing
       #Unlinked estimate of Hunter Numbers
       mu.hunt[c,t] <- alpha.hunt[c] + #intercept
-        beta.econ.hunt * pred.econ.prime[t] + #SEM economic indicator
+        beta.econ.hunt[c] * pred.econ.prime[t] + #SEM economic indicator
         latent.trend[c,t]
       H[c,t] <- exp(hunt.eps[c,t]) #Log Link
       n.hunt[c,t] ~ dnorm(H[c,t], sd = sig.H[c]) #Number of hunters follows Poisson
@@ -120,18 +120,18 @@ code <- nimbleCode( {
   ### Total Harvest ###
   # mu.wintsev.harv ~ dnorm(0, 0.01)
   # mu.bbs ~ dnorm(0, 0.01)
-  # mu.hunter.harv ~ dnorm(0, 0.01)
+  mu.hunter.harv ~ dnorm(0, 0.01)
   sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   sig.bbs ~ T(dt(0, pow(2.5,-2), 1),0,)
   sig.hunter.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   beta.wintsev.harv ~ dnorm(0, sd  = sig.wintsev.harv)
   beta.bbs.harv ~ dnorm(0, sd  = sig.bbs)
-  beta.hunter.harv ~ dnorm(0, sd = sig.hunter.harv)
+  # beta.hunter.harv ~ dnorm(0, sd = sig.hunter.harv)
   
   for(c in 1:n.counties){
     # beta.wintsev.harv[c] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
     # beta.bbs.harv[c] ~ dnorm(mu.bbs, sd  = sig.bbs)
-    # beta.hunter.harv[c] ~ dnorm(mu.hunter.harv, sd = sig.hunter.harv)
+    beta.hunter.harv[c] ~ dnorm(mu.hunter.harv, sd = sig.hunter.harv)
     sig.N[c] ~ T(dt(0, pow(2.5,-2), 1),0,)
     alpha.harv[c] ~ dnorm(0, sd = 5)
     
@@ -139,7 +139,7 @@ code <- nimbleCode( {
     for(t in 1:n.year){
       #Unlinked estimate of Hunter Numbers
       mu.harv[c,t] <- alpha.harv[c] + # intercepts
-        beta.hunter.harv * latent.trend[c,t] + # Latent Hunter Trend
+        beta.hunter.harv[c] * latent.trend[c,t] + # Latent Hunter Trend
         beta.wintsev.harv * awssi[t,reg.county[c]]  + # Previous winter severity (Affecting Survival)
         beta.bbs.harv * pred.bbs.prime[t]
       
@@ -185,9 +185,9 @@ code <- nimbleCode( {
   
   ################################################################################
   ### Chukar Site Abundance ###
-  # theta.chuk ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+  theta.chuk ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
   for(c in 1:n.counties){
-    theta.chuk[c] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
+    # theta.chuk[c] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
     mod.chuk[c] ~ dlogis(0,1)
   }
   
@@ -204,8 +204,8 @@ code <- nimbleCode( {
     }
      
     for(t in 2:n.year.chuk){ 
-      rate.chuk[p,t-1] <- theta.chuk[county.site[p]]/(theta.chuk[county.site[p]] + C.chuk[p,t]) #NB success parameter
-      n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk[county.site[p]]) #obs. # of chukars follow neg-bin
+      rate.chuk[p,t-1] <- theta.chuk/(theta.chuk + C.chuk[p,t]) #NB success parameter
+      n.chuk[p,t] ~ dnegbin(prob = rate.chuk[p,t-1], size = theta.chuk) #obs. # of chukars follow neg-bin
     } #t
   } #p
   

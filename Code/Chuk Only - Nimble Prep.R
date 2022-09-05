@@ -94,11 +94,11 @@ initsFunction <- function() list(
   sig.bbs = 1,
   # beta.bbs.harv = rep(0, n_county),
   beta.bbs.harv = 0,
-  # mu.hunter.harv = 0,
+  mu.hunter.harv = 0,
   sig.hunter.harv = 1,
-  # beta.hunter.harv = rep(0, n_county),
-  beta.hunter.harv = 0,
-  
+  beta.hunter.harv = rep(0, n_county),
+  # beta.hunter.harv = 0,
+
   ### Hunter Effort
   sig.H =  rep(1, n_county),
   n.hunt = n.hunt.i/1000,
@@ -124,8 +124,8 @@ initsFunction <- function() list(
   N = Ni,
   
   ### Chukar Site Abundance
-  theta.chuk = rep(1, n_county),
-  # theta.chuk = 1,
+  # theta.chuk = rep(1, nrow(chuk_harv)),
+  theta.chuk = 1,
   mod.chuk = rep(1,n_county),
   # mod.chuk = rep(1,n_county),
   mu.site.chuk = rep(0, nrow(chuk_harv)),
