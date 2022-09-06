@@ -56,6 +56,26 @@ tweaks <- tags$head(tags$style(HTML(
   
   )
 
+tabletweaks <- "
+                    .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter, .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_processing, .dataTables_wrapper .dataTables_paginate {
+                    color: #ffffff;
+                    }
+
+                    thead {
+                    color: black;
+                    background-color: white;
+                    }
+                    
+                    .dataTables_filter input {
+                            color: black;
+                    }
+                           
+                    .dataTables_length select {
+                           color: black !important; 
+                    }
+
+                   "
+
 
 
 ##################################################################################
@@ -67,35 +87,44 @@ ui <- navbarPage( tweaks,
                   tabPanel(
                     title = "Instructions",
                     
-                    sidebarPanel(textOutput("appinstrhead"),
-                    tags$div(tags$ul(
-                      tags$li("ENSURE MODEL IS UP TO DATE [SEE BELOW]"),
-                      tags$li("FORECAST ESTIMATES"),
-                      tags$li("DOWNLOAD ESTIMATES"),
-                      tags$li("CHUKAR ONLY MODEL")),
-                      style = "font-size: 15px;
-                      color: white;"),
-                    tags$head(tags$style("#appinstrhead{color: white;
-                                 font-size: 20px;
+                    sidebarPanel(
+                      textOutput("appfor"),
+                      tags$head(tags$style("#appfor{color: black;
+                                 font-size: 16px;
                                  font-style: bold;
                                  }")),
-                    
-                    textOutput("datainsthead"),
-                    tags$div(tags$ul(
-                      tags$li("UPDATE DATA SHEETS"),
-                      tags$li("RERUN MODEL"),
-                      tags$li("UPDATE SHINY")),
-                      style = "font-size: 15px;
-                      color: white;"),
-                    tags$head(tags$style("#datainsthead{color: white;
-                                 font-size: 20px;
+                      textOutput("appforbody"),
+                      tags$head(tags$style("#appforbody{color: black;
+                                 font-size: 12px;
+                                 }")),
+                      br(),
+                      textOutput("modelwork"),
+                      tags$head(tags$style("#modelwork{color: black;
+                                 font-size: 16px;
+                                 font-style: bold;
+                                 ")),
+                      textOutput("modelworkbody"),
+                      tags$head(tags$style("#modelworkbody{color: black;
+                                 font-size: 12px;
+                                 ")),
+                      br(),
+                      
+                      textOutput("appwork"),
+                      tags$div(tags$ol(
+                        tags$li("Select whether to display estimates for birds per hunter, hunter participation, or total harvest."),
+                        tags$li("Select which species (counties for CHUK model) you wish to display estimates for."),
+                        tags$li("Select which range of years to display estimates for."),
+                        tags$li("Select what confidence level you wish error to be presented in."),
+                        tags$li("Set expected values for predictor covariates. Values are initially set as the most recent observed for each covariate"),
+                        tags$li("Download raw estimates.")),
+                        style = "font-size: 12px;
+                      color: black;"),
+                      tags$head(tags$style("#appwork{color: black;
+                                 font-size: 16px;
                                  font-style: bold;
                                  "))),
                     
-                    mainPanel(
-                      img(src='exampleimage.jpg', height= 700),
-                      ### the rest of your code
-                    )
+                    mainPanel(img(src='exampleimage.jpg', height= 700))
                   ),
                   
                   
@@ -151,7 +180,8 @@ ui <- navbarPage( tweaks,
                       mainPanel(#Output Plot
                         tabBox(
                           tabPanel(id = "plot.full", title = "Plot", plotOutput("forecastplot")),
-                          tabPanel(id = "table.full", title = "Table", DT::dataTableOutput('forecasttable')),
+                          tabPanel(id = "table.full", title = "Table", DT::dataTableOutput('forecasttable'),
+                                   tags$style(HTML(tabletweaks))),
                         )
                         , width = "800px"
                       )
@@ -215,7 +245,8 @@ ui <- navbarPage( tweaks,
                         tabBox(id = "chuktabs",
                           tabPanel(id = "plot.chuk", title = "Plot", plotOutput("chukplot", height = "710px", width = "800px")),
                           tabPanel(id = "map.chuk", title = "Map", leafletOutput("chukmap", height = "600px", width = "600px")),
-                          tabPanel(id = "table.chuk", title = "Table", DT::dataTableOutput('chuk.forecasttable'))
+                          tabPanel(id = "table.chuk", title = "Table", DT::dataTableOutput('chuk.forecasttable'),
+                                   tags$style(HTML(tabletweaks)))
                         )
                         , width = "800px")
                     )
@@ -239,8 +270,11 @@ server <-  function(input,output,session){
   
   output$tmptxt <- renderText({"Under Construction"})
   
-  output$appinstrhead <- renderText({"Using this app:"})
-  output$datainsthead <- renderText({"Updating model with new data:"})
+  output$appfor <- renderText({"What is this app for?"})
+  output$appforbody <- renderText({"Upland game birds are popular quarry among hunters but traditionally have received less monitoring attention than other game such as waterfowl or big game.  The dynamics of many upland game populations are poorly understood as a result, which both complicates management and provides a dearth of information to stakeholders, including hunters, about population status.  In Nevada, annual surveys of hunters provide information on hunter effort and total harvest for each of the state’s upland game species.  For a few species, specifically chukar and greater sage-grouse, detailed historic population survey data also exist.  If upland game bird populations respond similarly to background environmental factors (e.g., harsh winter weather) among species, it is likely this suite of data can be used to infer historic population dynamics and predict future patterns based on environment-covariate relationships and shared variance among data sources. "})
+  output$modelwork <- renderText({"How does the model work?"})
+  output$modelworkbody <- renderText({"We employed a Bayesian SEM framework to estimate the correlated variation in total harvest (N) and hunter participation (H) for upland game birds. We accounted for correlation among species in two ways. 1) We used a multivariate normal distribution to describe N and H, as it allowed for estimating the correlation structure, and 2) used common priors among species to define beta coefficients used to describe variation in N and H. We linked variation between H and N by allowing N to vary according to the latent trend in H, absent variation associated with identified covariates (e.g., economic conditions). The model is comprised of sub-models describing variation in hunter participation, total harvest, chukar site abundance, and variation in predictor variables. We applied this model in two ways; 1) as a regional multi-species approach applied to six species of upland game birds in the northeast and northwest regions of Nevada and 2) a county-specific single-species approach applied to chukar exclusively. "})
+  output$appwork <- renderText({"How to use this app?"})
 
   observe({
     find.na <- data.frame(A = appobject$data.all$une,

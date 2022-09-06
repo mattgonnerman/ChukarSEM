@@ -35,7 +35,7 @@ data <- list(
   n.hunt = hunters/1000, #Observed number of hunters for each species each year
   basis = B, #Spline Base
   n.harv = upland/1000,
-  # bph.survey = surveybph,
+  bph.survey = surveybph,
   
   ### Chukar Site Abundance
   n.chuk = data.matrix(chukar)
@@ -64,7 +64,7 @@ constants <- list(
   I.harv = abind(I2,I2,along = 3),
   
   ### BPH Survey
-  # n.cut = length(1976:cutoff.y),
+  n.cut = length(1976:cutoff.y),
   
   ### Chukar Site Abundance
   n.site = nrow(chukar),
@@ -224,7 +224,7 @@ initsFunction <- function() list(
   log.r.harv = array(0, dim = c(n.species,(cut)-1,2) ),
   N = Ni,
   
-  # sig.bph = rep(.1, n.species),
+  sig.bph = rep(.1, n.species),
   
   ### Chukar Site Abundance
   theta.chuk = rep(1,2),
