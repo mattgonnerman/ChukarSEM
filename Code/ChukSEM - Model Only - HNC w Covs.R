@@ -247,10 +247,10 @@ code <- nimbleCode( {
     }
   }
    
-  for(s in 1:n.species){
-    sig.bph[s] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    for(t in 1:3){
-      bph.survey[s,t] ~ dnorm(mean = mean(BPH[s,42+t,1:2]), sd = sig.bph[s])
-    }
-  }
+  # for(s in 1:n.species){
+  #   sig.bph[s] ~ T(dt(0, pow(2.5,-2), 1),0,)
+  #   for(t in 1:3){
+  #     bph.survey[s,t] ~ dnorm(mean = mean(BPH[s,n.cut+t,1:2]), sd = sig.bph[s])
+  #   }
+  # }
 })

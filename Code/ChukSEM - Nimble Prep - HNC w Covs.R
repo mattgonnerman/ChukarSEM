@@ -32,9 +32,9 @@ data <- list(
   bobcat = bobcat.df[,2],
  
   ### Harvest Data
-  n.hunt = hunters/100, #Observed number of hunters for each species each year
+  n.hunt = hunters/1000, #Observed number of hunters for each species each year
   basis = B, #Spline Base
-  n.harv = upland/100,
+  n.harv = upland/1000,
   # bph.survey = surveybph,
   
   ### Chukar Site Abundance
@@ -62,6 +62,9 @@ constants <- list(
 
   ### Total Harvest
   I.harv = abind(I2,I2,along = 3),
+  
+  ### BPH Survey
+  # n.cut = length(1976:cutoff.y),
   
   ### Chukar Site Abundance
   n.site = nrow(chukar),
@@ -199,7 +202,7 @@ initsFunction <- function() list(
 
   ### Hunter Effort
   sig.H =  matrix(1, n.species,2),
-  n.hunt = n.hunt.i/100,
+  n.hunt = n.hunt.i/1000,
   Q.hunt = abind(Q,Q,along = 3),
   P.hunt = abind(P,P,along = 3),
   Lambda.hunt = abind(diag(n.species),diag(n.species),along = 3),
@@ -210,7 +213,7 @@ initsFunction <- function() list(
 
   ### Total Harvest
   sig.N =  matrix(1, n.species ,2),
-  n.harv = n.harv.i/100,
+  n.harv = n.harv.i/1000,
   Q.harv = abind(Q2,Q2,along = 3),
   P.harv = abind(P2,P2,along = 3),
   Lambda.harv = abind(diag(n.species),diag(n.species),along = 3),
@@ -239,9 +242,9 @@ model_test <- nimbleModel( code = code,
                            data =  data,
                            inits = inits)
 model_test$simulate(c(
-  'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-  'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
-  'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
+  'mu.hunt', 'beta.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
+  'mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+  'theta.chuk','rate.chuk', ' log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
   'BPH', 'BPH2'))
 model_test$initializeInfo()
 model_test$calculate()
@@ -324,9 +327,9 @@ out.full.predict <- clusterEvalQ(cl, {
                              data =  data,
                              inits = inits )
   model_test$simulate(c(
-    'mu.hunt', 'beta.spl.hunt', 'pred.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
-    'beta.spl.harv', 'pred.spl.harv','mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
-    'theta.chuk','rate.chuk', 'log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
+    'mu.hunt', 'beta.spl.hunt', 'hunt.eps', 'H', 'Sigma.hunt', 'lambda.hunt', 'log.r.hunt',
+    'mu.harv', 'harv.eps', 'N', 'Sigma.harv', 'lambda.harv', 'log.r.harv',
+    'theta.chuk','rate.chuk', ' log.r.chuk', 'C.chuk', 'mod.chuk', 'chuk.eps',
     'BPH', 'BPH2'
   ))
   model_test$initializeInfo()
