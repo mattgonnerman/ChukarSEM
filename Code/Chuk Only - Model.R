@@ -57,14 +57,14 @@ code <- nimbleCode( {
   
   ################################################################################
   ### Hunter Effort ###
-  # mu.econ ~ dnorm(0, sd = 10)
+  mu.econ ~ dnorm(0, sd = 10)
   sig.econ ~ T(dt(0, pow(2.5, -2), 1), 0, )
-  beta.econ.hunt ~ dnorm(0, sd = sig.econ)
+  # beta.econ.hunt ~ dnorm(0, sd = sig.econ)
   
   for(c in 1:n.counties){
     sig.H[c] ~ T(dt(0, pow(2.5,-2), 1),0,)
     alpha.hunt[c] ~ dnorm(0, sd = 5)
-    # beta.econ.hunt[c] ~ dnorm(mu.econ, sd = sig.econ)
+    beta.econ.hunt[c] ~ dnorm(mu.econ, sd = sig.econ)
     for(k in 1:K){
       beta.spl.hunt[c,k] ~ dnorm(0, sd = sig.spl.hunt[c])
     } #k

@@ -7,13 +7,20 @@ lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimb
 '%notin%' <- Negate('%in%')
 
 #Last year from which data will be used
+<<<<<<< HEAD
 cutoff.y <-2011
 
 #What is the last year of Chukar site abundance (Should be 1 + cutoff.y)
 cutoff.y.chuk <- 2012 
+=======
+cutoff.y <-2017
+
+#What is the last year of Chukar site abundance (Should be 1 + cutoff.y)
+cutoff.y.chuk <- 2017 
+>>>>>>> a0c5dfdb2694b7c322263e16afbeb81dbaefae87
 
 #Last year to predict 
-final.y <- year.hold <- cutoff.y + 3 
+final.y <- year.hold <- 2022 
 
 n.add.y <- final.y - cutoff.y
 

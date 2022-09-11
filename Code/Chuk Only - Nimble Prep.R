@@ -79,10 +79,10 @@ initsFunction <- function() list(
   # sig.bob = 1,
   
   ### Covariates
-  # mu.econ = 0,
+  mu.econ = 0,
   sig.econ = 1,
-  beta.econ.hunt = 0,
-  # beta.econ.hunt = rep(0, n_county),
+  # beta.econ.hunt = 0,
+  beta.econ.hunt = rep(0, n_county),
   beta.spl.hunt = matrix(0, nrow = n_county, ncol = dim(B)[2]),
   sig.spl.hunt = rep(1, n_county),
   
