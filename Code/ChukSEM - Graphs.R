@@ -5,7 +5,7 @@ lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr", "scales"), require, c
 load(file = "./Output/NDOW_Upland_SEM_output.rdata")
 mcmcList1 <- files[[1]]
 mcmcList2 <- files[[2]]
-check.species <- sort(c("SAGR", "CHUK", "BLGR", "CAQU", "HUPA", "PHEA"))
+species <- check.species <- sort(c("SAGR", "CHUK", "BLGR", "CAQU", "HUPA", "PHEA"))
 
 est.BPH <- MCMCsummary(mcmcList1, 'BPH') %>%
   mutate(RowID = rownames(MCMCsummary(mcmcList1, 'BPH'))) %>%
@@ -171,10 +171,16 @@ rho.harv.w <- rho.harv.list[[2]]
 colnames(rho.harv.w) <- species
 rownames(rho.harv.w) <- species
 
-rho.harv.e.plot <- ggcorrplot::ggcorrplot(rho.harv.e, lab = T) +
-  labs(title = "Total Harvest - Eastern")
-rho.harv.w.plot <- ggcorrplot::ggcorrplot(rho.harv.w, lab = T) +
-  labs(title = "Total Harvest - Western")
+rho.harv.e.plot <- ggcorrplot::ggcorrplot(rho.harv.e, lab = T, type = "upper",
+                                          ggtheme = ggplot2::theme_classic,
+                                          colors = c("#6D9EC1", "white", "#E46726")) +
+  labs(title = "Total Harvest - Eastern") +
+  theme(legend.position = "none")
+rho.harv.w.plot <- ggcorrplot::ggcorrplot(rho.harv.w, lab = T, type = "upper",
+                                          ggtheme = ggplot2::theme_classic,
+                                          colors = c("#6D9EC1", "white", "#E46726")) +
+  labs(title = "Total Harvest - Western") +
+  theme(legend.position = "none")
 
 rho.harv.plot <- rho.harv.e.plot + plot_spacer() + rho.harv.w.plot + plot_layout(guides = "collect", widths = c(1, .1 ,1))
 
@@ -201,10 +207,16 @@ rho.hunt.w <- rho.hunt.list[[2]]
 colnames(rho.hunt.w) <- species
 rownames(rho.hunt.w) <- species
 
-rho.hunt.e.plot <- ggcorrplot::ggcorrplot(rho.hunt.e, lab = T) +
-  labs(title = "Hunter Participation - Eastern")
-rho.hunt.w.plot <- ggcorrplot::ggcorrplot(rho.hunt.w, lab = T) +
-  labs(title = "Hunter Participation - Western")
+rho.hunt.e.plot <- ggcorrplot::ggcorrplot(rho.hunt.e, lab = T, type = "upper",
+                                          ggtheme = ggplot2::theme_classic,
+                                          colors = c("#6D9EC1", "white", "#E46726")) +
+  labs(title = "Hunter Participation - Eastern") +
+  theme(legend.position = "none")
+rho.hunt.w.plot <- ggcorrplot::ggcorrplot(rho.hunt.w, lab = T, type = "upper",
+                                          ggtheme = ggplot2::theme_classic,
+                                          colors = c("#6D9EC1", "white", "#E46726")) +
+  labs(title = "Hunter Participation - Western") +
+  theme(legend.position = "none")
 
 require(patchwork)
 rho.hunt.plot <- rho.hunt.e.plot + plot_spacer() + rho.hunt.w.plot + plot_layout(guides = "collect", widths = c(1, .1 ,1))

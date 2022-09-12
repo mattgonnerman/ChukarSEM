@@ -187,7 +187,7 @@ coefficients <- c(
   
   ### Chukar Site Abundance
   'theta.chuk',
-  # 'mu.site.chuk',
+  'mu.site.chuk',
   'mod.chuk'
 )
 
