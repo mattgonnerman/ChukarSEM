@@ -10,7 +10,7 @@ lapply(c("dplyr", "ggplot2", "reshape2", "reshape", "jagsUI", "tidyverse", "nimb
 cutoff.y <-2017
 
 #What is the last year of Chukar site abundance (Should be 1 + cutoff.y)
-cutoff.y.chuk <- 2017 
+cutoff.y.chuk <- 2018 
 
 #Last year to predict 
 final.y <- year.hold <- 2022 

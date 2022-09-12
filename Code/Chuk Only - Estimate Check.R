@@ -1,9 +1,9 @@
 lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr"), require, character.only = T)
 
 
-# load(file = "./Output/NDOW_ChukOnly_SEM_output.rdata")
-# mcmcList1 <- files[[1]]
-# county_order <- files[[5]]
+load(file = "./Output/NDOW_ChukOnly_SEM_output.rdata")
+mcmcList1 <- files[[1]]
+county_order <- files[[5]]
 
 # Extract important values and plot
 test.bph <- MCMCsummary(mcmcList1, 'BPH') %>%

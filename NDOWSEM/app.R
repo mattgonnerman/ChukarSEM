@@ -202,7 +202,7 @@ ui <- navbarPage( tweaks,
                         
                         checkboxGroupInput("countyhighlight", "Counties:",
                                            choices = appobject.CH$county_order,
-                                           selected = appobject.CH$county_order, inline = T),
+                                           selected = "Washoe", inline = T),
                         
                         conditionalPanel(condition="input.chuktabs == 'Plot'|input.chuktabs == 'Table'",
                                          sliderInput("years.chuk.plot", "Years to Display", min =1990, max = (1989 + lastyear.ch),
@@ -274,7 +274,7 @@ server <-  function(input,output,session){
   output$appforbody <- renderText({"Upland game birds are popular quarry among hunters but traditionally have received less monitoring attention than other game such as waterfowl or big game.  The dynamics of many upland game populations are poorly understood as a result, which both complicates management and provides a dearth of information to stakeholders, including hunters, about population status.  In Nevada, annual surveys of hunters provide information on hunter effort and total harvest for each of the state’s upland game species.  For a few species, specifically chukar and greater sage-grouse, detailed historic population survey data also exist.  If upland game bird populations respond similarly to background environmental factors (e.g., harsh winter weather) among species, it is likely this suite of data can be used to infer historic population dynamics and predict future patterns based on environment-covariate relationships and shared variance among data sources. "})
   output$modelwork <- renderText({"How does the model work?"})
   output$modelworkbody <- renderText({"We employed a Bayesian SEM framework to estimate the correlated variation in total harvest (N) and hunter participation (H) for upland game birds. We accounted for correlation among species in two ways. 1) We used a multivariate normal distribution to describe N and H, as it allowed for estimating the correlation structure, and 2) used common priors among species to define beta coefficients used to describe variation in N and H. We linked variation between H and N by allowing N to vary according to the latent trend in H, absent variation associated with identified covariates (e.g., economic conditions). The model is comprised of sub-models describing variation in hunter participation, total harvest, chukar site abundance, and variation in predictor variables. We applied this model in two ways; 1) as a regional multi-species approach applied to six species of upland game birds in the northeast and northwest regions of Nevada and 2) a county-specific single-species approach applied to chukar exclusively. "})
-  output$appwork <- renderText({"How to use this app?"})
+  output$appwork <- renderText({"How to use this app? (reference image on right)"})
 
   observe({
     find.na <- data.frame(A = appobject$data.all$une,
@@ -338,7 +338,7 @@ server <-  function(input,output,session){
     f.end <- ncol(appobject$N.data) + 1975
     y.b <- f.start-1976 #years of data before forecast
     n.year.f <- length(f.end:d.start) #If you want to show more than next year, use this as another dimension in array
-    n.samples <- 10
+    n.samples <- 10000
     
     
     #Function for formatting forecast graph inputs
@@ -388,7 +388,7 @@ server <-  function(input,output,session){
           
           #Hunter Effort
           mu.H[s,r,t,] <- rnorm(n.samples, H.reg[[r]]$A.hunt[s], H.reg[[r]]$A.hunt.sd[s]) +
-            econ.var*rnorm(n.samples, H.reg[[r]]$B.econ.hunt[s], H.reg[[r]]$B.econ.hunt.sd[s]) +
+            ifelse(is.na(appobject$pred.econ[t,2]), econ.var, appobject$pred.econ[t,2])*rnorm(n.samples, H.reg[[r]]$B.econ.hunt[s], H.reg[[r]]$B.econ.hunt.sd[s]) +
             latent[s,r,t,]
           
           CI <- (1-as.numeric(input$conflevel))/2
@@ -400,8 +400,8 @@ server <-  function(input,output,session){
           # Total Harvest
           mu.N[s,r,t,] <- rnorm(n.samples, N.reg[[r]]$A.harv[s], N.reg[[r]]$A.harv.sd[s]) +
             rnorm(n.samples, N.reg[[r]]$B.hunter[s], N.reg[[r]]$B.hunter.sd[s])*latent[s,r,t,]+
-            winter.var * rnorm(n.samples, N.reg[[r]]$B.ws.harv[s], N.reg[[r]]$B.ws.harv.sd[s]) +
-            predator.var * rnorm(n.samples, N.reg[[r]]$B.bbs.harv[s], N.reg[[r]]$B.bbs.harv.sd[s])
+            ifelse(is.na(appobject$data.all$awssi[t,r]), winter.var, appobject$data.all$awssi[t,r]) * rnorm(n.samples, N.reg[[r]]$B.ws.harv[s], N.reg[[r]]$B.ws.harv.sd[s]) +
+            ifelse(is.na(appobject$pred.bbs[t,2]), predator.var, appobject$pred.bbs[t,2]) * rnorm(n.samples, N.reg[[r]]$B.bbs.harv[s], N.reg[[r]]$B.bbs.harv.sd[s])
           
           N.Est[s,r,t] <- round(1000*exp(quantile(mu.N[s,r,t,], c(.5))))
           N.LCL[s,r,t] <- 1000*exp(quantile(mu.N[s,r,t,], c(CI)))
@@ -499,7 +499,7 @@ server <-  function(input,output,session){
     c.econ.var <- input$c.econ
     c.winter.var <-  input$c.awssi
     c.predator.var <- input$c.bbs
-    c.n.samples <- 10
+    c.n.samples <- 10000
 
     #Empty arrays to fill
     c.latent <- c.mu.N <- c.mu.H <- array(NA, dim = c(n.counties, n.year.chuk, c.n.samples))
@@ -510,6 +510,8 @@ server <-  function(input,output,session){
     c.Latent.sd <- c.Latent %>% dplyr::select(County, Year, Latent.sd) %>%
       pivot_wider(names_from = Year, values_from = Latent.sd) %>% dplyr::select(-County)
 
+    county_reg <- c(1, 1, 1, 2, 2, 1, 2, 1, 1, 1, 1, 1, 2)
+    
     for(s in 1:n.counties){
       for(t in 1:n.year.chuk){
         #Latent time trend
@@ -517,7 +519,7 @@ server <-  function(input,output,session){
 
         #Hunter Effort
         c.mu.H[s,t,] <- rnorm(c.n.samples, c.H.reg$A.hunt[s], c.H.reg$A.hunt.sd[s]) +
-          c.econ.var*rnorm(c.n.samples, c.H.reg$B.econ.hunt[s], c.H.reg$B.econ.hunt.sd[s]) +
+          ifelse(is.na(appobject.CH$pred.econ[t,2]), c.econ.var, appobject.CH$pred.econ[t,2])*rnorm(c.n.samples, c.H.reg$B.econ.hunt[s], c.H.reg$B.econ.hunt.sd[s]) +
           c.latent[s,t,]
 
         c.CI <- (1-as.numeric(input$c.conflevel))/2
@@ -529,8 +531,8 @@ server <-  function(input,output,session){
         # Total Harvest
         c.mu.N[s,t,] <- rnorm(c.n.samples, c.N.reg$A.harv[s], c.N.reg$A.harv.sd[s]) +
           rnorm(c.n.samples, c.N.reg$B.hunter[s], c.N.reg$B.hunter.sd[s])*c.latent[s,t,]+
-          c.winter.var * rnorm(c.n.samples, c.N.reg$B.ws.harv[s], c.N.reg$B.ws.harv.sd[s]) +
-          c.predator.var * rnorm(c.n.samples, c.N.reg$B.bbs.harv[s], c.N.reg$B.bbs.harv.sd[s])
+          ifelse(is.na(appobject.CH$data.all$awssi[t,county_reg[s]]), c.winter.var, appobject.CH$data.all$awssi[t,county_reg[s]]) * rnorm(c.n.samples, c.N.reg$B.ws.harv[s], c.N.reg$B.ws.harv.sd[s]) +
+          ifelse(is.na(appobject.CH$pred.bbs[t,2]), c.predator.var, appobject.CH$pred.bbs[t,2]) * rnorm(c.n.samples, c.N.reg$B.bbs.harv[s], c.N.reg$B.bbs.harv.sd[s])
 
         c.N.Est[s,t] <- round(1000*exp(quantile(c.mu.N[s,t,], c(.5))))
         c.N.LCL[s,t] <- 1000*exp(quantile(c.mu.N[s,t,], c(c.CI)))
@@ -616,7 +618,7 @@ server <-  function(input,output,session){
 
     ### Prepare Real Data
     if(input$chuk.forecastset == "BPH"){
-      chuk.input.df <- (1000*appobject.CH$N.data)/(1+1000*appobject.CH$H.data)
+      chuk.input.df <- (1000*appobject.CH$N.data)/(1+(1000*appobject.CH$H.data))
     }else{
       if(input$chuk.forecastset == "H"){
         chuk.input.df <- 1000*appobject.CH$H.data

@@ -186,20 +186,17 @@ code <- nimbleCode( {
   ################################################################################
   ### Chukar Site Abundance ###
   theta.chuk ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
-  for(c in 1:n.counties){
+  # for(c in 1:n.counties){
     # theta.chuk[c] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
-    mod.chuk[c] ~ dlogis(0,1)
-  }
+    # mod.chuk[c] ~ dlogis(0,1)
+  # }
   
   for(p in 1:n.site){
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
-    # mu.site.chuk[p] ~ dlogis(0,1)
     # theta.chuk[p] ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
-    # mod.chuk[p] ~ dlogis(0,1)
+    mod.chuk[p] ~ dlogis(0,1)
     for(t in 1:(n.year.chuk-1)){
-      # log.r.chuk[p,t] <-  mu.site.chuk[t] + mod.chuk[p] * log.r.harv[county.site[p], t]
-      log.r.chuk[p,t] <-  mu.site.chuk[p] + mod.chuk[county.site[p]] * log.r.harv[county.site[p], t]
-      # log.r.chuk[p,t] <-  mod.chuk[county.site[p]] * log.r.harv[county.site[p], t]
+      log.r.chuk[p,t] <-  mod.chuk[p] * log.r.harv[county.site[p], t]
       C.chuk[p,t+1] <- exp(log.r.chuk[p,t]) * C.chuk[p,t] #Equivalent of Poisson lambda
     }
      
