@@ -55,22 +55,6 @@ code <- nimbleCode( {
     }
   }
   
-  # Drought Index
-  for(r in 1:n.region){
-    sig.drought[r] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    for(t in 1:n.year){
-      pdsi[t,r] ~ dnorm(0, sd = sig.drought[r])
-    } #t
-  } #r
-  
-  #Bobcat Productivity
-  sig.bob ~ T(dt(0, pow(2.5,-2), 1),0,)
-  for(t in 1:n.year){
-    bobcat[t] ~ dnorm(mean = 0, sd = sig.bob)
-  }
-  
-  
-  
   ################################################################################
   ### Hunter Effort ###
   mu.econ ~ dnorm(0, sd = 100)
