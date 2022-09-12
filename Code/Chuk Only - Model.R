@@ -118,30 +118,30 @@ code <- nimbleCode( {
   
   ################################################################################
   ### Total Harvest ###
-  # mu.wintsev.harv ~ dnorm(0, 0.01)
-  # mu.bbs ~ dnorm(0, 0.01)
+  mu.wintsev.harv ~ dnorm(0, 0.01)
+  mu.bbs ~ dnorm(0, 0.01)
   mu.hunter.harv ~ dnorm(0, 0.01)
   sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   sig.bbs ~ T(dt(0, pow(2.5,-2), 1),0,)
   sig.hunter.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
-  beta.wintsev.harv ~ dnorm(0, sd  = sig.wintsev.harv)
-  beta.bbs.harv ~ dnorm(0, sd  = sig.bbs)
+  # beta.wintsev.harv ~ dnorm(0, sd  = sig.wintsev.harv)
+  # beta.bbs.harv ~ dnorm(0, sd  = sig.bbs)
   # beta.hunter.harv ~ dnorm(0, sd = sig.hunter.harv)
   
   for(c in 1:n.counties){
-    # beta.wintsev.harv[c] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
-    # beta.bbs.harv[c] ~ dnorm(mu.bbs, sd  = sig.bbs)
+    beta.wintsev.harv[c] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
+    beta.bbs.harv[c] ~ dnorm(mu.bbs, sd  = sig.bbs)
     beta.hunter.harv[c] ~ dnorm(mu.hunter.harv, sd = sig.hunter.harv)
     sig.N[c] ~ T(dt(0, pow(2.5,-2), 1),0,)
-    alpha.harv[c] ~ dnorm(0, sd = 5)
+    alpha.harv[c] ~ dnorm(0, sd = 7)
     
     # Process Model
     for(t in 1:n.year){
       #Unlinked estimate of Hunter Numbers
       mu.harv[c,t] <- alpha.harv[c] + # intercepts
         beta.hunter.harv[c] * latent.trend[c,t] + # Latent Hunter Trend
-        beta.wintsev.harv * awssi[t,reg.county[c]]  + # Previous winter severity (Affecting Survival)
-        beta.bbs.harv * pred.bbs.prime[t]
+        beta.wintsev.harv[c] * awssi[t,reg.county[c]]  + # Previous winter severity (Affecting Survival)
+        beta.bbs.harv[c] * pred.bbs.prime[t]
       
       N[c,t] <- exp(harv.eps[c,t]) #Log Link
       n.harv[c,t] ~ dnorm(N[c,t], sd = sig.N[c]) #Number of hunters follows Poisson

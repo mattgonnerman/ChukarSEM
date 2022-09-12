@@ -49,7 +49,7 @@ est.check.df <- merge(est.check.df, est.BPH, by = c("County", "Year"), all = T)
 chukharv_data <- read.csv('./Data/ChukarHarvestData.csv') %>%
   mutate(N = round(N),
          H = round(H)) %>%
-  filter(Year > cutoff.y) %>%
+  filter(Year >= cutoff.y) %>%
   arrange(County) %>%
   filter(County %in% unique(est.check.df$County)) %>%
   dplyr::rename(N.obs = N, H.obs = H) %>%
