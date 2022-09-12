@@ -5,7 +5,10 @@ lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr", "scales"), require, c
 load(file = "./Output/NDOW_Upland_SEM_output.rdata")
 mcmcList1 <- files[[1]]
 mcmcList2 <- files[[2]]
-species <- check.species <- sort(c("SAGR", "CHUK", "BLGR", "CAQU", "HUPA", "PHEA"))
+species.constant <- species <- check.species <- sort(c("SAGR", "CHUK", "BLGR", "CAQU", "HUPA", "PHEA"))
+colors.constant <- c("#E8A323","#23E8A3","#A323E8","#074A36","#36074A", "#4A3607")
+colors.graph <- setNames(colors.constant,  species.constant)
+
 
 est.BPH <- MCMCsummary(mcmcList1, 'BPH') %>%
   mutate(RowID = rownames(MCMCsummary(mcmcList1, 'BPH'))) %>%
@@ -87,13 +90,6 @@ est.df <- merge(est.N, est.H, by = c("Region", "Species", "Year"), all = T)
 est.df <- merge(est.df, est.BPH, by = c("Region", "Species", "Year"), all = T)
 est.df <- merge(est.df, obs.HarvestData, by = c("Region", "Species", "Year"), all = T) %>%
   arrange(Species, Year, Region)
-
-
-species.constant <- c("BLGR","CAQU","CHUK","HUPA","PHEA","SAGR")
-colors.constant <- c("#E8A323","#23E8A3","#A323E8","#074A36","#36074A", "#4A3607")
-colors.graph <- setNames(colors.constant,  species.constant)
-
-
 
 graph.H <- ggplot(data = est.df, aes(x = Year, fill = Species, color = Species)) +
   geom_ribbon(aes(ymin = Est.H.LCL*1000, ymax = Est.H.UCL*1000), alpha = .4, linetype = "dashed") +
@@ -328,8 +324,25 @@ wint.plot <- ggplot(B.wint, aes(x = Species)) +
   scale_color_manual(values = colors.graph) +
   theme(legend.position = "none")
 
+B.hunt <- reg.coef %>%
+  dplyr::select(Species, Region, B.hunter, B.hunter.sd) %>% distinct() %>%
+  mutate(Region = as.factor(ifelse(Region == 1, "Western", "Eastern")))
+
+hunter.plot <- ggplot(B.hunt, aes(x = Region)) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed", size = 1.5) +
+  geom_errorbar(aes(ymin = B.hunter - 1.96*B.hunter.sd,
+                    ymax = B.hunter + 1.96*B.hunter.sd,
+                    color = Species), size = 1, width = .25, position = position_dodge(width = 0.5)) +
+  geom_point(aes(y = B.hunter,color = Species),
+             position = position_dodge(width = 0.5), size = 2) +
+  theme_classic(base_size = 12) +
+  labs(title = "Change in Total Harvest by Hunter Participation",
+       y = "Beta Coefficient", x = element_blank()) +
+  scale_color_manual(values = colors.graph) +
+  theme(legend.position = "right")
+
 require(patchwork)
 
-full.coef <- econ.plot + bbs.plot + wint.plot + plot_layout(nrow = 3)
+full.coef <- econ.plot + hunter.plot + bbs.plot + wint.plot + plot_layout(nrow = 2)
 ggsave(full.coef, filename = './Graphs/FULL - Coefficient Plots.jpg',
-       dpi = 300, width = 5, height = 10)
+       dpi = 300, width = 10, height = 10)
