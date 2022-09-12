@@ -39,7 +39,7 @@ constants <- list(
   
   ### Chukar Site Abundance
   n.site = nrow(chuk_hunt),
-  n.year.chuk = ncol(chuk_hunt),
+  n.year.chuk = ncol(survey.abun),
   county.site = survey.county,
   
   ### Predictors
@@ -86,14 +86,14 @@ initsFunction <- function() list(
   beta.spl.hunt = matrix(0, nrow = n_county, ncol = dim(B)[2]),
   sig.spl.hunt = rep(1, n_county),
   
-  mu.wintsev.harv = 0,
+  # mu.wintsev.harv = 0,
   sig.wintsev.harv = 1,
-  beta.wintsev.harv = rep(0, n_county),
-  # beta.wintsev.harv = 0,
-  mu.bbs = 0,
+  # beta.wintsev.harv = rep(0, n_county),
+  beta.wintsev.harv = 0,
+  # mu.bbs = 0,
   sig.bbs = 1,
-  beta.bbs.harv = rep(0, n_county),
-  # beta.bbs.harv = 0,
+  # beta.bbs.harv = rep(0, n_county),
+  beta.bbs.harv = 0,
   mu.hunter.harv = 0,
   sig.hunter.harv = 1,
   beta.hunter.harv = rep(0, n_county),
@@ -128,7 +128,7 @@ initsFunction <- function() list(
   theta.chuk = 1,
   mod.chuk = rep(1,n_county),
   # mod.chuk = rep(1,n_county),
-  mu.site.chuk = rep(0, nrow(chuk_harv)),
+  # mu.site.chuk = rep(0, nrow(chuk_harv)),
   n.chuk = as.matrix(chukar_na),
   log.r.chuk = r.chuk.init
 )
@@ -187,7 +187,7 @@ coefficients <- c(
   
   ### Chukar Site Abundance
   'theta.chuk',
-  'mu.site.chuk',
+  # 'mu.site.chuk',
   'mod.chuk'
 )
 
