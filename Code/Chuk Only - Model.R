@@ -208,8 +208,8 @@ code <- nimbleCode( {
     } #c
   } #t
   
-  sig.bph ~ T(dt(0, pow(2.5,-2), 1),0,)
-  for(t in 1:3){
-    bph.survey[t] ~ dnorm(mean = mean(BPH[1:n.counties,n.cut+t]), sd = sig.bph)
-  }
+  # sig.bph ~ T(dt(0, pow(2.5,-2), 1),0,)
+  # for(t in 1:3){
+  #   bph.survey[t] ~ dnorm(mean = mean(BPH[1:n.counties,n.cut+t]), sd = sig.bph)
+  # }
 })

@@ -23,7 +23,7 @@ data <- list(
   n.harv = chuk_harv/1000,
   I.harv = I2,
   
-  bph.survey = surveybph,
+  # bph.survey = surveybph,
   
   ### Chukar Site Abundance
   n.chuk = data.matrix(survey.abun)
@@ -38,7 +38,7 @@ constants <- list(
   n.year = ncol(chuk_hunt),
   K = dim(B)[2],
   reg.county = county_reg,
-  n.cut = length(1990:cutoff.y),
+  # n.cut = length(1990:cutoff.y),
   
   ### Chukar Site Abundance
   n.site = nrow(chuk_hunt),
@@ -120,7 +120,7 @@ initsFunction <- function() list(
   log.r.harv = matrix(0, nrow = n_county, ncol = (cut)-1),
   N = Ni,
   
-  sig.bph = .1,
+  # sig.bph = .1,
   
   ### Chukar Site Abundance
   theta.chuk = 1,
