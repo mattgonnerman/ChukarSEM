@@ -104,16 +104,6 @@ est.BPH <- test.bph %>%
   dplyr::rename(Est.BPH = Estimate, Est.BPH.LCL = LCL, Est.BPH.UCL = UCL) %>%
   filter(!is.na(Species))  
 
-est.check.df <- merge(est.N, est.H, by = c("Region", "Species", "Year"), all = T)
-est.check.df <- merge(est.check.df, est.BPH, by = c("Region", "Species", "Year"), all = T)
-est.check.df <- merge(est.check.df, obs.HarvestData, by = c("Region", "Species", "Year"), all = T) %>%
-  arrange(Species, Year, Region)
-is.num <- sapply(est.check.df, is.numeric)
-est.check.df[is.num] <- lapply(est.check.df[is.num], round, 2)
-pred.only.df <- est.check.df %>% filter(Year >= cutoff.y) %>%
-  mutate(Year = as.factor(Year))
-
-write.csv(as.data.frame(pred.only.df), "./Output/EstCheck - Estimates_N_H_BPH.csv", row.names = F)
 
 est.check.N <- ggplot(data = pred.only.df, aes(x = Year, group = Region)) +
   geom_errorbar(aes(ymin = Est.N.LCL*1000, ymax = Est.N.UCL*1000, color = Region),

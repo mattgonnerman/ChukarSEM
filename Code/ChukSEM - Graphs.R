@@ -160,6 +160,9 @@ for(i in 1:nrow(rho.harv.est)){
   rho.harv.list[[rho.harv.est$Region[i]]][rho.harv.est$Species1[i], rho.harv.est$Species2[i]] <- rho.harv.est$Estimate[i]
 }
 
+rho.harv.est %>% filter( Species1 != Species2) %>% filter(Species1 > Species2) %>%
+  summarize(Mean = mean(Estimate))
+
 rho.harv.e <- rho.harv.list[[1]]
 colnames(rho.harv.e) <- species
 rownames(rho.harv.e) <- species
@@ -189,6 +192,9 @@ rho.hunt.est <- MCMCsummary(mcmcList1, 'rho.hunt') %>%
          Region = sub('.*\\,', '', RowID)) %>%
   mutate(Region = as.factor(str_sub(Region,1,nchar(Region)-1))) %>%
   dplyr::select(Species1, Species2, Region, Estimate = mean, LCL = '2.5%', UCL = '97.5%')
+
+rho.hunt.est %>% filter( Species1 != Species2) %>% filter(Species1 > Species2) %>%
+  summarize(Mean = mean(Estimate))
 
 blank.cor.df <- as.data.frame(matrix(NA, nrow = 6, ncol = 6))
 rho.hunt.list <- list(blank.cor.df, blank.cor.df)
