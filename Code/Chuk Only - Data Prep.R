@@ -63,6 +63,7 @@ chuk_site_ID <- read.csv("./Data/Chukar_Surveys_locations.csv") %>%
 
 chuksiteabun_data <- read.csv('./Data/Chukar_Surveys_data.csv') %>%
   gather("Population", "Count", 2:14) %>%
+  filter(Year %in% 1990:cutoff.y.chuk) %>%
   rbind(., expand.grid(Population = unique(.$Population),
                        Year = list.all.y[which(list.all.y %notin% unique(.$Year))],
                        Count = NA)) %>%

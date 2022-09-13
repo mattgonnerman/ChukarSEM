@@ -132,3 +132,20 @@ rho.hunt.plot <- ggcorrplot::ggcorrplot(rho.hunt.est, lab = T) +
 ggsave(rho.hunt.plot, filename = './Output/CheckPlot - Rho Hunt ChukOnly.jpg',
        dpi = 300, width = 10, height = 10)
 
+
+chukharv_obs <- read.csv('./Data/ChukarHarvestData.csv') %>%
+  mutate(Obs.N = round(N),
+         Obs.H = round(H)) %>%
+  filter(Year %in% est.BPH$Year, County %in% est.BPH$County) %>%
+  arrange(County) %>%
+  mutate(Obs.BPHS = N/H)
+
+
+est.check.df <- merge(est.N, est.H, by = c("County", "Year"), all = T)
+est.check.df <- merge(est.check.df, est.BPH, by = c("County", "Year"), all = T)
+est.check.df <- merge(est.check.df, chukharv_obs, by = c("County", "Year"), all = T) %>%
+  arrange(County, Year) %>%
+  filter(Year %in% cutoff.y:final.y)
+
+
+write.csv(est.check.df, "./Output/EstCheck - ChukOnly - Estimates_N_H_BPH.csv", row.names = F)
