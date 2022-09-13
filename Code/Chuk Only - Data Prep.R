@@ -7,8 +7,8 @@ chukharv_data <- read.csv('./Data/ChukarHarvestData.csv') %>%
   arrange(County)
 
 county_order1 <- unique(chukharv_data$County)
-# Regions, 1 == West, 2 == East, 3 == South
-county_reg1 <- c(1, 1, 3, 1, 2, 3, 2, 1, 2, 3, 1, 1, 3, 1, 1, 1, 2)
+# Regions, 2 == West, 1 == East, 3 == South
+county_reg1 <- c(2, 2, 3, 2, 1, 3, 1, 2, 1, 3, 2, 2, 3, 2, 2, 2, 1)
 
 chukharv_data <- rbind(chukharv_data,
                        expand.grid(County = county_order1, N = NA, H = NA,
@@ -19,8 +19,8 @@ chukharv_data <- rbind(chukharv_data,
   filter(Region != 3) %>% dplyr::select(-Region)
 
 county_order <- unique(chukharv_data$County)
-# Regions, 1 == West, 2 == East, 3 == South
-county_reg <- c(1, 1, 1, 2, 2, 1, 2, 1, 1, 1, 1, 1, 2)
+# Regions, 2 == West, 1 == East, 3 == South
+county_reg <- c(2, 2, 2, 1, 1, 2, 1, 2, 2, 2, 2, 2, 1)
 n_county <- length(county_order)
 
 chuk_hunt <- chukharv_data %>%
@@ -44,6 +44,15 @@ chuk_harv <- chukharv_data %>%
   mutate_all(as.numeric)
 
 n.year.harv <- ncol(chuk_hunt)
+
+
+#Birds per hunter from survey to inform missing years
+surveybph.df <- read.csv("./Data/BirdsperHunterMissingYears.csv") %>%
+  filter(!is.na(Year), Species == "CHUK") %>%
+  dplyr::select(Species, Year, BperH) %>%
+  pivot_wider(names_from = "Year", values_from = "BperH") %>%
+  dplyr::select(-Species) %>% as.matrix()
+surveybph <- as.numeric(surveybph.df[1,])
 
 ##################################################################################
 ### Chukar Survey Data ###

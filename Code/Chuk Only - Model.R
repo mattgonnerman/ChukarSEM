@@ -118,15 +118,11 @@ code <- nimbleCode( {
   
   ################################################################################
   ### Total Harvest ###
-  # mu.wintsev.harv ~ dnorm(0, 0.01)
-  # mu.bbs ~ dnorm(0, 0.01)
   mu.hunter.harv ~ dnorm(0, 0.01)
   sig.wintsev.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   sig.bbs ~ T(dt(0, pow(2.5,-2), 1),0,)
   sig.hunter.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
-  beta.wintsev.harv ~ dnorm(0, sd  = sig.wintsev.harv)
   beta.bbs.harv ~ dnorm(0, sd  = sig.bbs)
-  # beta.hunter.harv ~ dnorm(0, sd = sig.hunter.harv)
   
   for(c in 1:n.counties){
     # beta.wintsev.harv[c] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
@@ -186,16 +182,14 @@ code <- nimbleCode( {
   ################################################################################
   ### Chukar Site Abundance ###
   theta.chuk ~ T(dt(0, pow(2.5,-2), 1),0,) #NB "size" parameter
-  
-  # for(c in 1:n.counties){
-    # mod.chuk[c] ~ dlogis(0,1)
-  # }
-  
+  for(c in 1:n.counties){
+  mod.chuk[c] ~ dlogis(0,1)
+  }
+
   for(p in 1:n.site){
     C.chuk[p,1] ~ dpois(n.chuk[p,1]) #Equivalent of Poisson lambda
-    mod.chuk[p] ~ dlogis(0,1)
     for(t in 1:(n.year.chuk-1)){
-      log.r.chuk[p,t] <-  mod.chuk[p] * log.r.harv[county.site[p], t]
+      log.r.chuk[p,t] <-  mod.chuk[county.site[p]] * log.r.harv[county.site[p], t]
       C.chuk[p,t+1] <- exp(log.r.chuk[p,t]) * C.chuk[p,t] #Equivalent of Poisson lambda
     }
      
@@ -213,4 +207,9 @@ code <- nimbleCode( {
       BPH2[c,t]<- exp(mu.harv[c,t]-mu.hunt[c,t])
     } #c
   } #t
+  
+  sig.bph ~ T(dt(0, pow(2.5,-2), 1),0,)
+  for(t in 1:3){
+    bph.survey[t] ~ dnorm(mean = mean(BPH[1:n.counties,n.cut+t]), sd = sig.bph)
+  }
 })

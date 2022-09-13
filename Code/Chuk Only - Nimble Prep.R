@@ -23,6 +23,8 @@ data <- list(
   n.harv = chuk_harv/1000,
   I.harv = I2,
   
+  bph.survey = surveybph,
+  
   ### Chukar Site Abundance
   n.chuk = data.matrix(survey.abun)
 )
@@ -36,6 +38,7 @@ constants <- list(
   n.year = ncol(chuk_hunt),
   K = dim(B)[2],
   reg.county = county_reg,
+  n.cut = length(1990:cutoff.y),
   
   ### Chukar Site Abundance
   n.site = nrow(chuk_hunt),
@@ -81,23 +84,17 @@ initsFunction <- function() list(
   ### Covariates
   mu.econ = 0,
   sig.econ = 1,
-  # beta.econ.hunt = 0,
   beta.econ.hunt = rep(0, n_county),
   beta.spl.hunt = matrix(0, nrow = n_county, ncol = dim(B)[2]),
   sig.spl.hunt = rep(1, n_county),
   
-  # mu.wintsev.harv = 0,
   sig.wintsev.harv = 1,
-  # beta.wintsev.harv = rep(0, n_county),
   beta.wintsev.harv = 0,
-  # mu.bbs = 0,
   sig.bbs = 1,
-  # beta.bbs.harv = rep(0, n_county),
   beta.bbs.harv = 0,
   mu.hunter.harv = 0,
   sig.hunter.harv = 1,
   beta.hunter.harv = rep(0, n_county),
-  # beta.hunter.harv = 0,
 
   ### Hunter Effort
   sig.H =  rep(1, n_county),
@@ -123,12 +120,11 @@ initsFunction <- function() list(
   log.r.harv = matrix(0, nrow = n_county, ncol = (cut)-1),
   N = Ni,
   
+  sig.bph = .1,
+  
   ### Chukar Site Abundance
-  # theta.chuk = rep(1, nrow(chuk_harv)),
   theta.chuk = 1,
   mod.chuk = rep(1,n_county),
-  # mod.chuk = rep(1,n_county),
-  # mu.site.chuk = rep(0, nrow(chuk_harv)),
   n.chuk = as.matrix(chukar_na),
   log.r.chuk = r.chuk.init
 )
