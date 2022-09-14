@@ -3,7 +3,7 @@ require(dplyr)
 remove('n.bias', 'h.bias', 'bph.bias')
 for(i in 2011:2017){
   full.df <- read.csv(paste("./Output/Model Validation/Full - ",i, "/EstCheck - Estimates_N_H_BPH.csv", sep = "")) %>%
-    filter(Year %in% i:(i+2)) 
+    filter(Year %in% (i+1):(i+3)) 
   
   n.df <- full.df %>% select(Region, Species, Year, Est = Est.N, LCL = Est.N.LCL, UCL = Est.N.UCL, Obs = Obs.N) %>%
     filter(!is.na(Obs))%>%

@@ -186,7 +186,7 @@ reg.coef <- MCMCsummary(mcmcList2, 'beta.hunter.harv') %>%
   dplyr::select(County, ID, mean, sd) %>%
   mutate(County = as.factor(county_order[County])) %>%
   rbind(reg.coef, .) %>%
-  rename(Estimate = mean)
+  dplyr::rename(Estimate = mean)
 # reg.coef$County <- reorder(reg.coef$County)
 # 
 # levels(reg.coef$County)

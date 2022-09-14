@@ -1,7 +1,7 @@
-lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr"), require, character.only = T)
+lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr", "tidyr"), require, character.only = T)
 
 
-load(file = "./Output/NDOW_ChukOnly_SEM_output.rdata")
+load(file = "./Output/ChukOnly - Final/NDOW_ChukOnly_SEM_output.rdata")
 mcmcList1 <- files[[1]]
 county_order <- files[[5]]
 
@@ -114,6 +114,15 @@ rho.harv.est <- MCMCsummary(mcmcList1, 'rho.harv') %>%
   pivot_wider(names_from = "County2", values_from = "Estimate") %>%
   dplyr::select(-County1)
 
+MCMCsummary(mcmcList1, 'rho.harv') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.harv'))) %>%
+  mutate(County1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+         County2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\])"))) %>%
+  dplyr::select(County1, County2, Estimate = mean) %>% filter( County1 != County2) %>% filter(County1 > County2) %>%
+  summarize(Mean = mean(Estimate),
+            Min = min(Estimate),
+            Max = max(Estimate))
+
 rho.harv.plot <- ggcorrplot::ggcorrplot(rho.harv.est, lab = T) +
   labs(title = "Harvest Correlation")
 ggsave(rho.harv.plot, filename = './Output/CheckPlot - Rho Harv ChukOnly.jpg',
@@ -126,6 +135,15 @@ rho.hunt.est <- MCMCsummary(mcmcList1, 'rho.hunt') %>%
   dplyr::select(County1, County2, Estimate = mean) %>%
   pivot_wider(names_from = "County2", values_from = "Estimate") %>%
   dplyr::select(-County1)
+
+MCMCsummary(mcmcList1, 'rho.hunt') %>%
+  mutate(RowID = rownames(MCMCsummary(mcmcList1, 'rho.hunt'))) %>%
+  mutate(County1 = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\,)")),
+         County2 = as.numeric(str_extract(RowID, "(?<=\\, ).*?(?=\\])"))) %>%
+  dplyr::select(County1, County2, Estimate = mean) %>% filter( County1 != County2) %>% filter(County1 > County2) %>%
+  summarize(Mean = mean(Estimate),
+            Min = min(Estimate),
+            Max = max(Estimate))
 
 rho.hunt.plot <- ggcorrplot::ggcorrplot(rho.hunt.est, lab = T) +
   labs(title = "Hunter Effort Correlation")
