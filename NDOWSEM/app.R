@@ -88,6 +88,11 @@ ui <- navbarPage( tweaks,
                     title = "Instructions",
                     
                     sidebarPanel(
+                      
+                      uiOutput("Report"),
+                      
+                      br(),
+                      
                       textOutput("appfor"),
                       tags$head(tags$style("#appfor{color: black;
                                  font-size: 16px;
@@ -202,7 +207,7 @@ ui <- navbarPage( tweaks,
                         
                         checkboxGroupInput("countyhighlight", "Counties:",
                                            choices = appobject.CH$county_order,
-                                           selected = "Washoe", inline = T),
+                                           selected = "Carson City", inline = T),
                         
                         conditionalPanel(condition="input.chuktabs == 'Plot'|input.chuktabs == 'Table'",
                                          sliderInput("years.chuk.plot", "Years to Display", min =1990, max = (1989 + lastyear.ch),
@@ -258,6 +263,13 @@ ui <- navbarPage( tweaks,
 ##################################################################################
 ### Server Instructions
 server <-  function(input,output,session){
+  
+  output$Report<- renderUI({
+    tags$a(href="report.pdf", target="_blank", 
+           "To read a detailed description of the model and results, please follow this link to view our full report.",
+           style = "font-size: 16px; color: black;")
+  })
+  
   
   species.constant <- c("BLGR","CAQU","CHUK","HUPA","PHEA","SAGR")
   colors.constant <- c("#E8A323","#23E8A3","#A323E8","#074A36","#36074A", "#4A3607")

@@ -1,13 +1,13 @@
 lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr"), require, character.only = T)
 
 
-load(file = "./Output/NDOW_ChukOnly_SEM_output.rdata")
+load(file = "./Output/ChukOnly - Final/NDOW_ChukOnly_SEM_output.rdata")
 mcmcList1 <- files[[1]]
 mcmcList2 <- files[[2]]
 county_order <- files[[5]]
 color_county <- c(viridis::viridis(n =13), "#404040")
 county_list <- c(county_order, "Statewide")
-colors.graph <- setNames(color_county,  county_coef)
+colors.graph <- setNames(color_county,  county_list)
 
 # Extract important values and plot
 Est.BPH.c <- MCMCsummary(mcmcList1, 'BPH') %>%
@@ -187,9 +187,9 @@ reg.coef <- MCMCsummary(mcmcList2, 'beta.hunter.harv') %>%
   mutate(County = as.factor(county_order[County])) %>%
   rbind(reg.coef, .) %>%
   rename(Estimate = mean)
-reg.coef$County <- reorder(reg.coef$County)
-
-levels(reg.coef$County)
+# reg.coef$County <- reorder(reg.coef$County)
+# 
+# levels(reg.coef$County)
 
 chuk.coef.plot <- ggplot(reg.coef, aes(y = Estimate, x = as.factor(ID))) +
   geom_hline(aes(yintercept = 0), linetype = "dashed", size = 1.5) +

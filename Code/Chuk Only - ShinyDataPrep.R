@@ -2,7 +2,7 @@ lapply(c("dplyr", "ggplot2", "coda", "MCMCvis", "stringr", "tidyr", "mvtnorm", "
 
 
 #Load model outputs to get beta and sigma estimates
-load(file = "./Output/NDOW_ChukOnly_SEM_output.rdata")
+load(file = "./Output/ChukOnly - Final/NDOW_ChukOnly_SEM_output.rdata")
 mcmcList1 <- files[[1]]
 mcmcList2 <- files[[2]]
 code <- files[[3]]
@@ -69,14 +69,6 @@ appobject.CH$N.reg <- Harv.reg.coef <- MCMCsummary(mcmcList2, 'beta.hunter.harv'
   mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])"))) %>%
   dplyr::select(County, B.hunter = mean, B.hunter.sd = sd) %>%
   merge(Harv.reg.coef3, ., by = c("County"), all =T)
-
-# appobject.CH$N.reg <- Harv.reg.coef <- MCMCsummary(mcmcList2, 'beta.bobcat.harv') %>%
-#   mutate(RowID = rownames(.)) %>% `rownames<-`( NULL ) %>%
-#   mutate(County = as.numeric(str_extract(RowID, "(?<=\\[).*?(?=\\])"))) %>%
-#   dplyr::select(County, B.bobcat = mean, B.bobcat.sd = sd) %>%
-#   merge(Harv.reg.coef5, ., by = c("County", "Region"), all =T) %>%
-#   group_split(Region, .keep = F)
-
 
 ### SEM Predictor Values
 appobject.CH$pred.econ <- MCMCsummary(mcmcList2, 'pred.econ.prime')%>%

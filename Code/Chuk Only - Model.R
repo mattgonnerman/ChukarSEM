@@ -123,6 +123,7 @@ code <- nimbleCode( {
   sig.bbs ~ T(dt(0, pow(2.5,-2), 1),0,)
   sig.hunter.harv ~ T(dt(0, pow(2.5,-2), 1),0,)
   beta.bbs.harv ~ dnorm(0, sd  = sig.bbs)
+  beta.wintsev.harv ~ dnorm(0, sd  = sig.bbs)
   
   for(c in 1:n.counties){
     # beta.wintsev.harv[c] ~ dnorm(mu.wintsev.harv, sd  = sig.wintsev.harv)
